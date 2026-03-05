@@ -461,7 +461,6 @@ function Dashboard({ setTab }) {
             ["GC Duration",      "22 months"],
             ["Est. GC Completion","April 2027"],
             ["PM",               "Joseph Hamilton"],
-            ["Tracker",          "Brittany Klumak (BK)"],
             ["Architect",        "Architecturefirm"],
             ["Landscape Arch.",  "Reed Hilderbrand"],
             ["Civil Engineer",   "Ivan Zdrahal PE"],
@@ -935,7 +934,7 @@ function CashFlowView() {
       </div>
 
       <Card className="p-5">
-        <SectionTitle>2026 Monthly Projection (BK Forecast)</SectionTitle>
+        <SectionTitle>2026 Monthly Projection </SectionTitle>
         <div className="flex items-end gap-1.5 h-36">
           {bars.map(d => {
             const h = Math.round((d.v / maxV) * 100);
@@ -973,7 +972,7 @@ function CashFlowView() {
       </Card>
 
       {modal?.type === "month" && (
-        <Modal title={`${modal.m} 2026 — Projected Spend`} subtitle="BK Forecast" onClose={() => setModal(null)}>
+        <Modal title={`${modal.m} 2026 — Projected Spend`} subtitle="" onClose={() => setModal(null)}>
           <KVGrid rows={[["Month", `${modal.m} 2026`], ["Projected Amount", $f(modal.v)], ["% of Annual Total", pf(modal.v / bars.reduce((s, b) => s + b.v, 0))]]} />
         </Modal>
       )}
