@@ -780,10 +780,10 @@ function InvoicesView() {
               <div className="flex items-center gap-3 shrink-0 ml-4">
                 <span className="text-sm font-bold text-zinc-900 dark:text-white tabular-nums">{$f(inv.approved)}</span>
                 {statusTag(inv.status)}
+                {inv.notes && <span className="inline-flex items-center gap-1 text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50 rounded-full px-2 py-0.5">⚑ Note</span>}
                 <span className="text-zinc-300 dark:text-zinc-700">›</span>
               </div>
             </div>
-            {inv.notes && <div className="px-4 pb-2.5"><p className="text-xs text-amber-600/80 dark:text-amber-400/60 italic">{inv.notes}</p></div>}
           </Card>
         ))}
       </div>
