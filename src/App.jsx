@@ -303,7 +303,7 @@ const SectionTitle = ({ children }) => (
 const Stat = ({ label, value, sub, accent, onClick }) => (
   <div onClick={onClick} className={cx(
     "rounded-xl p-4 border transition-all select-none",
-    "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800",
+    "bg-white dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600",
     onClick && "cursor-pointer hover:border-amber-300 dark:hover:border-amber-700 hover:shadow-sm active:scale-[0.98]"
   )}>
     <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-1 uppercase tracking-widest font-medium">{label}</div>
@@ -314,18 +314,18 @@ const Stat = ({ label, value, sub, accent, onClick }) => (
 );
 
 const Card = ({ children, className = "" }) => (
-  <div className={cx("bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>{children}</div>
+  <div className={cx("bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl shadow-sm", className)}>{children}</div>
 );
 
 // Table helpers
 const TH = ({ children, right, className = "" }) => (
-  <th className={cx("px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 bg-zinc-50 dark:bg-zinc-950/60 whitespace-nowrap", right ? "text-right" : "text-left", className)}>{children}</th>
+  <th className={cx("px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 bg-zinc-50 dark:bg-zinc-800/60 whitespace-nowrap", right ? "text-right" : "text-left", className)}>{children}</th>
 );
 const TD = ({ children, right, mono, muted, bold, colSpan, className = "" }) => (
   <td colSpan={colSpan} className={cx("px-3 py-2.5 text-xs", right && "text-right tabular-nums", mono && "font-mono", muted && "text-zinc-400 dark:text-zinc-500", bold && "font-semibold", className)}>{children}</td>
 );
 const TR = ({ children, onClick, subtle }) => (
-  <tr onClick={onClick} className={cx("border-b border-zinc-50 dark:border-zinc-800/50 transition-colors", onClick && "cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/10", subtle && "bg-zinc-50/50 dark:bg-zinc-950/40")}>{children}</tr>
+  <tr onClick={onClick} className={cx("border-b border-zinc-50 dark:border-zinc-600/50 transition-colors", onClick && "cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/10", subtle && "bg-zinc-50/50 dark:bg-zinc-800/40")}>{children}</tr>
 );
 
 // ─── MODAL ─────────────────────────────────────────────────────────────────────
@@ -334,10 +334,10 @@ function Modal({ title, subtitle, onClose, children, wide }) {
     <div className="fixed inset-0 z-50 bg-black/50 dark:bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
       <div
         onClick={e => e.stopPropagation()}
-        className={cx("bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl flex flex-col shadow-2xl w-full", wide ? "max-w-4xl" : "max-w-2xl")}
+        className={cx("bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-2xl flex flex-col shadow-2xl w-full", wide ? "max-w-4xl" : "max-w-2xl")}
         style={{ maxHeight: "90vh" }}
       >
-        <div className="flex items-start justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
+        <div className="flex items-start justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-600 shrink-0">
           <div>
             <p className="font-semibold text-zinc-900 dark:text-zinc-100">{title}</p>
             {subtitle && <p className="text-xs text-zinc-400 mt-0.5">{subtitle}</p>}
@@ -423,7 +423,7 @@ function Dashboard({ setTab }) {
                 <span className="text-zinc-800 dark:text-zinc-200 font-semibold tabular-nums w-24 text-right">{$f(v.paid)}</span>
               </button>
             ))}
-            <div className="flex justify-between items-center border-t border-zinc-100 dark:border-zinc-800 pt-2 mt-1">
+            <div className="flex justify-between items-center border-t border-zinc-100 dark:border-zinc-600 pt-2 mt-1">
               <span className="text-xs font-semibold text-zinc-500">Grand Total</span>
               <span className="text-sm font-bold text-zinc-900 dark:text-white tabular-nums">{$f(grandTotalPaid)}</span>
             </div>
@@ -537,9 +537,9 @@ function BudgetView() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 items-center">
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search…" className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-800 dark:text-zinc-300 placeholder-zinc-400 outline-none focus:border-amber-400 w-44 shadow-sm" />
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search…" className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-1.5 text-xs text-zinc-800 dark:text-zinc-300 placeholder-zinc-400 outline-none focus:border-amber-400 w-44 shadow-sm" />
         <div className="flex flex-wrap gap-1">
-          {cats.map(c => <button key={c} onClick={() => setCat(c)} className={cx("px-3 py-1.5 rounded-lg text-xs font-medium transition-all", cat === c ? "bg-amber-600 text-white shadow-sm" : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200")}>{c}</button>)}
+          {cats.map(c => <button key={c} onClick={() => setCat(c)} className={cx("px-3 py-1.5 rounded-lg text-xs font-medium transition-all", cat === c ? "bg-amber-600 text-white shadow-sm" : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200")}>{c}</button>)}
         </div>
       </div>
       <Card className="overflow-hidden">
@@ -631,7 +631,7 @@ function AwardsView() {
           ))}
         </div>
       </Card>
-      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search vendor, ID, or code…" className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-800 dark:text-zinc-300 placeholder-zinc-400 outline-none focus:border-amber-400 w-60 shadow-sm" />
+      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search vendor, ID, or code…" className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-1.5 text-xs text-zinc-800 dark:text-zinc-300 placeholder-zinc-400 outline-none focus:border-amber-400 w-60 shadow-sm" />
       <Card className="overflow-hidden">
         <table className="w-full">
           <thead><tr><TH>ID</TH><TH>Date</TH><TH>Vendor</TH><TH>Division</TH><TH right>Award</TH><TH right>COs</TH><TH right>Current</TH><TH right>Budget</TH><TH right>Variance</TH></tr></thead>
@@ -843,7 +843,7 @@ function LineItemView() {
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-zinc-400 font-medium">Filter by invoice:</span>
         {["All", ...INV_NUMS].map(n => (
-          <button key={n} onClick={() => setSel(n)} className={cx("px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all", sel === n ? "bg-amber-600 text-white shadow-sm" : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200")}>{n}</button>
+          <button key={n} onClick={() => setSel(n)} className={cx("px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all", sel === n ? "bg-amber-600 text-white shadow-sm" : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200")}>{n}</button>
         ))}
       </div>
       <Card className="overflow-hidden">
@@ -953,7 +953,7 @@ function CashFlowView() {
       </Card>
 
       <Card className="overflow-hidden">
-        <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800">
+        <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-600">
           <span className="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Top 2025 Carryover Items</span>
         </div>
         <table className="w-full">
@@ -1078,7 +1078,7 @@ function PriorPhasesView() {
               ))}
             </>
           )}
-          {modal.notes && <p className="text-xs text-zinc-400 italic border-t border-zinc-100 dark:border-zinc-800 pt-3">{modal.notes}</p>}
+          {modal.notes && <p className="text-xs text-zinc-400 italic border-t border-zinc-100 dark:border-zinc-600 pt-3">{modal.notes}</p>}
         </Modal>
       )}
       {modal === "summary" && (
@@ -1104,10 +1104,12 @@ function PriorPhasesView() {
 }
 
 // ─── VENDORS HUB ───────────────────────────────────────────────────────────────
-function VendorsView() {
+// vendorInvoices is lifted to App level so Documents tab can share it
+function VendorsView({ vendorInvoices, setVendorInvoices }) {
   const [vendorKey, setVendorKey] = useState("ivan");
   const [subTab, setSubTab] = useState("overview");
   const [modal, setModal] = useState(null);
+  const [phaseView, setPhaseView] = useState("table"); // "table" | "cards" | "timeline"
   const vendor = VENDORS[vendorKey];
 
   const totalInvoiced = (v) => v.phases.reduce((s, p) => s + (p.invoiced || 0), 0);
@@ -1123,28 +1125,77 @@ function VendorsView() {
   const bud = totalBudgeted(vendor);
   const rem = bud > 0 ? bud - inv : null;
 
+  // Dynamic invoices = static seed + user-added
+  const dynInvoices = [...vendor.invoices, ...(vendorInvoices[vendorKey] || [])];
+
+  // Add invoice form state
+  const [addForm, setAddForm] = useState({ invNum: "", date: "", desc: "", amount: "", status: "Pending" });
+  const [editingInv, setEditingInv] = useState(null); // index into dynInvoices
+  const [editForm, setEditForm] = useState({});
+  const [addingInv, setAddingInv] = useState(false);
+  const [invFile, setInvFile] = useState(null);
+  const invFileRef = useRef();
+
+  const saveNewInv = () => {
+    if (!addForm.invNum || !addForm.amount) return;
+    const newInv = { ...addForm, amount: parseFloat(addForm.amount.replace(/[^0-9.]/g, "")) || 0, _user: true };
+    setVendorInvoices(prev => ({ ...prev, [vendorKey]: [...(prev[vendorKey] || []), newInv] }));
+    setAddForm({ invNum: "", date: "", desc: "", amount: "", status: "Pending" });
+    setAddingInv(false);
+  };
+
+  const saveEdit = (idx) => {
+    const isStatic = idx < vendor.invoices.length;
+    if (isStatic) {
+      // Can't edit static — store override
+      setVendorInvoices(prev => {
+        const existing = [...(prev[vendorKey] || [])];
+        // store edit override keyed by invNum
+        return { ...prev, [vendorKey + "_edits"]: { ...(prev[vendorKey + "_edits"] || {}), [editForm.invNum]: editForm } };
+      });
+    } else {
+      const userIdx = idx - vendor.invoices.length;
+      setVendorInvoices(prev => {
+        const arr = [...(prev[vendorKey] || [])];
+        arr[userIdx] = { ...arr[userIdx], ...editForm };
+        return { ...prev, [vendorKey]: arr };
+      });
+    }
+    setEditingInv(null);
+  };
+
+  const deleteInv = (idx) => {
+    if (idx < vendor.invoices.length) return; // can't delete static
+    const userIdx = idx - vendor.invoices.length;
+    setVendorInvoices(prev => {
+      const arr = [...(prev[vendorKey] || [])];
+      arr.splice(userIdx, 1);
+      return { ...prev, [vendorKey]: arr };
+    });
+  };
+
+  const inp = "w-full bg-white dark:bg-zinc-600 border border-zinc-200 dark:border-zinc-500 rounded-lg px-3 py-2 text-xs text-zinc-800 dark:text-zinc-200 outline-none focus:border-amber-400";
+
   return (
     <div className="flex gap-6 min-h-[600px]">
       {/* Sidebar */}
       <aside className="w-48 shrink-0">
-        <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3 px-1">Design & Consulting</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-400 mb-3 px-1">Vendors</p>
         <div className="space-y-1">
           {vendorCards.map(v => (
-            <button key={v.key} onClick={() => { setVendorKey(v.key); setSubTab("overview"); setModal(null); }}
-              className={cx("w-full text-left px-3 py-3 rounded-xl transition-all border", vendorKey === v.key ? "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 shadow-sm" : "border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800/50")}>
+            <button key={v.key} onClick={() => { setVendorKey(v.key); setSubTab("overview"); setModal(null); setAddingInv(false); setEditingInv(null); }}
+              className={cx("w-full text-left px-3 py-3 rounded-xl transition-all border", vendorKey === v.key ? "bg-white dark:bg-zinc-600 border-zinc-200 dark:border-zinc-500 shadow-sm" : "border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-600/50")}>
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-2 h-2 rounded-full" style={{ background: VENDORS[v.key].color }} />
                 <span className={cx("text-xs font-semibold", vendorKey === v.key ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400")}>{v.label}</span>
               </div>
-              <p className="text-xs text-zinc-400 dark:text-zinc-600 pl-4 leading-tight">{v.sub}</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 pl-4 leading-tight">{v.sub}</p>
               <p className="text-xs font-mono font-bold tabular-nums text-zinc-500 dark:text-zinc-400 mt-1 pl-4">{$f(v.total)}</p>
             </button>
           ))}
         </div>
-
-        <div className="mt-6 border-t border-zinc-200 dark:border-zinc-800 pt-4">
-          <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-2 px-1">All Vendors</p>
-          <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg px-3 py-2.5">
+        <div className="mt-6 border-t border-zinc-200 dark:border-zinc-600 pt-4">
+          <div className="bg-zinc-50 dark:bg-zinc-600/50 rounded-lg px-3 py-2.5">
             <div className="text-xs text-zinc-400 mb-0.5">Combined Invoiced</div>
             <div className="text-sm font-bold text-zinc-900 dark:text-white">{$f(vendorCards.reduce((s, v) => s + v.total, 0))}</div>
           </div>
@@ -1153,7 +1204,6 @@ function VendorsView() {
 
       {/* Main panel */}
       <div className="flex-1 min-w-0">
-        {/* Vendor header */}
         <div className="flex items-center justify-between mb-1">
           <div>
             <h2 className="text-base font-bold text-zinc-900 dark:text-white">{vendor.fullName}</h2>
@@ -1162,12 +1212,12 @@ function VendorsView() {
           <Tag text="Active" color="amber" />
         </div>
 
-        {/* Sub-tabs */}
-        <div className="flex border-b border-zinc-200 dark:border-zinc-800 mb-5">
+        <div className="flex border-b border-zinc-200 dark:border-zinc-600 mb-5">
           {["overview", "phases", "invoices"].map(t => (
-            <button key={t} onClick={() => { setSubTab(t); setModal(null); }}
+            <button key={t} onClick={() => { setSubTab(t); setModal(null); setAddingInv(false); setEditingInv(null); }}
               className={cx("px-4 py-2.5 text-xs font-semibold capitalize transition-all border-b-2 -mb-px", subTab === t ? "border-amber-500 text-amber-600 dark:text-amber-400" : "border-transparent text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300")}>
               {t}
+              {t === "invoices" && <span className="ml-1 text-zinc-400">({dynInvoices.length})</span>}
             </button>
           ))}
         </div>
@@ -1176,33 +1226,96 @@ function VendorsView() {
         {subTab === "overview" && (
           <div className="space-y-5">
             <div className="grid grid-cols-3 gap-3">
-              <Stat label="Total Invoiced" value={$f(inv)} sub="All phases combined" accent onClick={() => setSubTab("invoices")} />
+              <Stat label="Total Invoiced" value={$f(inv)} sub="All phases" accent onClick={() => setSubTab("invoices")} />
               {rem != null
                 ? <Stat label="Remaining Budget" value={$f(rem)} sub="Against fixed fees" onClick={() => setSubTab("phases")} />
-                : <Stat label="Ongoing" value="T&M" sub="Billed monthly as incurred" />}
-              <Stat label="Invoices on File" value={String(vendor.invoices.length)} sub="Tracked invoices" onClick={() => setSubTab("invoices")} />
+                : <Stat label="Billing Type" value="T&M" sub="Billed monthly as incurred" />}
+              <Stat label="Invoices on File" value={String(dynInvoices.length)} sub="Tracked invoices" onClick={() => setSubTab("invoices")} />
             </div>
+
+            {/* Phase view toggle */}
             <Card className="p-5">
-              <SectionTitle>Phase Status Overview</SectionTitle>
-              <div className="space-y-1.5">
-                {vendor.phases.map((p, i) => {
-                  const bPhase = p.budget || 0;
-                  const invPhase = p.invoiced || 0;
-                  return (
-                    <button key={i} onClick={() => { setSubTab("phases"); setModal(p); }} className="w-full text-left flex items-center gap-3 hover:bg-amber-50 dark:hover:bg-amber-900/10 rounded-lg px-2 py-2 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300 truncate">{p.phase}</span>
+              <div className="flex items-center justify-between mb-4">
+                <SectionTitle>Phase Status</SectionTitle>
+                <div className="flex gap-1 -mt-4">
+                  {[["table","⊞ Table"],["cards","▦ Cards"],["timeline","↕ List"]].map(([v,l]) => (
+                    <button key={v} onClick={() => setPhaseView(v)} className={cx("px-2.5 py-1 text-xs rounded-lg transition-all font-medium", phaseView === v ? "bg-amber-600 text-white" : "bg-zinc-100 dark:bg-zinc-600 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200")}>{l}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* TABLE view */}
+              {phaseView === "table" && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead><tr className="border-b border-zinc-100 dark:border-zinc-600">
+                      <TH>Phase</TH><TH right>Budget</TH><TH right>Invoiced</TH><TH right>Remaining</TH><TH>Status</TH>
+                    </tr></thead>
+                    <tbody>
+                      {vendor.phases.map((p, i) => {
+                        const b = p.budget || 0; const inv2 = p.invoiced || 0;
+                        const r = b > 0 ? b - inv2 : null;
+                        return (
+                          <TR key={i} onClick={() => { setSubTab("phases"); setModal(p); }}>
+                            <TD bold className="text-zinc-800 dark:text-zinc-200">{p.phase}</TD>
+                            <TD right muted>{b > 0 ? $f(b) : "T&M"}</TD>
+                            <TD right bold className="text-zinc-900 dark:text-white">{$f(inv2)}</TD>
+                            <TD right className={r == null ? "text-zinc-400" : r < 0 ? "text-red-500 font-bold" : r > 0 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-zinc-300"}>{r == null ? "T&M" : r > 0 ? $f(r) : r < 0 ? `-${$f(-r)}` : "—"}</TD>
+                            <TD>{statusTag(p.status)}</TD>
+                          </TR>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* CARDS view */}
+              {phaseView === "cards" && (
+                <div className="grid md:grid-cols-2 gap-2">
+                  {vendor.phases.map((p, i) => {
+                    const b = p.budget || 0; const inv2 = p.invoiced || 0;
+                    return (
+                      <button key={i} onClick={() => { setSubTab("phases"); setModal(p); }} className="text-left bg-zinc-50 dark:bg-zinc-600/50 hover:bg-amber-50 dark:hover:bg-amber-900/10 rounded-xl p-3 border border-zinc-100 dark:border-zinc-600 transition-colors">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 leading-tight">{p.phase}</span>
                           {statusTag(p.status)}
                         </div>
-                        {bPhase > 0 && <BarFill value={invPhase} max={bPhase} color={VENDORS[vendorKey].color} />}
-                      </div>
-                      <span className="text-xs font-bold tabular-nums text-zinc-800 dark:text-zinc-200 w-24 text-right shrink-0">{$f(invPhase)}</span>
-                      <span className="text-zinc-300 dark:text-zinc-600 shrink-0">›</span>
-                    </button>
-                  );
-                })}
-              </div>
+                        {b > 0 && <BarFill value={inv2} max={b} color={VENDORS[vendorKey].color} />}
+                        <div className="flex justify-between mt-2">
+                          <span className="text-xs text-zinc-400">{b > 0 ? $f(b) + " budget" : "T&M"}</span>
+                          <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{$f(inv2)}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* TIMELINE / LIST view */}
+              {phaseView === "timeline" && (
+                <div className="relative pl-5">
+                  <div className="absolute left-1.5 top-2 bottom-2 w-px bg-zinc-200 dark:bg-zinc-600" />
+                  {vendor.phases.map((p, i) => {
+                    const dotColor = p.status === "Complete" ? "#10b981" : p.status === "Not Started" ? "#a1a1aa" : VENDORS[vendorKey].color;
+                    return (
+                      <button key={i} onClick={() => { setSubTab("phases"); setModal(p); }} className="w-full text-left flex gap-3 mb-3 group relative">
+                        <div className="absolute -left-3.5 top-1 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-700 shrink-0" style={{ background: dotColor }} />
+                        <div className="flex-1 min-w-0 bg-zinc-50 dark:bg-zinc-600/50 hover:bg-amber-50 dark:hover:bg-amber-900/10 rounded-lg px-3 py-2 transition-colors">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">{p.phase}</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {statusTag(p.status)}
+                              <span className="text-xs font-bold tabular-nums text-zinc-700 dark:text-zinc-300">{$f(p.invoiced || 0)}</span>
+                            </div>
+                          </div>
+                          {p.desc && <p className="text-xs text-zinc-400 mt-0.5 truncate">{p.desc}</p>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
           </div>
         )}
@@ -1217,8 +1330,7 @@ function VendorsView() {
               </tr></thead>
               <tbody>
                 {vendor.phases.map((p, i) => {
-                  const bPhase = p.budget || 0;
-                  const invPhase = p.invoiced || 0;
+                  const bPhase = p.budget || 0; const invPhase = p.invoiced || 0;
                   const remPhase = bPhase > 0 ? bPhase - invPhase : null;
                   return (
                     <TR key={i} onClick={() => setModal(p)}>
@@ -1247,25 +1359,81 @@ function VendorsView() {
         {/* INVOICES */}
         {subTab === "invoices" && (
           <div className="space-y-3">
+            {/* Add Invoice button */}
+            <div className="flex justify-end">
+              <button onClick={() => { setAddingInv(v => !v); setEditingInv(null); }} className={cx("px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors", addingInv ? "bg-zinc-200 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300" : "bg-amber-600 text-white hover:bg-amber-500")}>
+                {addingInv ? "Cancel" : "+ Add Invoice"}
+              </button>
+            </div>
+
+            {/* Add Invoice form */}
+            {addingInv && (
+              <Card className="p-4">
+                <SectionTitle>New Invoice — {vendor.name}</SectionTitle>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+                  <div><label className="text-xs text-zinc-500 block mb-1">Invoice #</label><input value={addForm.invNum} onChange={e => setAddForm(f => ({...f, invNum: e.target.value}))} placeholder="e.g. INV-001" className={inp} /></div>
+                  <div><label className="text-xs text-zinc-500 block mb-1">Date</label><input value={addForm.date} onChange={e => setAddForm(f => ({...f, date: e.target.value}))} placeholder="MM/DD/YYYY" className={inp} /></div>
+                  <div><label className="text-xs text-zinc-500 block mb-1">Amount ($)</label><input value={addForm.amount} onChange={e => setAddForm(f => ({...f, amount: e.target.value}))} placeholder="0.00" className={inp} /></div>
+                  <div className="md:col-span-2"><label className="text-xs text-zinc-500 block mb-1">Description</label><input value={addForm.desc} onChange={e => setAddForm(f => ({...f, desc: e.target.value}))} placeholder="Invoice description…" className={inp} /></div>
+                  <div><label className="text-xs text-zinc-500 block mb-1">Status</label>
+                    <select value={addForm.status} onChange={e => setAddForm(f => ({...f, status: e.target.value}))} className={inp}>
+                      {["Pending","Paid","In Review"].map(s => <option key={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={saveNewInv} disabled={!addForm.invNum || !addForm.amount} className={cx("px-4 py-2 text-xs font-bold rounded-lg transition-colors", addForm.invNum && addForm.amount ? "bg-amber-600 text-white hover:bg-amber-500" : "bg-zinc-100 dark:bg-zinc-700 text-zinc-400 cursor-not-allowed")}>Save Invoice</button>
+                  <button onClick={() => setAddingInv(false)} className="px-4 py-2 text-xs font-semibold rounded-lg bg-zinc-100 dark:bg-zinc-700 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">Cancel</button>
+                </div>
+              </Card>
+            )}
+
             <Card className="overflow-hidden">
               <table className="w-full">
-                <thead><tr><TH>Invoice #</TH><TH>Date</TH><TH>Description</TH><TH right>Amount</TH><TH>Status</TH></tr></thead>
+                <thead><tr><TH>Invoice #</TH><TH>Date</TH><TH>Description</TH><TH right>Amount</TH><TH>Status</TH><TH>Actions</TH></tr></thead>
                 <tbody>
-                  {vendor.invoices.map((inv, i) => (
-                    <TR key={i} onClick={() => setModal({ _inv: true, ...inv })}>
-                      <TD mono className="text-amber-600 dark:text-amber-400 font-bold">{inv.invNum}</TD>
-                      <TD muted>{inv.date}</TD>
-                      <TD className="text-zinc-700 dark:text-zinc-300">{inv.desc}</TD>
-                      <TD right bold className="text-zinc-900 dark:text-white">{$f(inv.amount)}</TD>
-                      <TD>{statusTag(inv.status)}</TD>
-                    </TR>
-                  ))}
+                  {dynInvoices.map((inv2, i) => {
+                    const edits = vendorInvoices[vendorKey + "_edits"] || {};
+                    const displayInv = i < vendor.invoices.length && edits[inv2.invNum] ? {...inv2, ...edits[inv2.invNum]} : inv2;
+                    const isEditing = editingInv === i;
+                    return isEditing ? (
+                      <tr key={i} className="bg-amber-50 dark:bg-amber-900/10 border-b border-zinc-100 dark:border-zinc-600">
+                        <TD><input value={editForm.invNum || ""} onChange={e => setEditForm(f => ({...f, invNum: e.target.value}))} className={inp + " w-24"} /></TD>
+                        <TD><input value={editForm.date || ""} onChange={e => setEditForm(f => ({...f, date: e.target.value}))} className={inp + " w-24"} /></TD>
+                        <TD><input value={editForm.desc || ""} onChange={e => setEditForm(f => ({...f, desc: e.target.value}))} className={inp + " w-48"} /></TD>
+                        <TD right><input value={editForm.amount || ""} onChange={e => setEditForm(f => ({...f, amount: e.target.value}))} className={inp + " w-24 text-right"} /></TD>
+                        <TD><select value={editForm.status || "Pending"} onChange={e => setEditForm(f => ({...f, status: e.target.value}))} className={inp + " w-24"}>
+                          {["Pending","Paid","In Review"].map(s => <option key={s}>{s}</option>)}
+                        </select></TD>
+                        <TD>
+                          <div className="flex gap-1">
+                            <button onClick={() => saveEdit(i)} className="text-xs px-2 py-1 bg-amber-600 text-white rounded-lg hover:bg-amber-500 font-semibold">Save</button>
+                            <button onClick={() => setEditingInv(null)} className="text-xs px-2 py-1 bg-zinc-100 dark:bg-zinc-700 text-zinc-500 rounded-lg hover:text-zinc-700 dark:hover:text-zinc-200">Cancel</button>
+                          </div>
+                        </TD>
+                      </tr>
+                    ) : (
+                      <TR key={i} onClick={() => setModal({ _inv: true, ...displayInv })}>
+                        <TD mono className="text-amber-600 dark:text-amber-400 font-bold">{displayInv.invNum}</TD>
+                        <TD muted>{displayInv.date}</TD>
+                        <TD className="text-zinc-700 dark:text-zinc-300">{displayInv.desc}</TD>
+                        <TD right bold className="text-zinc-900 dark:text-white">{$f(typeof displayInv.amount === "number" ? displayInv.amount : parseFloat(displayInv.amount) || 0)}</TD>
+                        <TD>{statusTag(displayInv.status)}</TD>
+                        <TD onClick={e => e.stopPropagation()}>
+                          <div className="flex gap-1">
+                            <button onClick={() => { setEditingInv(i); setEditForm({...displayInv}); }} className="text-xs px-2 py-1 border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:border-zinc-400 transition-colors">Edit</button>
+                            {i >= vendor.invoices.length && <button onClick={() => deleteInv(i)} className="text-xs px-2 py-1 text-zinc-300 dark:text-zinc-600 hover:text-red-500 transition-colors">✕</button>}
+                          </div>
+                        </TD>
+                      </TR>
+                    );
+                  })}
                 </tbody>
                 <tfoot>
                   <TR subtle>
                     <TD bold colSpan={3} muted>Total</TD>
-                    <TD right bold className="text-zinc-900 dark:text-white">{$f(vendor.invoices.reduce((s, i) => s + i.amount, 0))}</TD>
-                    <TD />
+                    <TD right bold className="text-zinc-900 dark:text-white">{$f(dynInvoices.reduce((s, i) => s + (typeof i.amount === "number" ? i.amount : parseFloat(i.amount) || 0), 0))}</TD>
+                    <TD colSpan={2} />
                   </TR>
                 </tfoot>
               </table>
@@ -1286,10 +1454,9 @@ function VendorsView() {
           ]} />
         </Modal>
       )}
-      {/* Invoice modal */}
       {modal?._inv && (
         <Modal title={`Invoice ${modal.invNum}`} subtitle={`${vendor.name} · ${modal.date}`} onClose={() => setModal(null)}>
-          <KVGrid rows={[["Invoice Number", modal.invNum], ["Date", modal.date], ["Description", modal.desc], ["Amount", $f(modal.amount)], ["Status", modal.status]]} />
+          <KVGrid rows={[["Invoice Number", modal.invNum], ["Date", modal.date], ["Description", modal.desc], ["Amount", $f(typeof modal.amount === "number" ? modal.amount : parseFloat(modal.amount) || 0)], ["Status", modal.status]]} />
         </Modal>
       )}
     </div>
@@ -1297,37 +1464,69 @@ function VendorsView() {
 }
 
 // ─── DOCUMENTS ─────────────────────────────────────────────────────────────────
-function UploadsView({ uploads, setUploads }) {
-  const [form, setForm] = useState({ type: "Invoice", linkedId: "", note: "" });
+// vendorInvoices passed in so documents tab shows vendor invoices too
+function UploadsView({ uploads, setUploads, vendorInvoices }) {
+  const [form, setForm] = useState({ type: "Invoice", vendor: "", linkedId: "", note: "" });
   const [pending, setPending] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [viewing, setViewing] = useState(null);
   const fileRef = useRef();
 
-  const LINKS = {
-    "Invoice":      INVOICES.map(i => ({ id: i.id, label: `${i.id} · ${i.invNum}` })),
-    "Award Letter": AWARDS.map(a => ({ id: a.id, label: `${a.id} · ${a.vendor}` })),
-    "Change Order": CHANGE_ORDERS.map(c => ({ id: c.no, label: `${c.no} · ${c.div}` })),
-    "Other": [],
+  // Vendor invoice links — static + user-added
+  const vendorInvLinks = {
+    ivan: [...VENDORS.ivan.invoices, ...(vendorInvoices?.ivan || [])].map(i => ({ id: i.invNum, label: `${i.invNum} – ${i.desc}` })),
+    reed: [...VENDORS.reed.invoices, ...(vendorInvoices?.reed || [])].map(i => ({ id: i.invNum, label: `${i.invNum} – ${i.desc}` })),
+    arch: [...VENDORS.arch.invoices, ...(vendorInvoices?.arch || [])].map(i => ({ id: i.invNum, label: `${i.invNum} – ${i.desc}` })),
   };
+
+  const TACONIC_LINKS = INVOICES.map(i => ({ id: i.id, label: `${i.id} · ${i.invNum}` }));
+  const AWARD_LINKS   = AWARDS.map(a => ({ id: a.id, label: `${a.id} · ${a.vendor}` }));
+  const CO_LINKS      = CHANGE_ORDERS.map(c => ({ id: c.no, label: `${c.no} · ${c.div}` }));
+
+  // What links to show based on type + vendor selection
+  const getLinks = () => {
+    if (form.type === "Award Letter") return AWARD_LINKS;
+    if (form.type === "Change Order") return CO_LINKS;
+    if (form.type === "Invoice") {
+      if (form.vendor === "taconic") return TACONIC_LINKS;
+      if (form.vendor && vendorInvLinks[form.vendor]) return vendorInvLinks[form.vendor];
+    }
+    return [];
+  };
+
+  const links = getLinks();
 
   const processFile = (file) => {
     if (!file) return;
     if (file.type !== "application/pdf") return alert("Please select a PDF file.");
     setPending(file);
   };
+
   const save = () => {
     if (!pending) return;
     const reader = new FileReader();
     reader.onload = e => {
-      setUploads(prev => [...prev, { id: `DOC-${Date.now()}`, name: pending.name, type: form.type, linkedId: form.linkedId, note: form.note, size: `${(pending.size / 1024).toFixed(0)} KB`, date: new Date().toLocaleDateString("en-US"), dataUrl: e.target.result }]);
+      const vendorLabel = form.vendor === "taconic" ? "Taconic Builders" : form.vendor ? VENDORS[form.vendor]?.name : "";
+      setUploads(prev => [...prev, {
+        id: `DOC-${Date.now()}`,
+        name: pending.name,
+        type: form.type,
+        vendor: form.vendor,
+        vendorLabel,
+        linkedId: form.linkedId,
+        note: form.note,
+        size: `${(pending.size / 1024).toFixed(0)} KB`,
+        date: new Date().toLocaleDateString("en-US"),
+        dataUrl: e.target.result
+      }]);
       setPending(null);
-      setForm({ type: "Invoice", linkedId: "", note: "" });
+      setForm({ type: "Invoice", vendor: "", linkedId: "", note: "" });
     };
     reader.readAsDataURL(pending);
   };
+
   const byType = uploads.reduce((acc, u) => { (acc[u.type] = acc[u.type] || []).push(u); return acc; }, {});
-  const inp = "w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-800 dark:text-zinc-300 outline-none focus:border-amber-400";
+  const inp = "w-full bg-white dark:bg-zinc-600 border border-zinc-200 dark:border-zinc-500 rounded-lg px-3 py-2 text-xs text-zinc-800 dark:text-zinc-200 outline-none focus:border-amber-400";
 
   return (
     <div className="space-y-5">
@@ -1335,7 +1534,7 @@ function UploadsView({ uploads, setUploads }) {
         <SectionTitle>Upload Document</SectionTitle>
         <div className="grid md:grid-cols-2 gap-5">
           <div
-            className={cx("border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors", dragOver ? "border-amber-400 bg-amber-50 dark:bg-amber-900/10" : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600")}
+            className={cx("border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors", dragOver ? "border-amber-400 bg-amber-50 dark:bg-amber-900/10" : "border-zinc-200 dark:border-zinc-600 hover:border-zinc-300 dark:hover:border-zinc-500")}
             onClick={() => fileRef.current?.click()}
             onDragOver={e => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
@@ -1344,45 +1543,77 @@ function UploadsView({ uploads, setUploads }) {
             <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={e => processFile(e.target.files[0])} />
             {pending
               ? <div><p className="text-sm font-semibold text-amber-600 dark:text-amber-400">{pending.name}</p><p className="text-xs text-zinc-400 mt-1">{(pending.size / 1024).toFixed(0)} KB — ready to save</p></div>
-              : <div><p className="text-sm text-zinc-400">Drop PDF here or click to browse</p><p className="text-xs text-zinc-300 dark:text-zinc-600 mt-1">PDF only</p></div>}
+              : <div><p className="text-sm text-zinc-400">Drop PDF here or click to browse</p><p className="text-xs text-zinc-300 dark:text-zinc-500 mt-1">PDF only</p></div>}
           </div>
+
           <div className="space-y-3">
-            <div><label className="text-xs text-zinc-500 block mb-1">Type</label>
-              <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value, linkedId: "" }))} className={inp}>
+            {/* Type */}
+            <div><label className="text-xs text-zinc-500 block mb-1">Document Type</label>
+              <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value, vendor: "", linkedId: "" }))} className={inp}>
                 {["Invoice", "Award Letter", "Change Order", "Other"].map(t => <option key={t}>{t}</option>)}
-              </select></div>
-            {LINKS[form.type]?.length > 0 && <div><label className="text-xs text-zinc-500 block mb-1">Link to record</label>
-              <select value={form.linkedId} onChange={e => setForm(f => ({ ...f, linkedId: e.target.value }))} className={inp}>
-                <option value="">— Select —</option>
-                {LINKS[form.type].map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
-              </select></div>}
+              </select>
+            </div>
+
+            {/* Vendor selector — shown for Invoice type */}
+            {form.type === "Invoice" && (
+              <div><label className="text-xs text-zinc-500 block mb-1">Vendor</label>
+                <select value={form.vendor} onChange={e => setForm(f => ({ ...f, vendor: e.target.value, linkedId: "" }))} className={inp}>
+                  <option value="">— Select vendor —</option>
+                  <option value="taconic">Taconic Builders (GC)</option>
+                  <option value="ivan">Ivan Zdrahal PE</option>
+                  <option value="reed">Reed Hilderbrand</option>
+                  <option value="arch">Architecturefirm</option>
+                </select>
+              </div>
+            )}
+
+            {/* Link to record — depends on vendor */}
+            {links.length > 0 && (
+              <div><label className="text-xs text-zinc-500 block mb-1">Link to Invoice / Record</label>
+                <select value={form.linkedId} onChange={e => setForm(f => ({ ...f, linkedId: e.target.value }))} className={inp}>
+                  <option value="">— Select —</option>
+                  {links.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
+                </select>
+              </div>
+            )}
+
+            {/* Note */}
             <div><label className="text-xs text-zinc-500 block mb-1">Note (optional)</label>
-              <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="Add a note…" className={inp} /></div>
-            <button onClick={save} disabled={!pending} className={cx("w-full py-2.5 rounded-lg text-xs font-bold transition-colors", pending ? "bg-amber-600 text-white hover:bg-amber-500 shadow-sm" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed")}>Save Document</button>
+              <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="Add a note…" className={inp} />
+            </div>
+
+            <button onClick={save} disabled={!pending} className={cx("w-full py-2.5 rounded-lg text-xs font-bold transition-colors", pending ? "bg-amber-600 text-white hover:bg-amber-500 shadow-sm" : "bg-zinc-100 dark:bg-zinc-700 text-zinc-400 cursor-not-allowed")}>
+              Save Document
+            </button>
           </div>
         </div>
       </Card>
 
       {uploads.length === 0
-        ? <div className="text-center py-16 text-zinc-300 dark:text-zinc-700 text-sm">No documents uploaded yet.</div>
+        ? <div className="text-center py-16 text-zinc-300 dark:text-zinc-600 text-sm">No documents uploaded yet.</div>
         : Object.entries(byType).map(([type, docs]) => (
           <Card key={type} className="overflow-hidden">
-            <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+            <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-600 flex justify-between items-center">
               <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">{type}s</span>
               <span className="text-xs text-zinc-400">{docs.length} file{docs.length > 1 ? "s" : ""}</span>
             </div>
             {docs.map(doc => (
-              <div key={doc.id} className="px-4 py-3 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors border-b border-zinc-50 dark:border-zinc-800/40 last:border-0">
+              <div key={doc.id} className="px-4 py-3 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition-colors border-b border-zinc-50 dark:border-zinc-600/40 last:border-0">
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="shrink-0">📄</span>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">{doc.name}</p>
-                    <p className="text-xs text-zinc-400 mt-0.5">{doc.size} · {doc.date}{doc.linkedId && ` · ↳ ${doc.linkedId}`}{doc.note && ` · ${doc.note}`}</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      {doc.size} · {doc.date}
+                      {doc.vendorLabel && ` · ${doc.vendorLabel}`}
+                      {doc.linkedId && ` · ↳ ${doc.linkedId}`}
+                      {doc.note && ` · ${doc.note}`}
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-2 ml-4 shrink-0">
-                  <button onClick={() => setViewing(doc)} className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2.5 py-1 hover:border-zinc-400 transition-colors">View</button>
-                  <button onClick={() => setUploads(prev => prev.filter(u => u.id !== doc.id))} className="text-xs text-zinc-300 dark:text-zinc-700 hover:text-red-500 transition-colors px-1.5 py-1">✕</button>
+                  <button onClick={() => setViewing(doc)} className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-600 rounded-lg px-2.5 py-1 hover:border-zinc-400 transition-colors">View</button>
+                  <button onClick={() => setUploads(prev => prev.filter(u => u.id !== doc.id))} className="text-xs text-zinc-300 dark:text-zinc-600 hover:text-red-500 transition-colors px-1.5 py-1">✕</button>
                 </div>
               </div>
             ))}
@@ -1392,13 +1623,16 @@ function UploadsView({ uploads, setUploads }) {
 
       {viewing && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6" onClick={() => setViewing(null)}>
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl w-full max-w-5xl flex flex-col shadow-2xl" style={{ maxHeight: "90vh" }} onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
-              <div><p className="font-semibold text-zinc-900 dark:text-zinc-200 text-sm">{viewing.name}</p><p className="text-xs text-zinc-400">{viewing.type} · {viewing.size} · {viewing.date}</p></div>
-              <button onClick={() => setViewing(null)} className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xl">×</button>
+          <div className="bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-2xl w-full max-w-5xl flex flex-col shadow-2xl" style={{ maxHeight: "90vh" }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-600 shrink-0">
+              <div>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-200 text-sm">{viewing.name}</p>
+                <p className="text-xs text-zinc-400">{viewing.type}{viewing.vendorLabel ? ` · ${viewing.vendorLabel}` : ""} · {viewing.size} · {viewing.date}</p>
+              </div>
+              <button onClick={() => setViewing(null)} className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-600 text-xl">×</button>
             </div>
             <div className="flex-1 overflow-hidden p-3">
-              <iframe src={viewing.dataUrl} className="w-full rounded-lg border border-zinc-100 dark:border-zinc-800" style={{ height: "65vh" }} title={viewing.name} />
+              <iframe src={viewing.dataUrl} className="w-full rounded-lg border border-zinc-100 dark:border-zinc-600" style={{ height: "65vh" }} title={viewing.name} />
             </div>
           </div>
         </div>
@@ -1412,34 +1646,39 @@ const TABS = [
   { id: "dashboard", label: "Dashboard"         },
   { id: "budget",    label: "Control Budget"    },
   { id: "awards",    label: "Awards"            },
+  { id: "cos",       label: "Change Orders"     },
+  { id: "vendors",   label: "Vendors"           },
   { id: "invoices",  label: "Invoices"          },
   { id: "lineitem",  label: "Line Item Billing" },
-  { id: "cos",       label: "Change Orders"     },
   { id: "cashflow",  label: "Cash Flow"         },
   { id: "prior",     label: "Prior Phases"      },
-  { id: "vendors",   label: "Vendors"           },
   { id: "uploads",   label: "Documents"         },
 ];
 
 export default function App() {
-  const [tab, setTab]       = useState("dashboard");
-  const [uploads, setUploads] = useState([]);
-  const [dark, setDark]     = useState(true);
+  const [tab, setTab]          = useState("dashboard");
+  const [uploads, setUploads]  = useState([]);
+  const [dark, setDark]        = useState(false);
+  const [vendorInvoices, setVendorInvoices] = useState({});
+
+  if (typeof document !== "undefined") {
+    document.documentElement.classList.toggle("dark", dark);
+  }
 
   return (
-    <div className={dark ? "dark" : ""}>
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white transition-colors duration-200" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div>
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 transition-colors duration-200" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
           * { box-sizing: border-box; }
           ::-webkit-scrollbar { width: 5px; height: 5px; }
           ::-webkit-scrollbar-track { background: transparent; }
           ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 3px; }
-          .dark ::-webkit-scrollbar-thumb { background: #3f3f46; }
+          .dark ::-webkit-scrollbar-thumb { background: #71717a; }
         `}</style>
 
         {/* Header */}
-        <header className="sticky top-0 z-20 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
+        <header className="sticky top-0 z-20 bg-white dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-600 shadow-sm dark:shadow-none">
           <div className="max-w-screen-xl mx-auto px-6 pt-4 pb-0 flex items-end justify-between">
             <div className="pb-3">
               <div className="flex items-center gap-2.5">
@@ -1453,7 +1692,7 @@ export default function App() {
               {uploads.length > 0 && <span className="text-xs text-zinc-400">{uploads.length} doc{uploads.length > 1 ? "s" : ""}</span>}
               <button
                 onClick={() => setDark(d => !d)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors shadow-sm"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors shadow-sm"
               >
                 {dark ? "☀ Light mode" : "◑ Dark mode"}
               </button>
@@ -1488,8 +1727,8 @@ export default function App() {
           {tab === "cos"       && <COsView />}
           {tab === "cashflow"  && <CashFlowView />}
           {tab === "prior"     && <PriorPhasesView />}
-          {tab === "vendors"   && <VendorsView />}
-          {tab === "uploads"   && <UploadsView uploads={uploads} setUploads={setUploads} />}
+          {tab === "vendors"   && <VendorsView vendorInvoices={vendorInvoices} setVendorInvoices={setVendorInvoices} />}
+          {tab === "uploads"   && <UploadsView uploads={uploads} setUploads={setUploads} vendorInvoices={vendorInvoices} />}
         </main>
       </div>
     </div>
