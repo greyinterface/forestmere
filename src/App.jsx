@@ -1532,10 +1532,7 @@ function UploadsView({ uploads, setUploads, archive, setArchive, vendorInvoices 
     arch: [...VENDORS.arch.invoices, ...(vendorInvoices?.arch || [])].map(i => ({ id: i.invNum, label: `${i.invNum} – ${i.desc}` })),
   };
 
-  const TACONIC_LINKS = [
-    { id: "NEW", label: "— New Entry (no existing invoice)" },
-    ...INVOICES.map(i => ({ id: i.id, label: `${i.id} · ${i.invNum} · ${i.desc}` }))
-  ];
+  const TACONIC_LINKS = INVOICES.map(i => ({ id: i.id, label: `${i.id} · ${i.invNum} — ${i.desc}` }));
   const AWARD_LINKS   = AWARDS.map(a => ({ id: a.id, label: `${a.id} · ${a.vendor}` }));
   const CO_LINKS      = CHANGE_ORDERS.map(c => ({ id: c.no, label: `${c.no} · ${c.div}` }));
 
@@ -1560,18 +1557,17 @@ function UploadsView({ uploads, setUploads, archive, setArchive, vendorInvoices 
 
   const save = () => {
     if (!pending) return;
+    const vendorLabel = form.vendor === "taconic" ? "Taconic Builders" : form.vendor ? VENDORS[form.vendor]?.name : "";
+    let linkedId = form.createNew ? null : form.linkedId;
+    let autoPayId = null;
+    if (form.createNew) {
+      const existingPay = uploads.filter(u => u.autoPayId).map(u => parseInt(u.autoPayId.replace("PAY-", ""), 10));
+      const maxExisting = Math.max(...INVOICES.map((_, i) => i + 1), ...existingPay, 0);
+      autoPayId = `PAY-${String(maxExisting + 1).padStart(3, "0")}`;
+      linkedId = autoPayId;
+    }
     const reader = new FileReader();
     reader.onload = e => {
-      const vendorLabel = form.vendor === "taconic" ? "Taconic Builders" : form.vendor ? VENDORS[form.vendor]?.name : "";
-      // Auto-assign next PAY-### if New Entry selected
-      let linkedId = form.linkedId;
-      let autoPayId = null;
-      if (form.linkedId === "NEW") {
-        const existingPay = uploads.filter(u => u.autoPayId).map(u => parseInt(u.autoPayId.replace("PAY-", ""), 10));
-        const maxExisting = Math.max(...INVOICES.map((_, i) => i + 1), ...existingPay, 0);
-        autoPayId = `PAY-${String(maxExisting + 1).padStart(3, "0")}`;
-        linkedId = autoPayId;
-      }
       setUploads(prev => [...prev, {
         id: `DOC-${Date.now()}`,
         name: pending.name,
@@ -1586,8 +1582,9 @@ function UploadsView({ uploads, setUploads, archive, setArchive, vendorInvoices 
         dataUrl: e.target.result
       }]);
       setPending(null);
-      setForm({ type: "Invoice", vendor: "", linkedId: "", note: "" });
+      setForm({ type: "Invoice", vendor: "", linkedId: "", note: "", createNew: false });
     };
+    reader.onerror = () => alert("Failed to read file. Please try again.");
     reader.readAsDataURL(pending);
   };
 
@@ -1674,9 +1671,15 @@ function UploadsView({ uploads, setUploads, archive, setArchive, vendorInvoices 
               <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="Add a note…" className={inp} />
             </div>
 
-            <button onClick={save} disabled={!pending} className={cx("w-full py-2.5 rounded-lg text-xs font-bold transition-colors", pending ? "bg-amber-600 text-white hover:bg-amber-500 shadow-sm" : "bg-zinc-100 dark:bg-zinc-700 text-zinc-400 cursor-not-allowed")}>
-              Save Document
-            </button>
+            {/* Save button - needs file + link selection */}
+            {(() => {
+              const canSave = pending && (form.createNew || form.linkedId || form.type !== "Invoice" || !form.vendor);
+              return (
+                <button onClick={save} disabled={!canSave} className={cx("w-full py-2.5 rounded-lg text-xs font-bold transition-colors", canSave ? "bg-amber-600 text-white hover:bg-amber-500 shadow-sm" : "bg-zinc-100 dark:bg-zinc-700 text-zinc-400 cursor-not-allowed")}>
+                  {!pending ? "Select a PDF first" : (!form.vendor && form.type === "Invoice") ? "Select a vendor" : (!form.linkedId && !form.createNew && form.vendor) ? "Select an invoice to link" : "Save Document"}
+                </button>
+              );
+            })()}
           </div>
         </div>
       </Card>
