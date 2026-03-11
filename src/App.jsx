@@ -281,6 +281,7 @@ const statusTag = (s) => {
   if (s === "Pending")    return <Tag text="Pending"     color="amber" />;
   if (s === "Paid")       return <Tag text="Paid"        color="green" />;
   if (s === "Pending Payment") return <Tag text="Pending Payment" color="amber" />;
+  if (s === "Approved")       return <Tag text="Approved ✓"      color="blue"  />;
   return <Tag text={s} />;
 };
 
@@ -943,8 +944,10 @@ function InvoicesView({ uploads = [], syncedPayments = [], invoiceOverrides = {}
       p.description?.toLowerCase().includes("taconic") &&
       (p.ref === invNumClean || p.ref === merged.invNum)
     );
-    if (match && match.status === "Done" && merged.status !== "Paid") {
-      return { ...merged, status: "Paid", paidDate: match.paidDate || new Date().toLocaleDateString("en-US"), _synced: true };
+    const trackerApproved = match && (match.status === "Done" || match.status === "PaymentApproved");
+    if (trackerApproved && merged.status !== "Paid") {
+      const newStatus = match.status === "Done" ? "Paid" : "Approved";
+      return { ...merged, status: newStatus, paidDate: match.paidDate || new Date().toLocaleDateString("en-US"), _synced: true, _syncStatus: match.status };
     }
     return merged;
   });
@@ -1984,41 +1987,31 @@ export default function App() {
   const [syncedPayments, setSyncedPayments] = useState([]); // live sync from JXM tracker
   const [syncFlash, setSyncFlash]   = useState(false); // pulse indicator on sync
 
-  // ── Sync from JXM Payment Tracker ───────────────────────────────────────────
-  // Reads on mount (covers Ctrl+R / manual refresh) + schedules daily 7pm re-read
+  // ── Sync from JXM Payment Tracker API ───────────────────────────────────────
+  // Fetches from the tracker's /api/sync endpoint — works across domains
+  // Runs on load (Ctrl+R) + polls every 60s for live updates
   useEffect(() => {
-    const readSync = () => {
-      try {
-        const raw = localStorage.getItem("jxm_forestmere_sync");
-        if (raw) {
-          setSyncedPayments(JSON.parse(raw));
-          setSyncFlash(true);
-          setTimeout(() => setSyncFlash(false), 3000);
-        }
-      } catch(e) {}
+    const SYNC_URL = "https://jxm-tracker-production.up.railway.app/api/sync";
+
+    const fetchSync = () => {
+      fetch(SYNC_URL)
+        .then(r => r.json())
+        .then(data => {
+          if (data.payments && data.payments.length > 0) {
+            setSyncedPayments(data.payments);
+            setSyncFlash(true);
+            setTimeout(() => setSyncFlash(false), 3000);
+          }
+        })
+        .catch(() => {}); // silent fail if tracker is down
     };
 
-    // Read immediately on load / every Ctrl+R
-    readSync();
+    // Fetch immediately on load / Ctrl+R
+    fetchSync();
 
-    // Schedule next 7pm refresh
-    const scheduleDailyRefresh = () => {
-      const now = new Date();
-      const next7pm = new Date();
-      next7pm.setHours(19, 0, 0, 0);
-      // If it's already past 7pm today, schedule for tomorrow
-      if (now >= next7pm) next7pm.setDate(next7pm.getDate() + 1);
-      const msUntil7pm = next7pm - now;
-      return setTimeout(() => {
-        readSync();
-        // After firing, set up the next one (recurring daily)
-        const daily = setInterval(readSync, 24 * 60 * 60 * 1000);
-        return daily;
-      }, msUntil7pm);
-    };
-
-    const timer = scheduleDailyRefresh();
-    return () => clearTimeout(timer);
+    // Poll every 60 seconds for live updates
+    const interval = setInterval(fetchSync, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   if (typeof document !== "undefined") {
