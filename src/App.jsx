@@ -758,7 +758,7 @@ function COsView() {
 }
 
 // ─── INVOICES ──────────────────────────────────────────────────────────────────
-function InvoicesView() {
+function InvoicesView({ uploads = [] }) {
   const [modal, setModal] = useState(null);
   const pendingTotal = INVOICES.filter(i => i.status !== "Paid").reduce((s, i) => s + i.amtDue, 0);
 
@@ -790,22 +790,72 @@ function InvoicesView() {
         ))}
       </div>
 
-      {modal && typeof modal === "object" && modal.id && (
-        <Modal title={`${modal.invNum} — ${modal.desc}`} subtitle={`${modal.id} · Requested ${modal.reqDate}`} onClose={() => setModal(null)}>
-          <KVGrid rows={[
-            ["Invoice Number", modal.invNum], ["Request Date", modal.reqDate],
-            ["Paid Date", modal.paidDate || "—"], ["Status", modal.status],
-            ["Job Total", $f(modal.jobTotal)], ["GC Fees", $f(modal.fees)],
-            ["Deposit Applied", $f(modal.depositApplied)], ["Retainage Held", $f(Math.abs(modal.retainage))],
-            ["Amount Due", $f(modal.amtDue)], ["Approved Amount", $f(modal.approved)],
-          ]} />
-          {modal.notes && (
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-lg px-4 py-3">
-              <p className="text-xs text-amber-700 dark:text-amber-400">{modal.notes}</p>
+      {modal && typeof modal === "object" && modal.id && (() => {
+        // Find any uploaded PDFs linked to this invoice (by PAY-id or inv number)
+        const linkedDocs = uploads.filter(u =>
+          u.linkedId === modal.id ||
+          u.linkedId === modal.invNum ||
+          u.autoPayId === modal.id
+        );
+        const [pdfView, setPdfView] = React.useState(null);
+        return (
+          <Modal title={`${modal.invNum} — ${modal.desc}`} subtitle={`${modal.id} · Requested ${modal.reqDate}`} onClose={() => { setModal(null); setPdfView(null); }} wide>
+            <KVGrid rows={[
+              ["Invoice Number", modal.invNum], ["Request Date", modal.reqDate],
+              ["Paid Date", modal.paidDate || "—"], ["Status", modal.status],
+              ["Job Total", $f(modal.jobTotal)], ["GC Fees", $f(modal.fees)],
+              ["Deposit Applied", $f(modal.depositApplied)], ["Retainage Held", $f(Math.abs(modal.retainage))],
+              ["Amount Due", $f(modal.amtDue)], ["Approved Amount", $f(modal.approved)],
+            ]} />
+            {modal.notes && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-lg px-4 py-3">
+                <p className="text-xs text-amber-700 dark:text-amber-400">{modal.notes}</p>
+              </div>
+            )}
+
+            {/* Linked Documents */}
+            <div>
+              <SectionTitle>Attached Documents</SectionTitle>
+              {linkedDocs.length === 0
+                ? <p className="text-xs text-zinc-400 italic">No documents uploaded for this invoice. Upload a PDF in the Document Upload tab and link it to {modal.id}.</p>
+                : linkedDocs.map(doc => (
+                  <div key={doc.id} className="mb-2">
+                    <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-lg px-3 py-2.5 mb-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span>📄</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">{doc.name}</p>
+                          <p className="text-xs text-zinc-400">{doc.size} · Uploaded {doc.date}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 ml-4 shrink-0">
+                        <button
+                          onClick={() => setPdfView(pdfView?.id === doc.id ? null : doc)}
+                          className={cx("text-xs font-semibold border rounded-lg px-3 py-1.5 transition-colors", pdfView?.id === doc.id ? "bg-amber-600 text-white border-amber-600" : "border-zinc-200 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 hover:border-amber-400 hover:text-amber-600")}
+                        >
+                          {pdfView?.id === doc.id ? "Hide PDF" : "View PDF"}
+                        </button>
+                        <a
+                          href={doc.dataUrl}
+                          download={doc.name}
+                          className="text-xs font-semibold border border-zinc-200 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 hover:border-amber-400 hover:text-amber-600 rounded-lg px-3 py-1.5 transition-colors"
+                        >
+                          ↓ Download
+                        </a>
+                      </div>
+                    </div>
+                    {pdfView?.id === doc.id && (
+                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-600 overflow-hidden">
+                        <iframe src={doc.dataUrl} className="w-full" style={{ height: "60vh" }} title={doc.name} />
+                      </div>
+                    )}
+                  </div>
+                ))
+              }
             </div>
-          )}
-        </Modal>
-      )}
+          </Modal>
+        );
+      })()}
       {modal === "retainage" && (
         <Modal title="Retainage Held" subtitle="Per Invoice #1956" onClose={() => setModal(null)}>
           <KVGrid rows={[["Total Retainage", "$217,342.38"], ["Completed Work", "$217,342.38"], ["Stored Materials", "$0.00"], ["Release Trigger", "Substantial Completion"], ["Estimated Release", "April 2027"]]} />
@@ -1466,7 +1516,7 @@ function VendorsView({ vendorInvoices, setVendorInvoices }) {
 
 // ─── DOCUMENTS ─────────────────────────────────────────────────────────────────
 // vendorInvoices passed in so documents tab shows vendor invoices too
-function UploadsView({ uploads, setUploads, vendorInvoices }) {
+function UploadsView({ uploads, setUploads, archive, setArchive, vendorInvoices }) {
   const [form, setForm] = useState({ type: "Invoice", vendor: "", linkedId: "", note: "", createNew: false });
   const [pending, setPending] = useState(null);
   const [dragOver, setDragOver] = useState(false);
@@ -1654,7 +1704,7 @@ function UploadsView({ uploads, setUploads, vendorInvoices }) {
                 </div>
                 <div className="flex gap-2 ml-4 shrink-0">
                   <button onClick={() => setViewing(doc)} className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-600 rounded-lg px-2.5 py-1 hover:border-zinc-400 transition-colors">View</button>
-                  <button onClick={() => setUploads(prev => prev.filter(u => u.id !== doc.id))} className="text-xs text-zinc-300 dark:text-zinc-600 hover:text-red-500 transition-colors px-1.5 py-1">✕</button>
+                  <button onClick={() => { setArchive(prev => [...prev, { ...doc, deletedAt: new Date().toLocaleDateString("en-US") }]); setUploads(prev => prev.filter(u => u.id !== doc.id)); }} className="text-xs text-zinc-300 dark:text-zinc-600 hover:text-red-500 transition-colors px-1.5 py-1" title="Delete (moves to archive)">✕</button>
                 </div>
               </div>
             ))}
@@ -1678,6 +1728,92 @@ function UploadsView({ uploads, setUploads, vendorInvoices }) {
           </div>
         </div>
       )}
+
+      {/* ── UPLOAD HISTORY LOG ───────────────────────────────────────────── */}
+      {uploads.length > 0 && (
+        <Card className="overflow-hidden">
+          <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-600 flex justify-between items-center">
+            <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Upload History</span>
+            <span className="text-xs text-zinc-400">{uploads.length} active document{uploads.length !== 1 ? "s" : ""}</span>
+          </div>
+          <table className="w-full">
+            <thead><tr>
+              <TH>#</TH><TH>File Name</TH><TH>Type</TH><TH>Vendor</TH><TH>Linked To</TH><TH>Uploaded</TH><TH>Size</TH><TH>Actions</TH>
+            </tr></thead>
+            <tbody>
+              {uploads.map((doc, i) => (
+                <TR key={doc.id}>
+                  <TD muted mono>{i + 1}</TD>
+                  <TD bold className="text-zinc-800 dark:text-zinc-200 max-w-xs truncate">
+                    <span className="flex items-center gap-1.5">
+                      📄 {doc.name}
+                      {doc.autoPayId && <span className="text-xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50 rounded-full px-1.5 py-0.5">New</span>}
+                    </span>
+                  </TD>
+                  <TD muted>{doc.type}</TD>
+                  <TD muted>{doc.vendorLabel || "—"}</TD>
+                  <TD mono muted>{doc.autoPayId || doc.linkedId || "—"}</TD>
+                  <TD muted>{doc.date}</TD>
+                  <TD muted>{doc.size}</TD>
+                  <TD>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => setViewing(doc)} className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-600 rounded px-2 py-0.5 transition-colors">View</button>
+                      <button
+                        onClick={() => { setArchive(prev => [...prev, { ...doc, deletedAt: new Date().toLocaleDateString("en-US") }]); setUploads(prev => prev.filter(u => u.id !== doc.id)); }}
+                        className="text-xs text-zinc-300 dark:text-zinc-600 hover:text-red-500 border border-transparent hover:border-red-200 dark:hover:border-red-800 rounded px-2 py-0.5 transition-colors"
+                        title="Delete — moves to archive"
+                      >Delete</button>
+                    </div>
+                  </TD>
+                </TR>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      {/* ── ARCHIVE (deleted docs) ───────────────────────────────────────── */}
+      {archive.length > 0 && (
+        <Card className="overflow-hidden">
+          <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-600 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Archive</span>
+              <span className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-400 rounded-full px-2 py-0.5">{archive.length} deleted</span>
+            </div>
+            <button
+              onClick={() => { if (window.confirm("Permanently clear the archive? This cannot be undone.")) setArchive([]); }}
+              className="text-xs text-zinc-300 dark:text-zinc-600 hover:text-red-400 transition-colors"
+            >Clear archive</button>
+          </div>
+          <table className="w-full">
+            <thead><tr>
+              <TH>File Name</TH><TH>Type</TH><TH>Vendor</TH><TH>Was Linked To</TH><TH>Uploaded</TH><TH>Deleted</TH><TH>Actions</TH>
+            </tr></thead>
+            <tbody>
+              {archive.map((doc) => (
+                <TR key={doc.id + "-arch"} subtle>
+                  <TD muted className="max-w-xs truncate">
+                    <span className="flex items-center gap-1.5 opacity-60">📄 {doc.name}</span>
+                  </TD>
+                  <TD muted>{doc.type}</TD>
+                  <TD muted>{doc.vendorLabel || "—"}</TD>
+                  <TD mono muted>{doc.autoPayId || doc.linkedId || "—"}</TD>
+                  <TD muted>{doc.date}</TD>
+                  <TD muted className="text-red-400 dark:text-red-500">{doc.deletedAt}</TD>
+                  <TD>
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => { setUploads(prev => [...prev, { ...doc, deletedAt: undefined }]); setArchive(prev => prev.filter(a => a.id !== doc.id)); }}
+                        className="text-xs text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded px-2 py-0.5 transition-colors font-semibold"
+                      >↩ Restore</button>
+                    </div>
+                  </TD>
+                </TR>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
     </div>
   );
 }
@@ -1699,6 +1835,7 @@ const TABS = [
 export default function App() {
   const [tab, setTab]          = useState("dashboard");
   const [uploads, setUploads]  = useState([]);
+  const [archive, setArchive]  = useState([]); // deleted docs archive
   const [dark, setDark]        = useState(false);
   const [vendorInvoices, setVendorInvoices] = useState({});
 
@@ -1727,7 +1864,7 @@ export default function App() {
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                 <span className="text-xs text-zinc-400 dark:text-zinc-500">Active Construction</span>
               </div>
-              <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-0.5">JXM / Camp Forestmere Corp. · Paul Smiths, NY · Updated Mar 5, 2026</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-0.5">Paul Smiths, NY · Updated {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
             </div>
             <div className="pb-3 flex items-center gap-3">
               {uploads.length > 0 && <span className="text-xs text-zinc-400">{uploads.length} doc{uploads.length > 1 ? "s" : ""}</span>}
@@ -1763,13 +1900,13 @@ export default function App() {
           {tab === "dashboard" && <Dashboard setTab={setTab} />}
           {tab === "budget"    && <BudgetView />}
           {tab === "awards"    && <AwardsView />}
-          {tab === "invoices"  && <InvoicesView />}
+          {tab === "invoices"  && <InvoicesView uploads={uploads} />}
           {tab === "lineitem"  && <LineItemView />}
           {tab === "cos"       && <COsView />}
           {tab === "cashflow"  && <CashFlowView />}
           {tab === "prior"     && <PriorPhasesView />}
           {tab === "vendors"   && <VendorsView vendorInvoices={vendorInvoices} setVendorInvoices={setVendorInvoices} />}
-          {tab === "uploads"   && <UploadsView uploads={uploads} setUploads={setUploads} vendorInvoices={vendorInvoices} />}
+          {tab === "uploads"   && <UploadsView uploads={uploads} setUploads={setUploads} archive={archive} setArchive={setArchive} vendorInvoices={vendorInvoices} />}
         </main>
       </div>
     </div>
