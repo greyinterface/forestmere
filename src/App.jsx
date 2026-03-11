@@ -823,20 +823,48 @@ function InvoiceDetailModal({ inv, uploads, onClose }) {
   );
 }
 
-function InvoicesView({ uploads = [] }) {
+function InvoicesView({ uploads = [], syncedPayments = [] }) {
   const [modal, setModal] = useState(null);
-  const pendingTotal = INVOICES.filter(i => i.status !== "Paid").reduce((s, i) => s + i.amtDue, 0);
+
+  // Merge live payment status from JXM tracker into invoice list
+  // Tracker uses: description="Taconic Builders", ref="1750" (matches invNum without #)
+  const mergedInvoices = INVOICES.map(inv => {
+    const invNumClean = inv.invNum.replace("#", "");
+    const match = syncedPayments.find(p =>
+      p.entity === "Camp Forestmere" &&
+      p.description?.toLowerCase().includes("taconic") &&
+      (p.ref === invNumClean || p.ref === inv.invNum)
+    );
+    if (match && match.status === "Done" && inv.status !== "Paid") {
+      return { ...inv, status: "Paid", paidDate: match.paidDate || new Date().toLocaleDateString("en-US"), _synced: true };
+    }
+    return inv;
+  });
+
+  const pendingTotal = mergedInvoices.filter(i => i.status !== "Paid").reduce((s, i) => s + i.amtDue, 0);
+  const paidCount = mergedInvoices.filter(i => i.status === "Paid").length;
+  const syncedCount = mergedInvoices.filter(i => i._synced).length;
 
   return (
     <div className="space-y-4">
+      {/* Sync status banner */}
+      {syncedPayments.length > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-lg">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+            Live sync active — JXM Payment Tracker
+          </span>
+          {syncedCount > 0 && <span className="text-xs text-emerald-600 dark:text-emerald-500 ml-auto">{syncedCount} invoice{syncedCount !== 1 ? "s" : ""} updated from tracker</span>}
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Gross Invoiced" value={$f(INVOICES.reduce((s, i) => s + i.jobTotal, 0))} sub="Before retainage & deposits" onClick={() => setModal("all")} />
-        <Stat label="Total Paid" value={$f(taconicPaid)} sub={INVOICES.filter(i => i.status === "Paid").length + " invoices paid"} onClick={() => setModal("paid")} />
+        <Stat label="Gross Invoiced" value={$f(mergedInvoices.reduce((s, i) => s + i.jobTotal, 0))} sub="Before retainage & deposits" onClick={() => setModal("all")} />
+        <Stat label="Total Paid" value={$f(mergedInvoices.filter(i => i.status === "Paid").reduce((s,i) => s + i.approved, 0))} sub={paidCount + " invoices paid"} onClick={() => setModal("paid")} />
         <Stat label="Retainage Held" value="$217,342" sub="Released at close" onClick={() => setModal("retainage")} />
-        <Stat label="Pending" value={$f(pendingTotal)} accent sub={INVOICES.filter(i => i.status !== "Paid").length + " invoices outstanding"} onClick={() => setModal("pending")} />
+        <Stat label="Pending" value={$f(pendingTotal)} accent sub={mergedInvoices.filter(i => i.status !== "Paid").length + " invoices outstanding"} onClick={() => setModal("pending")} />
       </div>
       <div className="space-y-2">
-        {INVOICES.map(invRow => (
+        {mergedInvoices.map(invRow => (
           <button key={invRow.id} className="w-full text-left bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl shadow-sm overflow-hidden hover:border-amber-300 dark:hover:border-amber-700 transition-colors cursor-pointer active:scale-[0.99]" onClick={() => setModal(invRow)}>
             <div className="px-4 py-3.5 flex items-center justify-between">
               <div className="flex items-center gap-4 min-w-0">
@@ -847,6 +875,7 @@ function InvoicesView({ uploads = [] }) {
               <div className="flex items-center gap-3 shrink-0 ml-4">
                 <span className="text-sm font-bold text-zinc-900 dark:text-white tabular-nums">{$f(invRow.approved)}</span>
                 {statusTag(invRow.status)}
+                {invRow._synced && <span className="inline-flex items-center gap-1 text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700/50 rounded-full px-2 py-0.5">⇄ Synced</span>}
                 {invRow.notes && <span className="inline-flex items-center gap-1 text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50 rounded-full px-2 py-0.5">⚑ Note</span>}
                 <span className="text-zinc-300 dark:text-zinc-700">›</span>
               </div>
@@ -1839,10 +1868,49 @@ const TABS = [
 
 export default function App() {
   const [tab, setTab]          = useState("dashboard");
-  const [uploads, setUploads]  = useState([]);
-  const [archive, setArchive]  = useState([]); // deleted docs archive
-  const [dark, setDark]        = useState(false);
+  const [uploads, setUploads]       = useState([]);
+  const [archive, setArchive]       = useState([]); // deleted docs archive
+  const [dark, setDark]             = useState(false);
   const [vendorInvoices, setVendorInvoices] = useState({});
+  const [syncedPayments, setSyncedPayments] = useState([]); // live sync from JXM tracker
+  const [syncFlash, setSyncFlash]   = useState(false); // pulse indicator on sync
+
+  // ── Sync from JXM Payment Tracker ───────────────────────────────────────────
+  // Reads on mount (covers Ctrl+R / manual refresh) + schedules daily 7pm re-read
+  useEffect(() => {
+    const readSync = () => {
+      try {
+        const raw = localStorage.getItem("jxm_forestmere_sync");
+        if (raw) {
+          setSyncedPayments(JSON.parse(raw));
+          setSyncFlash(true);
+          setTimeout(() => setSyncFlash(false), 3000);
+        }
+      } catch(e) {}
+    };
+
+    // Read immediately on load / every Ctrl+R
+    readSync();
+
+    // Schedule next 7pm refresh
+    const scheduleDailyRefresh = () => {
+      const now = new Date();
+      const next7pm = new Date();
+      next7pm.setHours(19, 0, 0, 0);
+      // If it's already past 7pm today, schedule for tomorrow
+      if (now >= next7pm) next7pm.setDate(next7pm.getDate() + 1);
+      const msUntil7pm = next7pm - now;
+      return setTimeout(() => {
+        readSync();
+        // After firing, set up the next one (recurring daily)
+        const daily = setInterval(readSync, 24 * 60 * 60 * 1000);
+        return daily;
+      }, msUntil7pm);
+    };
+
+    const timer = scheduleDailyRefresh();
+    return () => clearTimeout(timer);
+  }, []);
 
   if (typeof document !== "undefined") {
     document.documentElement.classList.toggle("dark", dark);
@@ -1869,7 +1937,10 @@ export default function App() {
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                 <span className="text-xs text-zinc-400 dark:text-zinc-500">Active Construction</span>
               </div>
-              <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-0.5">Paul Smiths, NY · Updated {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-0.5 flex items-center gap-2">
+                <span>Paul Smiths, NY · Updated {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                {syncFlash && <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold animate-pulse">⇄ Tracker synced</span>}
+              </p>
             </div>
             <div className="pb-3 flex items-center gap-3">
               {uploads.length > 0 && <span className="text-xs text-zinc-400">{uploads.length} doc{uploads.length > 1 ? "s" : ""}</span>}
@@ -1905,7 +1976,7 @@ export default function App() {
           {tab === "dashboard" && <Dashboard setTab={setTab} />}
           {tab === "budget"    && <BudgetView />}
           {tab === "awards"    && <AwardsView />}
-          {tab === "invoices"  && <InvoicesView uploads={uploads} />}
+          {tab === "invoices"  && <InvoicesView uploads={uploads} syncedPayments={syncedPayments} />}
           {tab === "lineitem"  && <LineItemView />}
           {tab === "cos"       && <COsView />}
           {tab === "cashflow"  && <CashFlowView />}
