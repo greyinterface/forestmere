@@ -758,6 +758,71 @@ function COsView() {
 }
 
 // ─── INVOICES ──────────────────────────────────────────────────────────────────
+// ─── INVOICE DETAIL MODAL ──────────────────────────────────────────────────────
+function InvoiceDetailModal({ inv, uploads, onClose }) {
+  const [pdfView, setPdfView] = useState(null);
+  const linkedDocs = uploads.filter(u =>
+    u.linkedId === inv.id ||
+    u.linkedId === inv.invNum ||
+    u.autoPayId === inv.id
+  );
+  return (
+    <Modal title={`${inv.invNum} — ${inv.desc}`} subtitle={`${inv.id} · Requested ${inv.reqDate}`} onClose={() => { onClose(); setPdfView(null); }} wide>
+      <KVGrid rows={[
+        ["Invoice Number", inv.invNum], ["Request Date", inv.reqDate],
+        ["Paid Date", inv.paidDate || "—"], ["Status", inv.status],
+        ["Job Total", $f(inv.jobTotal)], ["GC Fees", $f(inv.fees)],
+        ["Deposit Applied", $f(inv.depositApplied)], ["Retainage Held", $f(Math.abs(inv.retainage))],
+        ["Amount Due", $f(inv.amtDue)], ["Approved Amount", $f(inv.approved)],
+      ]} />
+      {inv.notes && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-lg px-4 py-3">
+          <p className="text-xs text-amber-700 dark:text-amber-400">{inv.notes}</p>
+        </div>
+      )}
+      <div>
+        <SectionTitle>Attached Documents</SectionTitle>
+        {linkedDocs.length === 0
+          ? <p className="text-xs text-zinc-400 italic">No documents attached. Go to Document Upload, select Taconic Builders, and link to <span className="font-mono">{inv.id}</span>.</p>
+          : linkedDocs.map(doc => (
+            <div key={doc.id} className="mb-2">
+              <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-lg px-3 py-2.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span>📄</span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">{doc.name}</p>
+                    <p className="text-xs text-zinc-400">{doc.size} · Uploaded {doc.date}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 ml-4 shrink-0">
+                  <button
+                    onClick={() => setPdfView(pdfView?.id === doc.id ? null : doc)}
+                    className={cx("text-xs font-semibold border rounded-lg px-3 py-1.5 transition-colors", pdfView?.id === doc.id ? "bg-amber-600 text-white border-amber-600" : "border-zinc-200 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 hover:border-amber-400 hover:text-amber-600")}
+                  >
+                    {pdfView?.id === doc.id ? "Hide PDF" : "View PDF"}
+                  </button>
+                  <a
+                    href={doc.dataUrl}
+                    download={doc.name}
+                    className="text-xs font-semibold border border-zinc-200 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 hover:border-amber-400 hover:text-amber-600 rounded-lg px-3 py-1.5 transition-colors inline-flex items-center"
+                  >
+                    ↓ Download
+                  </a>
+                </div>
+              </div>
+              {pdfView?.id === doc.id && (
+                <div className="mt-1 rounded-lg border border-zinc-200 dark:border-zinc-600 overflow-hidden">
+                  <iframe src={doc.dataUrl} className="w-full" style={{ height: "60vh" }} title={doc.name} />
+                </div>
+              )}
+            </div>
+          ))
+        }
+      </div>
+    </Modal>
+  );
+}
+
 function InvoicesView({ uploads = [] }) {
   const [modal, setModal] = useState(null);
   const pendingTotal = INVOICES.filter(i => i.status !== "Paid").reduce((s, i) => s + i.amtDue, 0);
@@ -790,72 +855,9 @@ function InvoicesView({ uploads = [] }) {
         ))}
       </div>
 
-      {modal && typeof modal === "object" && modal.id && (() => {
-        // Find any uploaded PDFs linked to this invoice (by PAY-id or inv number)
-        const linkedDocs = uploads.filter(u =>
-          u.linkedId === modal.id ||
-          u.linkedId === modal.invNum ||
-          u.autoPayId === modal.id
-        );
-        const [pdfView, setPdfView] = React.useState(null);
-        return (
-          <Modal title={`${modal.invNum} — ${modal.desc}`} subtitle={`${modal.id} · Requested ${modal.reqDate}`} onClose={() => { setModal(null); setPdfView(null); }} wide>
-            <KVGrid rows={[
-              ["Invoice Number", modal.invNum], ["Request Date", modal.reqDate],
-              ["Paid Date", modal.paidDate || "—"], ["Status", modal.status],
-              ["Job Total", $f(modal.jobTotal)], ["GC Fees", $f(modal.fees)],
-              ["Deposit Applied", $f(modal.depositApplied)], ["Retainage Held", $f(Math.abs(modal.retainage))],
-              ["Amount Due", $f(modal.amtDue)], ["Approved Amount", $f(modal.approved)],
-            ]} />
-            {modal.notes && (
-              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-lg px-4 py-3">
-                <p className="text-xs text-amber-700 dark:text-amber-400">{modal.notes}</p>
-              </div>
-            )}
-
-            {/* Linked Documents */}
-            <div>
-              <SectionTitle>Attached Documents</SectionTitle>
-              {linkedDocs.length === 0
-                ? <p className="text-xs text-zinc-400 italic">No documents uploaded for this invoice. Upload a PDF in the Document Upload tab and link it to {modal.id}.</p>
-                : linkedDocs.map(doc => (
-                  <div key={doc.id} className="mb-2">
-                    <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-lg px-3 py-2.5 mb-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span>📄</span>
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">{doc.name}</p>
-                          <p className="text-xs text-zinc-400">{doc.size} · Uploaded {doc.date}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 ml-4 shrink-0">
-                        <button
-                          onClick={() => setPdfView(pdfView?.id === doc.id ? null : doc)}
-                          className={cx("text-xs font-semibold border rounded-lg px-3 py-1.5 transition-colors", pdfView?.id === doc.id ? "bg-amber-600 text-white border-amber-600" : "border-zinc-200 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 hover:border-amber-400 hover:text-amber-600")}
-                        >
-                          {pdfView?.id === doc.id ? "Hide PDF" : "View PDF"}
-                        </button>
-                        <a
-                          href={doc.dataUrl}
-                          download={doc.name}
-                          className="text-xs font-semibold border border-zinc-200 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 hover:border-amber-400 hover:text-amber-600 rounded-lg px-3 py-1.5 transition-colors"
-                        >
-                          ↓ Download
-                        </a>
-                      </div>
-                    </div>
-                    {pdfView?.id === doc.id && (
-                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-600 overflow-hidden">
-                        <iframe src={doc.dataUrl} className="w-full" style={{ height: "60vh" }} title={doc.name} />
-                      </div>
-                    )}
-                  </div>
-                ))
-              }
-            </div>
-          </Modal>
-        );
-      })()}
+      {modal && typeof modal === "object" && modal.id && (
+        <InvoiceDetailModal inv={modal} uploads={uploads} onClose={() => setModal(null)} />
+      )}
       {modal === "retainage" && (
         <Modal title="Retainage Held" subtitle="Per Invoice #1956" onClose={() => setModal(null)}>
           <KVGrid rows={[["Total Retainage", "$217,342.38"], ["Completed Work", "$217,342.38"], ["Stored Materials", "$0.00"], ["Release Trigger", "Substantial Completion"], ["Estimated Release", "April 2027"]]} />
