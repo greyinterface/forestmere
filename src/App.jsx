@@ -759,27 +759,133 @@ function COsView() {
 
 // ─── INVOICES ──────────────────────────────────────────────────────────────────
 // ─── INVOICE DETAIL MODAL ──────────────────────────────────────────────────────
-function InvoiceDetailModal({ inv, uploads, onClose }) {
-  const [pdfView, setPdfView] = useState(null);
+function InvoiceDetailModal({ inv, uploads, onClose, onSave }) {
+  const [pdfView, setPdfView]   = useState(null);
+  const [editing, setEditing]   = useState(false);
+  const [editForm, setEditForm] = useState({
+    status:   inv.status,
+    paidDate: inv.paidDate || "",
+    notes:    inv.notes    || "",
+    reqDate:  inv.reqDate  || "",
+    jobTotal: inv.jobTotal,
+    fees:     inv.fees,
+    depositApplied: inv.depositApplied,
+    retainage: inv.retainage,
+    amtDue:   inv.amtDue,
+    approved: inv.approved,
+  });
+  const fileRef = useRef();
+  const [newPdf, setNewPdf]   = useState(null); // pending replacement PDF
+
   const linkedDocs = uploads.filter(u =>
     u.linkedId === inv.id ||
     u.linkedId === inv.invNum ||
     u.autoPayId === inv.id
   );
+
+  const inp = "w-full bg-white dark:bg-zinc-600 border border-zinc-200 dark:border-zinc-500 rounded-lg px-3 py-2 text-xs text-zinc-800 dark:text-zinc-200 outline-none focus:border-amber-400";
+
+  const handleSave = () => {
+    onSave(inv.id, editForm, newPdf);
+    setEditing(false);
+    setNewPdf(null);
+  };
+
   return (
-    <Modal title={`${inv.invNum} — ${inv.desc}`} subtitle={`${inv.id} · Requested ${inv.reqDate}`} onClose={() => { onClose(); setPdfView(null); }} wide>
-      <KVGrid rows={[
-        ["Invoice Number", inv.invNum], ["Request Date", inv.reqDate],
-        ["Paid Date", inv.paidDate || "—"], ["Status", inv.status],
-        ["Job Total", $f(inv.jobTotal)], ["GC Fees", $f(inv.fees)],
-        ["Deposit Applied", $f(inv.depositApplied)], ["Retainage Held", $f(Math.abs(inv.retainage))],
-        ["Amount Due", $f(inv.amtDue)], ["Approved Amount", $f(inv.approved)],
-      ]} />
-      {inv.notes && (
-        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-lg px-4 py-3">
-          <p className="text-xs text-amber-700 dark:text-amber-400">{inv.notes}</p>
+    <Modal
+      title={`${inv.invNum} — ${inv.desc}`}
+      subtitle={`${inv.id} · Requested ${inv.reqDate}`}
+      onClose={() => { onClose(); setPdfView(null); }}
+      wide
+    >
+      {/* Header action buttons */}
+      <div className="flex justify-end gap-2 -mt-1 mb-1">
+        {editing
+          ? <>
+              <button onClick={() => { setEditing(false); setNewPdf(null); }} className="text-xs border border-zinc-200 dark:border-zinc-600 text-zinc-500 rounded-lg px-3 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">Cancel</button>
+              <button onClick={handleSave} className="text-xs bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-lg px-4 py-1.5 transition-colors shadow-sm">Save Changes</button>
+            </>
+          : <button onClick={() => setEditing(true)} className="text-xs border border-zinc-200 dark:border-zinc-600 text-zinc-500 rounded-lg px-3 py-1.5 hover:border-amber-400 hover:text-amber-600 transition-colors flex items-center gap-1.5">✎ Edit</button>
+        }
+      </div>
+
+      {/* View mode */}
+      {!editing && (
+        <>
+          <KVGrid rows={[
+            ["Invoice Number", inv.invNum], ["Request Date", inv.reqDate],
+            ["Paid Date", inv.paidDate || "—"], ["Status", inv.status],
+            ["Job Total", $f(inv.jobTotal)], ["GC Fees", $f(inv.fees)],
+            ["Deposit Applied", $f(inv.depositApplied)], ["Retainage Held", $f(Math.abs(inv.retainage))],
+            ["Amount Due", $f(inv.amtDue)], ["Approved Amount", $f(inv.approved)],
+          ]} />
+          {inv.notes && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-lg px-4 py-3">
+              <p className="text-xs text-amber-700 dark:text-amber-400">{inv.notes}</p>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Edit mode */}
+      {editing && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-zinc-500 block mb-1">Status</label>
+              <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))} className={inp}>
+                {["Pending Payment", "Paid", "In Progress", "On Hold"].map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-zinc-500 block mb-1">Paid Date</label>
+              <input type="date" value={editForm.paidDate} onChange={e => setEditForm(f => ({ ...f, paidDate: e.target.value }))} className={inp} />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-500 block mb-1">Request Date</label>
+              <input type="date" value={editForm.reqDate} onChange={e => setEditForm(f => ({ ...f, reqDate: e.target.value }))} className={inp} />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-500 block mb-1">Job Total ($)</label>
+              <input type="number" value={editForm.jobTotal} onChange={e => setEditForm(f => ({ ...f, jobTotal: parseFloat(e.target.value) || 0 }))} className={inp} />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-500 block mb-1">GC Fees ($)</label>
+              <input type="number" value={editForm.fees} onChange={e => setEditForm(f => ({ ...f, fees: parseFloat(e.target.value) || 0 }))} className={inp} />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-500 block mb-1">Deposit Applied ($)</label>
+              <input type="number" value={editForm.depositApplied} onChange={e => setEditForm(f => ({ ...f, depositApplied: parseFloat(e.target.value) || 0 }))} className={inp} />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-500 block mb-1">Retainage ($)</label>
+              <input type="number" value={editForm.retainage} onChange={e => setEditForm(f => ({ ...f, retainage: parseFloat(e.target.value) || 0 }))} className={inp} />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-500 block mb-1">Amount Due ($)</label>
+              <input type="number" value={editForm.amtDue} onChange={e => setEditForm(f => ({ ...f, amtDue: parseFloat(e.target.value) || 0 }))} className={inp} />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-500 block mb-1">Approved Amount ($)</label>
+              <input type="number" value={editForm.approved} onChange={e => setEditForm(f => ({ ...f, approved: parseFloat(e.target.value) || 0 }))} className={inp} />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-zinc-500 block mb-1">Notes</label>
+            <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={3} placeholder="Add a note…" className={inp + " resize-none"} />
+          </div>
+          {/* Replace PDF */}
+          <div>
+            <label className="text-xs text-zinc-500 block mb-1">Replace Attached PDF</label>
+            <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={e => setNewPdf(e.target.files[0])} />
+            <button onClick={() => fileRef.current?.click()} className="w-full border-2 border-dashed border-zinc-200 dark:border-zinc-600 rounded-lg px-4 py-3 text-xs text-zinc-400 hover:border-amber-400 hover:text-amber-600 transition-colors text-left">
+              {newPdf ? `📄 ${newPdf.name} — ready to save` : "Click to select a replacement PDF (optional)"}
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Attached Documents — always shown */}
       <div>
         <SectionTitle>Attached Documents</SectionTitle>
         {linkedDocs.length === 0
@@ -801,13 +907,7 @@ function InvoiceDetailModal({ inv, uploads, onClose }) {
                   >
                     {pdfView?.id === doc.id ? "Hide PDF" : "View PDF"}
                   </button>
-                  <a
-                    href={doc.dataUrl}
-                    download={doc.name}
-                    className="text-xs font-semibold border border-zinc-200 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 hover:border-amber-400 hover:text-amber-600 rounded-lg px-3 py-1.5 transition-colors inline-flex items-center"
-                  >
-                    ↓ Download
-                  </a>
+                  <a href={doc.dataUrl} download={doc.name} className="text-xs font-semibold border border-zinc-200 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 hover:border-amber-400 hover:text-amber-600 rounded-lg px-3 py-1.5 transition-colors inline-flex items-center">↓ Download</a>
                 </div>
               </div>
               {pdfView?.id === doc.id && (
@@ -823,22 +923,30 @@ function InvoiceDetailModal({ inv, uploads, onClose }) {
   );
 }
 
-function InvoicesView({ uploads = [], syncedPayments = [] }) {
+function InvoicesView({ uploads = [], syncedPayments = [], invoiceOverrides = {}, setInvoiceOverrides }) {
   const [modal, setModal] = useState(null);
 
-  // Merge live payment status from JXM tracker into invoice list
-  // Tracker uses: description="Taconic Builders", ref="1750" (matches invNum without #)
+  // onSave handler — merges edits into invoiceOverrides keyed by inv.id
+  const handleInvoiceSave = (invId, editForm, newPdf) => {
+    setInvoiceOverrides(prev => ({ ...prev, [invId]: { ...prev[invId], ...editForm } }));
+    // If a replacement PDF was provided, add it to uploads linked to this invoice
+    // (handled via the Document Upload tab — just close the modal for now)
+  };
+
+  // Merge: base INVOICES → user overrides → live tracker sync
   const mergedInvoices = INVOICES.map(inv => {
-    const invNumClean = inv.invNum.replace("#", "");
+    const override = invoiceOverrides[inv.id] || {};
+    const merged = { ...inv, ...override };
+    const invNumClean = merged.invNum.replace("#", "");
     const match = syncedPayments.find(p =>
       p.entity === "Camp Forestmere" &&
       p.description?.toLowerCase().includes("taconic") &&
-      (p.ref === invNumClean || p.ref === inv.invNum)
+      (p.ref === invNumClean || p.ref === merged.invNum)
     );
-    if (match && match.status === "Done" && inv.status !== "Paid") {
-      return { ...inv, status: "Paid", paidDate: match.paidDate || new Date().toLocaleDateString("en-US"), _synced: true };
+    if (match && match.status === "Done" && merged.status !== "Paid") {
+      return { ...merged, status: "Paid", paidDate: match.paidDate || new Date().toLocaleDateString("en-US"), _synced: true };
     }
-    return inv;
+    return merged;
   });
 
   const pendingTotal = mergedInvoices.filter(i => i.status !== "Paid").reduce((s, i) => s + i.amtDue, 0);
@@ -885,7 +993,7 @@ function InvoicesView({ uploads = [], syncedPayments = [] }) {
       </div>
 
       {modal && typeof modal === "object" && modal.id && (
-        <InvoiceDetailModal inv={modal} uploads={uploads} onClose={() => setModal(null)} />
+        <InvoiceDetailModal inv={modal} uploads={uploads} onClose={() => setModal(null)} onSave={handleInvoiceSave} />
       )}
       {modal === "retainage" && (
         <Modal title="Retainage Held" subtitle="Per Invoice #1956" onClose={() => setModal(null)}>
@@ -1872,6 +1980,7 @@ export default function App() {
   const [archive, setArchive]       = useState([]); // deleted docs archive
   const [dark, setDark]             = useState(false);
   const [vendorInvoices, setVendorInvoices] = useState({});
+  const [invoiceOverrides, setInvoiceOverrides] = useState({}); // user edits to invoice fields
   const [syncedPayments, setSyncedPayments] = useState([]); // live sync from JXM tracker
   const [syncFlash, setSyncFlash]   = useState(false); // pulse indicator on sync
 
@@ -1976,7 +2085,7 @@ export default function App() {
           {tab === "dashboard" && <Dashboard setTab={setTab} />}
           {tab === "budget"    && <BudgetView />}
           {tab === "awards"    && <AwardsView />}
-          {tab === "invoices"  && <InvoicesView uploads={uploads} syncedPayments={syncedPayments} />}
+          {tab === "invoices"  && <InvoicesView uploads={uploads} syncedPayments={syncedPayments} invoiceOverrides={invoiceOverrides} setInvoiceOverrides={setInvoiceOverrides} />}
           {tab === "lineitem"  && <LineItemView />}
           {tab === "cos"       && <COsView />}
           {tab === "cashflow"  && <CashFlowView />}
