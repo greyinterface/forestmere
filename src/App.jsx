@@ -946,8 +946,7 @@ function InvoicesView({ uploads = [], syncedPayments = [], invoiceOverrides = {}
     );
     const trackerApproved = match && (match.status === "Done" || match.status === "PaymentApproved");
     if (trackerApproved && merged.status !== "Paid") {
-      const newStatus = match.status === "Done" ? "Paid" : "Approved";
-      return { ...merged, status: newStatus, paidDate: match.paidDate || new Date().toLocaleDateString("en-US"), _synced: true, _syncStatus: match.status };
+      return { ...merged, status: "Paid", paidDate: match.paidDate || new Date().toLocaleDateString("en-US"), _synced: true, _syncDate: match.updatedAt || new Date().toISOString() };
     }
     return merged;
   });
@@ -985,8 +984,10 @@ function InvoicesView({ uploads = [], syncedPayments = [], invoiceOverrides = {}
               </div>
               <div className="flex items-center gap-3 shrink-0 ml-4">
                 <span className="text-sm font-bold text-zinc-900 dark:text-white tabular-nums">{$f(invRow.approved)}</span>
-                {statusTag(invRow.status)}
-                {invRow._synced && <span className="inline-flex items-center gap-1 text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700/50 rounded-full px-2 py-0.5">⇄ Synced</span>}
+                <div className="flex flex-col items-center gap-0.5">
+                  {statusTag(invRow.status)}
+                  {invRow._synced && <span className="text-[9px] text-emerald-600 dark:text-emerald-400 cursor-pointer hover:underline" title={invRow._syncDate ? "Synced: " + new Date(invRow._syncDate).toLocaleString("en-US") : "Synced"} onClick={(e) => { e.stopPropagation(); alert("Synced on: " + (invRow._syncDate ? new Date(invRow._syncDate).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) : "Unknown")); }}>⇄ synced</span>}
+                </div>
                 {invRow.notes && <span className="inline-flex items-center gap-1 text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50 rounded-full px-2 py-0.5">⚑ Note</span>}
                 <span className="text-zinc-300 dark:text-zinc-700">›</span>
               </div>
