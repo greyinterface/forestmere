@@ -836,22 +836,22 @@ function InvoicesView({ uploads = [] }) {
         <Stat label="Pending" value={$f(pendingTotal)} accent sub={INVOICES.filter(i => i.status !== "Paid").length + " invoices outstanding"} onClick={() => setModal("pending")} />
       </div>
       <div className="space-y-2">
-        {INVOICES.map(inv => (
-          <Card key={inv.id} className="overflow-hidden hover:border-amber-300 dark:hover:border-amber-700 transition-colors cursor-pointer" onClick={() => setModal(inv)}>
+        {INVOICES.map(invRow => (
+          <button key={invRow.id} className="w-full text-left bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl shadow-sm overflow-hidden hover:border-amber-300 dark:hover:border-amber-700 transition-colors cursor-pointer active:scale-[0.99]" onClick={() => setModal(invRow)}>
             <div className="px-4 py-3.5 flex items-center justify-between">
               <div className="flex items-center gap-4 min-w-0">
-                <span className="font-mono text-xs text-amber-600 dark:text-amber-400 w-20 shrink-0">{inv.id}</span>
-                <span className="font-mono text-xs font-bold text-zinc-700 dark:text-zinc-300 w-28 shrink-0">{inv.invNum}</span>
-                <span className="text-xs text-zinc-400 truncate">{inv.desc}</span>
+                <span className="font-mono text-xs text-amber-600 dark:text-amber-400 w-20 shrink-0">{invRow.id}</span>
+                <span className="font-mono text-xs font-bold text-zinc-700 dark:text-zinc-300 w-28 shrink-0">{invRow.invNum}</span>
+                <span className="text-xs text-zinc-400 truncate">{invRow.desc}</span>
               </div>
               <div className="flex items-center gap-3 shrink-0 ml-4">
-                <span className="text-sm font-bold text-zinc-900 dark:text-white tabular-nums">{$f(inv.approved)}</span>
-                {statusTag(inv.status)}
-                {inv.notes && <span className="inline-flex items-center gap-1 text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50 rounded-full px-2 py-0.5">⚑ Note</span>}
+                <span className="text-sm font-bold text-zinc-900 dark:text-white tabular-nums">{$f(invRow.approved)}</span>
+                {statusTag(invRow.status)}
+                {invRow.notes && <span className="inline-flex items-center gap-1 text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50 rounded-full px-2 py-0.5">⚑ Note</span>}
                 <span className="text-zinc-300 dark:text-zinc-700">›</span>
               </div>
             </div>
-          </Card>
+          </button>
         ))}
       </div>
 
