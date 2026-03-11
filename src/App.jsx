@@ -95,11 +95,12 @@ const INVOICES = [
   { id: "PAY-005", reqDate: "11/19/2025", invNum: "#1819", desc: "Period to: October 31, 2025", jobTotal: 525618.85, fees: 88855.86, depositApplied: -126944.29, retainage: -56704.94, amtDue: 430825.48, approved: 430845.48, paidDate: "12/30/2025", status: "Paid", notes: null },
   { id: "PAY-006", reqDate: "12/22/2025", invNum: "#1880", desc: "Period to: November 30, 2025", jobTotal: 196594.55, fees: 33234.30, depositApplied: -66221.94, retainage: -11728.54, amtDue: 151878.37, approved: 151878.37, paidDate: null, status: "Pending Payment", notes: "$430,845.48 paid twice in error. Balance to be applied against next invoice." },
   { id: "PAY-007", reqDate: "01/23/2026", invNum: "#1956", desc: "Period to: December 31, 2025", jobTotal: 78875.63, fees: 13333.93, depositApplied: -26602.41, retainage: -2948.72, amtDue: 62658.43, approved: 62658.43, paidDate: null, status: "Pending Payment", notes: null },
+  { id: "PAY-008", reqDate: "02/10/2026", invNum: "#1976", desc: "Period to: January 31, 2026", jobTotal: 286511, fees: 48435, depositApplied: -121719, retainage: -30465, amtDue: 182762, approved: 182771, paidDate: null, status: "Pending Payment", notes: null },
 ];
 
 const LINE_ITEMS = [
-  { code: "01-001", name: "Project Staffing", budget: 1367556.67, cos: 0, done: 164366.64, pct: 0.1202, inv: { "C25-104-Deposit": null, "#1621": 18225, "#1693": 33185, "#1750": 26170, "#1819": 40816.64, "#1880": 22475, "#1956": 23495 } },
-  { code: "02-002", name: "Site Preparation", budget: 423400, cos: 0, done: 96619.74, pct: 0.2282, inv: { "#1621": 48297.32, "#1693": 9217.82, "#1750": 6264.82, "#1819": 6608.71, "#1880": 9759.30, "#1956": 16471.77 } },
+  { code: "01-001", name: "Project Staffing", budget: 1367556.67, cos: 0, done: 186786.64, pct: 0.1366, inv: { "C25-104-Deposit": null, "#1621": 18225, "#1693": 33185, "#1750": 26170, "#1819": 40816.64, "#1880": 22475, "#1956": 23495, "#1976": 22420 } },
+  { code: "02-002", name: "Site Preparation", budget: 423400, cos: 0, done: 104490.15, pct: 0.2468, inv: { "#1621": 48297.32, "#1693": 9217.82, "#1750": 6264.82, "#1819": 6608.71, "#1880": 9759.30, "#1956": 16471.77, "#1976": 7870.41 } },
   { code: "02-100", name: "Debris Removal", budget: 33000, cos: 0, done: 1733, pct: 0.0525, inv: { "#1880": 1733 } },
   { code: "03-330", name: "Cast In Place Concrete", budget: 401900, cos: 148000, done: 137250, pct: 0.2496, inv: { "#1819": 137250 } },
   { code: "06-210", name: "Ext. Finish Carpentry – Material", budget: 273230, cos: 0, done: 76576.19, pct: 0.2803, inv: { "#1880": 76576.19 } },
@@ -108,13 +109,14 @@ const LINE_ITEMS = [
   { code: "11-300", name: "Residential Equipment", budget: 53441, cos: 0, done: 22755.58, pct: 0.4258, inv: { "#1956": 22755.58 } },
   { code: "31-200", name: "Excavations & Backfilling", budget: 996944, cos: 73382, done: 628329.89, pct: 0.6303, inv: { "#1621": 198067, "#1693": 241737, "#1750": 180000, "#1956": 8653.28 } },
   { code: "31-110", name: "Site Clearing", budget: 87510, cos: 0, done: 87510, pct: 1.0, inv: { "#1621": 42207.55, "#1693": 45302.45 } },
+  { code: "31-640", name: "Sheet Pile / Caissons", budget: 416472, cos: 57677.7, done: 250470.25, pct: 0.5283, inv: { "#1976": 250470.25 } },
   { code: "33-340", name: "Site Drainage Systems", budget: 196790, cos: 0, done: 114792.44, pct: 0.5833, inv: { "#1750": 114792.44 } },
-  { code: "33-370", name: "Electrical Service", budget: 788495, cos: 1992.15, done: 402240.82, pct: 0.509, inv: { "#1750": 63730, "#1956": 7500 } },
+  { code: "33-370", name: "Electrical Service", budget: 788495, cos: 1992.15, done: 407990.82, pct: 0.5161, inv: { "#1750": 63730, "#1956": 7500, "#1976": 5750 } },
   { code: "26-100", name: "Electrical Power & Switching", budget: 244183, cos: 0, done: 81161.65, pct: 0.3357, inv: { "#1750": 81161.65 } },
   { code: "32-100", name: "Driveway & Curbing", budget: 251906, cos: 0, done: 115737.16, pct: 0.4594, inv: { "#1750": 115737.16 } },
 ];
 
-const INV_NUMS = ["C25-104-Deposit", "#1621", "#1693", "#1750", "#1819", "#1880", "#1956"];
+const INV_NUMS = ["C25-104-Deposit", "#1621", "#1693", "#1750", "#1819", "#1880", "#1956", "#1976"];
 
 const PRIOR_PHASES = [
   {
@@ -365,15 +367,14 @@ function KVGrid({ rows }) {
 }
 
 // ─── DASHBOARD ─────────────────────────────────────────────────────────────────
-function Dashboard({ setTab, invoices = INVOICES, lineItems = LINE_ITEMS }) {
+function Dashboard({ setTab }) {
   const [modal, setModal] = useState(null);
-  const pendingInvs = invoices.filter(i => i.status !== "Paid");
-  const taconicPaidLocal = invoices.filter(i => i.status === "Paid").reduce((s, i) => s + i.approved, 0);
+  const pendingInvs = INVOICES.filter(i => i.status !== "Paid");
   const catBudget = {};
   BUDGET.forEach(b => { catBudget[b.cat] = (catBudget[b.cat] || 0) + b.budget; });
 
   const spendRows = [
-    { name: "Taconic Builders (GC Phase 1.1)", paid: taconicPaidLocal, color: "#d97706" },
+    { name: "Taconic Builders (GC Phase 1.1)", paid: taconicPaid, color: "#d97706" },
     { name: "Architecturefirm",                paid: afPaid,      color: "#60a5fa" },
     { name: "Reed Hilderbrand",                paid: rhPaid,      color: "#34d399" },
     { name: "Ivan Zdrahal PE",                 paid: izPaid,      color: "#a78bfa" },
@@ -757,20 +758,20 @@ function COsView() {
 }
 
 // ─── INVOICES ──────────────────────────────────────────────────────────────────
-function InvoicesView({ invoices = INVOICES }) {
+function InvoicesView() {
   const [modal, setModal] = useState(null);
-  const pendingTotal = invoices.filter(i => i.status !== "Paid").reduce((s, i) => s + i.amtDue, 0);
+  const pendingTotal = INVOICES.filter(i => i.status !== "Paid").reduce((s, i) => s + i.amtDue, 0);
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Gross Invoiced" value={$f(invoices.reduce((s, i) => s + i.jobTotal, 0))} sub="Before retainage & deposits" onClick={() => setModal("all")} />
-        <Stat label="Total Paid" value={$f(invoices.filter(i => i.status === "Paid").reduce((s, i) => s + i.approved, 0))} sub={invoices.filter(i => i.status === "Paid").length + " invoices paid"} onClick={() => setModal("paid")} />
+        <Stat label="Gross Invoiced" value={$f(INVOICES.reduce((s, i) => s + i.jobTotal, 0))} sub="Before retainage & deposits" onClick={() => setModal("all")} />
+        <Stat label="Total Paid" value={$f(taconicPaid)} sub={INVOICES.filter(i => i.status === "Paid").length + " invoices paid"} onClick={() => setModal("paid")} />
         <Stat label="Retainage Held" value="$217,342" sub="Released at close" onClick={() => setModal("retainage")} />
-        <Stat label="Pending" value={$f(pendingTotal)} accent sub={invoices.filter(i => i.status !== "Paid").length + " invoices outstanding"} onClick={() => setModal("pending")} />
+        <Stat label="Pending" value={$f(pendingTotal)} accent sub={INVOICES.filter(i => i.status !== "Paid").length + " invoices outstanding"} onClick={() => setModal("pending")} />
       </div>
       <div className="space-y-2">
-        {invoices.map(inv => (
+        {INVOICES.map(inv => (
           <Card key={inv.id} className="overflow-hidden hover:border-amber-300 dark:hover:border-amber-700 transition-colors cursor-pointer" onClick={() => setModal(inv)}>
             <div className="px-4 py-3.5 flex items-center justify-between">
               <div className="flex items-center gap-4 min-w-0">
@@ -815,7 +816,7 @@ function InvoicesView({ invoices = INVOICES }) {
           <table className="w-full text-xs">
             <thead><tr><TH>Invoice</TH><TH>Description</TH><TH right>Job Total</TH><TH right>Approved</TH><TH>Status</TH></tr></thead>
             <tbody>
-              {invoices.filter(i => modal === "all" || (modal === "paid" ? i.status === "Paid" : i.status !== "Paid")).map(i => (
+              {INVOICES.filter(i => modal === "all" || (modal === "paid" ? i.status === "Paid" : i.status !== "Paid")).map(i => (
                 <TR key={i.id}>
                   <TD mono className="text-amber-600 dark:text-amber-400">{i.invNum}</TD>
                   <TD className="text-zinc-700 dark:text-zinc-300">{i.desc}</TD>
@@ -833,16 +834,16 @@ function InvoicesView({ invoices = INVOICES }) {
 }
 
 // ─── LINE ITEM BILLING ─────────────────────────────────────────────────────────
-function LineItemView({ lineItems = LINE_ITEMS, invNums = INV_NUMS }) {
+function LineItemView() {
   const [sel, setSel] = useState("All");
   const [modal, setModal] = useState(null);
-  const rows = lineItems.filter(li => sel === "All" || (li.inv[sel] != null && li.inv[sel] > 0));
+  const rows = LINE_ITEMS.filter(li => sel === "All" || (li.inv[sel] != null && li.inv[sel] > 0));
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-zinc-400 font-medium">Filter by invoice:</span>
-        {["All", ...invNums].map(n => (
+        {["All", ...INV_NUMS].map(n => (
           <button key={n} onClick={() => setSel(n)} className={cx("px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all", sel === n ? "bg-amber-600 text-white shadow-sm" : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200")}>{n}</button>
         ))}
       </div>
@@ -891,7 +892,7 @@ function LineItemView({ lineItems = LINE_ITEMS, invNums = INV_NUMS }) {
           <table className="w-full text-xs">
             <thead><tr><TH>Invoice</TH><TH right>Amount Billed</TH></tr></thead>
             <tbody>
-              {invNums.map(n => modal.inv[n] ? (
+              {INV_NUMS.map(n => modal.inv[n] ? (
                 <TR key={n}>
                   <TD mono muted>{n}</TD>
                   <TD right bold className="text-zinc-900 dark:text-white">{$f(modal.inv[n])}</TD>
@@ -906,7 +907,7 @@ function LineItemView({ lineItems = LINE_ITEMS, invNums = INV_NUMS }) {
 }
 
 // ─── CASH FLOW ─────────────────────────────────────────────────────────────────
-function CashFlowView({ invoices = INVOICES }) {
+function CashFlowView() {
   const [modal, setModal] = useState(null);
   const bars = [
     { m: "Jan", v: 461105 }, { m: "Feb", v: 164106 }, { m: "Mar", v: 164106 },
@@ -1465,259 +1466,7 @@ function VendorsView({ vendorInvoices, setVendorInvoices }) {
 
 // ─── DOCUMENTS ─────────────────────────────────────────────────────────────────
 // vendorInvoices passed in so documents tab shows vendor invoices too
-// ─── NEW TACONIC INVOICE FORM ──────────────────────────────────────────────────
-const CSI_CODES = [
-  { code: "01-001", name: "Project Staffing" },
-  { code: "02-002", name: "Site Preparation" },
-  { code: "02-100", name: "Debris Removal" },
-  { code: "03-330", name: "Cast In Place Concrete" },
-  { code: "04-570", name: "Chimney / Fireplace" },
-  { code: "06-100", name: "Rough Carpentry - Labor" },
-  { code: "06-110", name: "Rough Carpentry - Material" },
-  { code: "06-120", name: "SIPS Panels" },
-  { code: "06-200", name: "Exterior Finish Carpentry - Labor" },
-  { code: "06-210", name: "Exterior Finish Carpentry - Material" },
-  { code: "06-400", name: "Architectural Woodwork (Casework)" },
-  { code: "06-460", name: "Interior Wood Trims - Labor" },
-  { code: "06-470", name: "Interior Wood Trims - Material" },
-  { code: "07-100", name: "Exterior Waterproofing" },
-  { code: "07-200", name: "Building Insulation" },
-  { code: "07-500", name: "Roofing Systems" },
-  { code: "08-140", name: "Interior Wood Doors & Frames" },
-  { code: "08-300", name: "Specialty Doors & Frames" },
-  { code: "08-330", name: "Garage Doors" },
-  { code: "08-400", name: "Windows and Exterior Doors" },
-  { code: "08-600", name: "Skylights" },
-  { code: "08-700", name: "Door Hardware" },
-  { code: "08-800", name: "Glazing" },
-  { code: "09-200", name: "Gypsum Board" },
-  { code: "09-300", name: "Tile & Stone" },
-  { code: "09-640", name: "Wood Flooring" },
-  { code: "09-911", name: "Exterior Finishing" },
-  { code: "09-912", name: "Interior Finishing" },
-  { code: "10-280", name: "Toilet & Bathroom Accessories" },
-  { code: "11-300", name: "Residential Equipment" },
-  { code: "12-200", name: "Window Treatments & Controls" },
-  { code: "13-110", name: "Hot Tub" },
-  { code: "13-200", name: "Special Purpose Rooms" },
-  { code: "21-130", name: "Fire Suppression" },
-  { code: "22-100", name: "Plumbing" },
-  { code: "22-400", name: "Plumbing Fixtures" },
-  { code: "23-100", name: "HVAC" },
-  { code: "26-100", name: "Electrical Power & Switching" },
-  { code: "26-320", name: "Electrical Generators" },
-  { code: "26-500", name: "Interior Lighting Fixtures" },
-  { code: "26-560", name: "Exterior Lighting Fixtures" },
-  { code: "31-110", name: "Site Clearing" },
-  { code: "31-200", name: "Excavations & Backfilling" },
-  { code: "31-640", name: "Sheet Pile / Caissons" },
-  { code: "32-010", name: "Paving (Hardscape)" },
-  { code: "32-100", name: "Driveway & Curbing" },
-  { code: "32-320", name: "Site Retaining Walls" },
-  { code: "32-900", name: "Plantings & Shrubs" },
-  { code: "33-100", name: "Water Service" },
-  { code: "33-150", name: "Gas Services / Tank" },
-  { code: "33-300", name: "Septic / Sewer Systems" },
-  { code: "33-340", name: "Site Drainage Systems" },
-  { code: "33-370", name: "Electrical Service" },
-];
-
-function NewTaconicInvoiceForm({ invoices, setInvoices, lineItems, setLineItems, invNums, setInvNums, onDone }) {
-  const nextPayNum = invoices.length + 1;
-  const nextId = `PAY-${String(nextPayNum).padStart(3, "0")}`;
-
-  const empty = {
-    invNum: "", reqDate: "", desc: "", paidDate: "", status: "Pending Payment",
-    jobTotal: "", fees: "", depositApplied: "", retainage: "", amtDue: "", approved: "", notes: "",
-  };
-  const [fields, setFields] = useState(empty);
-  const [lineRows, setLineRows] = useState([{ code: "", amount: "" }]);
-  const [saved, setSaved] = useState(false);
-
-  const inp = "w-full bg-white dark:bg-zinc-600 border border-zinc-200 dark:border-zinc-500 rounded-lg px-3 py-2 text-xs text-zinc-800 dark:text-zinc-200 outline-none focus:border-amber-400";
-  const n = (v) => parseFloat(String(v).replace(/[$,]/g, "")) || 0;
-
-  const addRow = () => setLineRows(r => [...r, { code: "", amount: "" }]);
-  const removeRow = (i) => setLineRows(r => r.filter((_, idx) => idx !== i));
-  const updateRow = (i, key, val) => setLineRows(r => r.map((row, idx) => idx === i ? { ...row, [key]: val } : row));
-
-  const commit = () => {
-    if (!fields.invNum || !fields.reqDate) return alert("Invoice number and request date are required.");
-    const invNum = fields.invNum.trim();
-
-    // Build new invoice record
-    const newInv = {
-      id: nextId,
-      invNum,
-      reqDate: fields.reqDate,
-      desc: fields.desc || `Period invoice ${invNum}`,
-      jobTotal:       n(fields.jobTotal),
-      fees:           n(fields.fees),
-      depositApplied: n(fields.depositApplied),
-      retainage:      n(fields.retainage),
-      amtDue:         n(fields.amtDue),
-      approved:       n(fields.approved) || n(fields.amtDue),
-      paidDate:       fields.paidDate || null,
-      status:         fields.status,
-      notes:          fields.notes || null,
-    };
-    setInvoices(prev => [...prev, newInv]);
-
-    // Update INV_NUMS
-    setInvNums(prev => [...prev, invNum]);
-
-    // Update LINE_ITEMS — add amounts to matching codes, update done + pct
-    const validRows = lineRows.filter(r => r.code && n(r.amount) > 0);
-    if (validRows.length > 0) {
-      setLineItems(prev => {
-        const updated = prev.map(li => {
-          const match = validRows.find(r => r.code === li.code);
-          if (!match) return li;
-          const added = n(match.amount);
-          const newDone = li.done + added;
-          const rev = li.budget + li.cos;
-          return {
-            ...li,
-            done: newDone,
-            pct: rev > 0 ? newDone / rev : 0,
-            inv: { ...li.inv, [invNum]: (li.inv[invNum] || 0) + added },
-          };
-        });
-        // Add new line items for codes that don't exist yet
-        const existingCodes = new Set(prev.map(li => li.code));
-        const newRows = validRows
-          .filter(r => !existingCodes.has(r.code))
-          .map(r => {
-            const csi = CSI_CODES.find(c => c.code === r.code);
-            const budget = BUDGET.find(b => b.code === r.code)?.budget || 0;
-            const cos = 0;
-            const done = n(r.amount);
-            return {
-              code: r.code,
-              name: csi?.name || r.code,
-              budget,
-              cos,
-              done,
-              pct: budget > 0 ? done / budget : 0,
-              inv: { [invNum]: done },
-            };
-          });
-        return [...updated, ...newRows];
-      });
-    }
-
-    setSaved(true);
-  };
-
-  if (saved) return (
-    <Card className="p-5">
-      <div className="text-center py-4 space-y-2">
-        <div className="text-2xl">✓</div>
-        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{nextId} created successfully</p>
-        <p className="text-xs text-zinc-400">Invoice added to the Invoices tab. Line items updated in Line Item Billing.</p>
-        <button onClick={onDone} className="mt-3 px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-500">Done</button>
-      </div>
-    </Card>
-  );
-
-  return (
-    <Card className="p-5 space-y-5">
-      <div className="flex items-center justify-between">
-        <SectionTitle>New Invoice Entry — {nextId}</SectionTitle>
-        <span className="text-xs text-zinc-400 font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded">{nextId}</span>
-      </div>
-
-      {/* Invoice header fields */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <div className="col-span-1">
-          <label className="text-xs text-zinc-500 block mb-1">Invoice Number <span className="text-red-400">*</span></label>
-          <input value={fields.invNum} onChange={e => setFields(f => ({ ...f, invNum: e.target.value }))} placeholder="e.g. #2024" className={inp} />
-        </div>
-        <div>
-          <label className="text-xs text-zinc-500 block mb-1">Request Date <span className="text-red-400">*</span></label>
-          <input type="date" value={fields.reqDate} onChange={e => setFields(f => ({ ...f, reqDate: e.target.value }))} className={inp} />
-        </div>
-        <div>
-          <label className="text-xs text-zinc-500 block mb-1">Status</label>
-          <select value={fields.status} onChange={e => setFields(f => ({ ...f, status: e.target.value }))} className={inp}>
-            <option>Pending Payment</option>
-            <option>Paid</option>
-            <option>Under Review</option>
-          </select>
-        </div>
-        <div className="col-span-2 md:col-span-3">
-          <label className="text-xs text-zinc-500 block mb-1">Description</label>
-          <input value={fields.desc} onChange={e => setFields(f => ({ ...f, desc: e.target.value }))} placeholder="e.g. Period to: January 31, 2026" className={inp} />
-        </div>
-        {fields.status === "Paid" && (
-          <div>
-            <label className="text-xs text-zinc-500 block mb-1">Paid Date</label>
-            <input type="date" value={fields.paidDate} onChange={e => setFields(f => ({ ...f, paidDate: e.target.value }))} className={inp} />
-          </div>
-        )}
-      </div>
-
-      {/* Financial fields */}
-      <div>
-        <SectionTitle>Financial Summary</SectionTitle>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {[
-            ["jobTotal",        "Job Total (Work Completed)"],
-            ["fees",            "GC Fees"],
-            ["depositApplied",  "Deposit Applied (negative)"],
-            ["retainage",       "Retainage Held (negative)"],
-            ["amtDue",          "Amount Due"],
-            ["approved",        "Approved Amount (leave blank = same as Due)"],
-          ].map(([key, label]) => (
-            <div key={key}>
-              <label className="text-xs text-zinc-500 block mb-1">{label}</label>
-              <input value={fields[key]} onChange={e => setFields(f => ({ ...f, [key]: e.target.value }))} placeholder="$0" className={inp} />
-            </div>
-          ))}
-        </div>
-        <div className="mt-3">
-          <label className="text-xs text-zinc-500 block mb-1">Notes (optional)</label>
-          <input value={fields.notes} onChange={e => setFields(f => ({ ...f, notes: e.target.value }))} placeholder="Any notes on this invoice…" className={inp} />
-        </div>
-      </div>
-
-      {/* Line items */}
-      <div>
-        <SectionTitle>Line Items (optional — updates Line Item Billing tab)</SectionTitle>
-        <div className="space-y-2">
-          {lineRows.map((row, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <select value={row.code} onChange={e => updateRow(i, "code", e.target.value)}
-                className="flex-1 bg-white dark:bg-zinc-600 border border-zinc-200 dark:border-zinc-500 rounded-lg px-3 py-2 text-xs text-zinc-800 dark:text-zinc-200 outline-none focus:border-amber-400">
-                <option value="">— Select CSI code —</option>
-                {CSI_CODES.map(c => <option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}
-              </select>
-              <input value={row.amount} onChange={e => updateRow(i, "amount", e.target.value)}
-                placeholder="$0" className="w-32 bg-white dark:bg-zinc-600 border border-zinc-200 dark:border-zinc-500 rounded-lg px-3 py-2 text-xs text-zinc-800 dark:text-zinc-200 outline-none focus:border-amber-400 text-right font-mono" />
-              {lineRows.length > 1 && (
-                <button onClick={() => removeRow(i)} className="text-zinc-300 dark:text-zinc-600 hover:text-red-500 transition-colors text-sm px-1">✕</button>
-              )}
-            </div>
-          ))}
-        </div>
-        <button onClick={addRow} className="mt-2 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-500 font-semibold">+ Add line item</button>
-      </div>
-
-      <div className="flex gap-3 pt-2 border-t border-zinc-100 dark:border-zinc-600">
-        <button onClick={commit} className="flex-1 py-2.5 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-500 shadow-sm transition-colors">
-          Commit Invoice Entry
-        </button>
-        <button onClick={onDone} className="px-4 py-2.5 border border-zinc-200 dark:border-zinc-600 text-xs font-semibold text-zinc-500 rounded-lg hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">
-          Cancel
-        </button>
-      </div>
-    </Card>
-  );
-}
-
-function UploadsView({ uploads, setUploads, vendorInvoices,
-  invoices = INVOICES, setInvoices, lineItems = LINE_ITEMS, setLineItems,
-  invNums = INV_NUMS, setInvNums }) {
+function UploadsView({ uploads, setUploads, vendorInvoices }) {
   const [form, setForm] = useState({ type: "Invoice", vendor: "", linkedId: "", note: "", createNew: false });
   const [pending, setPending] = useState(null);
   const [dragOver, setDragOver] = useState(false);
@@ -1731,7 +1480,10 @@ function UploadsView({ uploads, setUploads, vendorInvoices,
     arch: [...VENDORS.arch.invoices, ...(vendorInvoices?.arch || [])].map(i => ({ id: i.invNum, label: `${i.invNum} – ${i.desc}` })),
   };
 
-  const TACONIC_LINKS = invoices.map(i => ({ id: i.id, label: `${i.id} · ${i.invNum}` }));
+  const TACONIC_LINKS = [
+    { id: "NEW", label: "— New Entry (no existing invoice)" },
+    ...INVOICES.map(i => ({ id: i.id, label: `${i.id} · ${i.invNum} · ${i.desc}` }))
+  ];
   const AWARD_LINKS   = AWARDS.map(a => ({ id: a.id, label: `${a.id} · ${a.vendor}` }));
   const CO_LINKS      = CHANGE_ORDERS.map(c => ({ id: c.no, label: `${c.no} · ${c.div}` }));
 
@@ -1740,7 +1492,7 @@ function UploadsView({ uploads, setUploads, vendorInvoices,
     if (form.type === "Award Letter") return AWARD_LINKS;
     if (form.type === "Change Order") return CO_LINKS;
     if (form.type === "Invoice") {
-      if (form.vendor === "taconic") return TACONIC_LINKS;
+      if (form.vendor === "taconic" && !form.createNew) return TACONIC_LINKS;
       if (form.vendor && vendorInvLinks[form.vendor]) return vendorInvLinks[form.vendor];
     }
     return [];
@@ -1759,20 +1511,30 @@ function UploadsView({ uploads, setUploads, vendorInvoices,
     const reader = new FileReader();
     reader.onload = e => {
       const vendorLabel = form.vendor === "taconic" ? "Taconic Builders" : form.vendor ? VENDORS[form.vendor]?.name : "";
+      // Auto-assign next PAY-### if New Entry selected
+      let linkedId = form.linkedId;
+      let autoPayId = null;
+      if (form.linkedId === "NEW") {
+        const existingPay = uploads.filter(u => u.autoPayId).map(u => parseInt(u.autoPayId.replace("PAY-", ""), 10));
+        const maxExisting = Math.max(...INVOICES.map((_, i) => i + 1), ...existingPay, 0);
+        autoPayId = `PAY-${String(maxExisting + 1).padStart(3, "0")}`;
+        linkedId = autoPayId;
+      }
       setUploads(prev => [...prev, {
         id: `DOC-${Date.now()}`,
         name: pending.name,
         type: form.type,
         vendor: form.vendor,
         vendorLabel,
-        linkedId: form.linkedId,
+        linkedId,
+        autoPayId,
         note: form.note,
         size: `${(pending.size / 1024).toFixed(0)} KB`,
         date: new Date().toLocaleDateString("en-US"),
         dataUrl: e.target.result
       }]);
       setPending(null);
-      setForm({ type: "Invoice", vendor: "", linkedId: "", note: "", createNew: false });
+      setForm({ type: "Invoice", vendor: "", linkedId: "", note: "" });
     };
     reader.readAsDataURL(pending);
   };
@@ -1801,7 +1563,7 @@ function UploadsView({ uploads, setUploads, vendorInvoices,
           <div className="space-y-3">
             {/* Type */}
             <div><label className="text-xs text-zinc-500 block mb-1">Document Type</label>
-              <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value, vendor: "", linkedId: "" }))} className={inp}>
+              <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value, vendor: "", linkedId: "", createNew: false }))} className={inp}>
                 {["Invoice", "Award Letter", "Change Order", "Other"].map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
@@ -1819,21 +1581,33 @@ function UploadsView({ uploads, setUploads, vendorInvoices,
               </div>
             )}
 
-            {/* Taconic: toggle between link existing or create new */}
+            {/* Taconic: toggle between link existing vs create new entry */}
             {form.type === "Invoice" && form.vendor === "taconic" && (
-              <div className="flex rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-500">
-                <button onClick={() => setForm(f => ({ ...f, createNew: false, linkedId: "" }))}
-                  className={cx("flex-1 py-1.5 text-xs font-semibold transition-colors", !form.createNew ? "bg-amber-600 text-white" : "bg-white dark:bg-zinc-600 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200")}>
-                  Link to existing
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => setForm(f => ({ ...f, createNew: false, linkedId: "" }))}
+                  className={cx("flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors", !form.createNew ? "bg-amber-600 text-white border-amber-600" : "bg-white dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200")}
+                >
+                  Link Existing
                 </button>
-                <button onClick={() => setForm(f => ({ ...f, createNew: true, linkedId: "" }))}
-                  className={cx("flex-1 py-1.5 text-xs font-semibold transition-colors", form.createNew ? "bg-amber-600 text-white" : "bg-white dark:bg-zinc-600 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200")}>
-                  + Create new entry
+                <button
+                  onClick={() => setForm(f => ({ ...f, createNew: true, linkedId: "NEW" }))}
+                  className={cx("flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors", form.createNew ? "bg-amber-600 text-white border-amber-600" : "bg-white dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200")}
+                >
+                  + New Entry
                 </button>
               </div>
             )}
 
-            {/* Link to record — depends on vendor (non-create-new) */}
+            {/* New entry badge */}
+            {form.createNew && form.vendor === "taconic" && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-lg px-3 py-2.5">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Will be logged as a new Taconic entry</p>
+                <p className="text-xs text-amber-600/70 dark:text-amber-500/60 mt-0.5">Auto-assigned PAY-ID on save. Appears in the invoice tracker.</p>
+              </div>
+            )}
+
+            {/* Link to record — depends on vendor, only shown for "link existing" */}
             {links.length > 0 && !form.createNew && (
               <div><label className="text-xs text-zinc-500 block mb-1">Link to Invoice / Record</label>
                 <select value={form.linkedId} onChange={e => setForm(f => ({ ...f, linkedId: e.target.value }))} className={inp}>
@@ -1855,16 +1629,6 @@ function UploadsView({ uploads, setUploads, vendorInvoices,
         </div>
       </Card>
 
-      {/* ── New Taconic Invoice Entry Form ─────────────────────────────── */}
-      {form.type === "Invoice" && form.vendor === "taconic" && form.createNew && (
-        <NewTaconicInvoiceForm
-          invoices={invoices} setInvoices={setInvoices}
-          lineItems={lineItems} setLineItems={setLineItems}
-          invNums={invNums} setInvNums={setInvNums}
-          onDone={() => setForm(f => ({ ...f, createNew: false }))}
-        />
-      )}
-
       {uploads.length === 0
         ? <div className="text-center py-16 text-zinc-300 dark:text-zinc-600 text-sm">No documents uploaded yet.</div>
         : Object.entries(byType).map(([type, docs]) => (
@@ -1882,7 +1646,8 @@ function UploadsView({ uploads, setUploads, vendorInvoices,
                     <p className="text-xs text-zinc-400 mt-0.5">
                       {doc.size} · {doc.date}
                       {doc.vendorLabel && ` · ${doc.vendorLabel}`}
-                      {doc.linkedId && ` · ↳ ${doc.linkedId}`}
+                      {doc.autoPayId && <span className="ml-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50 rounded-full px-2 py-0.5 text-xs font-semibold">New entry · {doc.autoPayId}</span>}
+                      {!doc.autoPayId && doc.linkedId && ` · ↳ ${doc.linkedId}`}
                       {doc.note && ` · ${doc.note}`}
                     </p>
                   </div>
@@ -1928,7 +1693,7 @@ const TABS = [
   { id: "lineitem",  label: "Line Item Billing" },
   { id: "cashflow",  label: "Cash Flow"         },
   { id: "prior",     label: "Prior Phases"      },
-  { id: "uploads",   label: "Documents"         },
+  { id: "uploads",   label: "Document Upload"   },
 ];
 
 export default function App() {
@@ -1936,9 +1701,6 @@ export default function App() {
   const [uploads, setUploads]  = useState([]);
   const [dark, setDark]        = useState(false);
   const [vendorInvoices, setVendorInvoices] = useState({});
-  const [invoices, setInvoices]   = useState(INVOICES);
-  const [lineItems, setLineItems] = useState(LINE_ITEMS);
-  const [invNums, setInvNums]     = useState(INV_NUMS);
 
   if (typeof document !== "undefined") {
     document.documentElement.classList.toggle("dark", dark);
@@ -1998,19 +1760,16 @@ export default function App() {
 
         {/* Page content */}
         <main className="max-w-screen-xl mx-auto px-6 py-6">
-          {tab === "dashboard" && <Dashboard setTab={setTab} invoices={invoices} lineItems={lineItems} />}
+          {tab === "dashboard" && <Dashboard setTab={setTab} />}
           {tab === "budget"    && <BudgetView />}
           {tab === "awards"    && <AwardsView />}
-          {tab === "invoices"  && <InvoicesView invoices={invoices} />}
-          {tab === "lineitem"  && <LineItemView lineItems={lineItems} invNums={invNums} />}
+          {tab === "invoices"  && <InvoicesView />}
+          {tab === "lineitem"  && <LineItemView />}
           {tab === "cos"       && <COsView />}
-          {tab === "cashflow"  && <CashFlowView invoices={invoices} />}
+          {tab === "cashflow"  && <CashFlowView />}
           {tab === "prior"     && <PriorPhasesView />}
           {tab === "vendors"   && <VendorsView vendorInvoices={vendorInvoices} setVendorInvoices={setVendorInvoices} />}
-          {tab === "uploads"   && <UploadsView uploads={uploads} setUploads={setUploads} vendorInvoices={vendorInvoices}
-            invoices={invoices} setInvoices={setInvoices}
-            lineItems={lineItems} setLineItems={setLineItems}
-            invNums={invNums} setInvNums={setInvNums} />}
+          {tab === "uploads"   && <UploadsView uploads={uploads} setUploads={setUploads} vendorInvoices={vendorInvoices} />}
         </main>
       </div>
     </div>
