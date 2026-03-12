@@ -1,5 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 
+// ─── localStorage helpers ───────────────────────────────────────────────────────
+function loadLS(key, fallback) {
+  try { const raw = localStorage.getItem("forestmere_" + key); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; }
+}
+function saveLS(key, val) {
+  try { localStorage.setItem("forestmere_" + key, JSON.stringify(val)); } catch {}
+}
+
 // ─── DATA ──────────────────────────────────────────────────────────────────────
 
 const BUDGET = [
@@ -1696,7 +1704,7 @@ function VendorsView({ vendorInvoices, setVendorInvoices }) {
 
 // ─── DOCUMENTS ─────────────────────────────────────────────────────────────────
 // vendorInvoices passed in so documents tab shows vendor invoices too
-function UploadsView({ uploads, setUploads, archive, setArchive, vendorInvoices }) {
+function UploadsView({ uploads, setUploads, archive, setArchive, vendorInvoices, syncedPayments = [] }) {
   const [form, setForm] = useState({ type: "Invoice", vendor: "", linkedId: "", note: "", createNew: false });
   const [pending, setPending] = useState(null);
   const [dragOver, setDragOver] = useState(false);
@@ -1955,6 +1963,44 @@ function UploadsView({ uploads, setUploads, archive, setArchive, vendorInvoices 
         </Card>
       )}
 
+      {/* ── SYNCED FROM JXM TRACKER ─────────────────────────────────────── */}
+      {syncedPayments.length > 0 && (() => {
+        const cfSynced = syncedPayments.filter(p => p.entity === "Camp Forestmere" && p.ref);
+        if (cfSynced.length === 0) return null;
+        return (
+          <Card className="overflow-hidden">
+            <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-600 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="text-xs font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Synced from JXM Tracker</span>
+              </div>
+              <span className="text-xs text-zinc-400">{cfSynced.length} synced entr{cfSynced.length !== 1 ? "ies" : "y"}</span>
+            </div>
+            <table className="w-full">
+              <thead><tr>
+                <TH>Ref #</TH><TH>Description</TH><TH>Entity</TH><TH>Amount</TH><TH>Status</TH><TH>Synced</TH>
+              </tr></thead>
+              <tbody>
+                {cfSynced.map(p => (
+                  <TR key={p.id + "-sync"}>
+                    <TD mono bold>{p.ref}</TD>
+                    <TD>{p.description || "—"}</TD>
+                    <TD muted>{p.entity}</TD>
+                    <TD mono>{p.amount ? "$" + Number(p.amount).toLocaleString("en-US", { minimumFractionDigits: 2 }) : "—"}</TD>
+                    <TD>
+                      <span className={`inline-flex items-center text-xs font-semibold rounded-full px-2 py-0.5 ${p.status === "Done" ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"}`}>
+                        {p.status === "Done" ? "Paid" : p.status || "Pending"}
+                      </span>
+                    </TD>
+                    <TD muted>{p.updatedAt ? new Date(p.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}</TD>
+                  </TR>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        );
+      })()}
+
       {/* ── ARCHIVE (deleted docs) ───────────────────────────────────────── */}
       {archive.length > 0 && (
         <Card className="overflow-hidden">
@@ -2017,13 +2063,19 @@ const TABS = [
 
 export default function App() {
   const [tab, setTab]          = useState("dashboard");
-  const [uploads, setUploads]       = useState([]);
-  const [archive, setArchive]       = useState([]); // deleted docs archive
+  const [uploads, setUploads]       = useState(() => loadLS("uploads", []));
+  const [archive, setArchive]       = useState(() => loadLS("archive", [])); // deleted docs archive — rollback from here
   const [dark, setDark]             = useState(false);
-  const [vendorInvoices, setVendorInvoices] = useState({});
-  const [invoiceOverrides, setInvoiceOverrides] = useState({}); // user edits to invoice fields
+  const [vendorInvoices, setVendorInvoices] = useState(() => loadLS("vendorInvoices", {}));
+  const [invoiceOverrides, setInvoiceOverrides] = useState(() => loadLS("invoiceOverrides", {})); // user edits to invoice fields
   const [syncedPayments, setSyncedPayments] = useState([]); // live sync from JXM tracker
   const [syncFlash, setSyncFlash]   = useState(false); // pulse indicator on sync
+
+  // Persist to localStorage on change
+  useEffect(() => { saveLS("uploads", uploads); }, [uploads]);
+  useEffect(() => { saveLS("archive", archive); }, [archive]);
+  useEffect(() => { saveLS("vendorInvoices", vendorInvoices); }, [vendorInvoices]);
+  useEffect(() => { saveLS("invoiceOverrides", invoiceOverrides); }, [invoiceOverrides]);
 
   // ── Sync from JXM Payment Tracker API ───────────────────────────────────────
   // Fetches from the tracker's /api/sync endpoint — works across domains
@@ -2122,7 +2174,7 @@ export default function App() {
           {tab === "cashflow"  && <CashFlowView />}
           {tab === "prior"     && <PriorPhasesView />}
           {tab === "vendors"   && <VendorsView vendorInvoices={vendorInvoices} setVendorInvoices={setVendorInvoices} />}
-          {tab === "uploads"   && <UploadsView uploads={uploads} setUploads={setUploads} archive={archive} setArchive={setArchive} vendorInvoices={vendorInvoices} />}
+          {tab === "uploads"   && <UploadsView uploads={uploads} setUploads={setUploads} archive={archive} setArchive={setArchive} vendorInvoices={vendorInvoices} syncedPayments={syncedPayments} />}
         </main>
       </div>
     </div>
