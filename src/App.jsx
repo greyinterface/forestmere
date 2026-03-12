@@ -935,6 +935,8 @@ function InvoicesView({ uploads = [], syncedPayments = [], invoiceOverrides = {}
   };
 
   // Merge: base INVOICES → user overrides → live tracker sync
+  const existingRefs = new Set(INVOICES.map(inv => inv.invNum.replace("#", "")));
+
   const mergedInvoices = INVOICES.map(inv => {
     const override = invoiceOverrides[inv.id] || {};
     const merged = { ...inv, ...override };
@@ -948,8 +950,43 @@ function InvoicesView({ uploads = [], syncedPayments = [], invoiceOverrides = {}
     if (trackerApproved && merged.status !== "Paid") {
       return { ...merged, status: "Paid", paidDate: match.paidDate || new Date().toLocaleDateString("en-US"), _synced: true, _syncDate: match.updatedAt || new Date().toISOString() };
     }
+    if (match && !trackerApproved) {
+      return { ...merged, _synced: true, _syncDate: match.updatedAt || new Date().toISOString() };
+    }
     return merged;
   });
+
+  // Auto-add NEW Camp Forestmere Taconic invoices from Tracker that don't exist in INVOICES yet
+  if (syncedPayments && syncedPayments.length > 0) {
+    const unmatchedCF = syncedPayments.filter(p =>
+      p.entity === "Camp Forestmere" &&
+      p.description?.toLowerCase().includes("taconic") &&
+      p.ref &&
+      !existingRefs.has(p.ref) &&
+      !existingRefs.has("#" + p.ref)
+    );
+    unmatchedCF.forEach(p => {
+      const isPaid = p.status === "Done" || p.status === "PaymentApproved";
+      mergedInvoices.push({
+        id: p.id || "PAY-SYNC-" + p.ref,
+        reqDate: p.dateReceived || new Date().toLocaleDateString("en-US"),
+        invNum: "#" + p.ref,
+        desc: p.noticeType || "From JXM Tracker",
+        jobTotal: p.amount || 0,
+        fees: 0,
+        depositApplied: 0,
+        retainage: 0,
+        amtDue: p.amount || 0,
+        approved: p.amount || 0,
+        paidDate: isPaid ? (p.paidDate || new Date().toLocaleDateString("en-US")) : null,
+        status: isPaid ? "Paid" : "Pending Payment",
+        notes: "Auto-synced from JXM Payment Tracker",
+        _synced: true,
+        _syncDate: p.updatedAt || new Date().toISOString(),
+        _autoCreated: true,
+      });
+    });
+  }
 
   const pendingTotal = mergedInvoices.filter(i => i.status !== "Paid").reduce((s, i) => s + i.amtDue, 0);
   const paidCount = mergedInvoices.filter(i => i.status === "Paid").length;
