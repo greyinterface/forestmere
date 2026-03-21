@@ -2077,6 +2077,31 @@ export default function App() {
   useEffect(() => { saveLS("vendorInvoices", vendorInvoices); }, [vendorInvoices]);
   useEffect(() => { saveLS("invoiceOverrides", invoiceOverrides); }, [invoiceOverrides]);
 
+  // On startup: fetch from server and use server data if it has more/newer data than localStorage
+  useEffect(() => {
+    fetch("/api/state").then(r => r.json()).then(data => {
+      if (!data || !data.hasData) return;
+      const localUploads = loadLS("uploads", []);
+      const serverUploads = data.uploads || [];
+      if (serverUploads.length > localUploads.length || localUploads.length === 0) {
+        console.log("Forestmere: Loading from server (" + serverUploads.length + " uploads) vs local (" + localUploads.length + ")");
+        if (data.uploads) { setUploads(data.uploads); saveLS("uploads", data.uploads); }
+        if (data.archive) { setArchive(data.archive); saveLS("archive", data.archive); }
+        if (data.vendorInvoices) { setVendorInvoices(data.vendorInvoices); saveLS("vendorInvoices", data.vendorInvoices); }
+        if (data.invoiceOverrides) { setInvoiceOverrides(data.invoiceOverrides); saveLS("invoiceOverrides", data.invoiceOverrides); }
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Save to server on every change so all users stay in sync
+  useEffect(() => {
+    fetch("/api/state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uploads, archive, vendorInvoices, invoiceOverrides })
+    }).catch(() => {});
+  }, [uploads, archive, vendorInvoices, invoiceOverrides]);
+
   // ── Sync from JXM Payment Tracker API ───────────────────────────────────────
   // Fetches from the tracker's /api/sync endpoint — works across domains
   // Runs on load (Ctrl+R) + polls every 60s for live updates
