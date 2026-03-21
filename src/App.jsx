@@ -2081,7 +2081,7 @@ export default function App() {
   // Fetches from the tracker's /api/sync endpoint — works across domains
   // Runs on load (Ctrl+R) + polls every 60s for live updates
   useEffect(() => {
-    const SYNC_URL = "https://jxm-tracker-production.up.railway.app/api/sync";
+    const SYNC_URL = "https://jxm-tracker.rosemount-cloud.com/api/sync";
 
     const fetchSync = () => {
       fetch(SYNC_URL)
