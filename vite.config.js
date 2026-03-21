@@ -10,6 +10,6 @@ export default defineConfig({
   preview: {
     port: process.env.PORT || 3000,
     host: true,
-    allowedHosts: ['forestmere-production.up.railway.app', '.railway.app']
+    allowedHosts: ['forestmere-production.up.railway.app', '.railway.app', 'forestmere.rosemount-cloud.com']
   }
 })
