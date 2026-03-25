@@ -2017,9 +2017,21 @@ function AppShell() {
         display: "flex", flexDirection: "column", zIndex: 30,
       }}>
         {/* Logo */}
-        <div style={{ padding: "24px 20px 20px" }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "#111827", letterSpacing: "-0.3px" }}>Camp Forestmere</div>
-          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2, fontWeight: 500 }}>CAMP FORESTMERE CORP.</div>
+        <div style={{ padding: "24px 20px 20px", borderBottom: "1px solid #f3f4f6", marginBottom: 8 }}>
+          {/* JXM Family Office logo — matches finance.rosemount-cloud.com */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="14" cy="14" r="13" stroke="#111827" strokeWidth="1.5"/>
+              <line x1="14" y1="4" x2="14" y2="24" stroke="#111827" strokeWidth="1.5"/>
+              <line x1="4" y1="14" x2="24" y2="14" stroke="#111827" strokeWidth="1.5"/>
+            </svg>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: "#111827", letterSpacing: "-0.5px", lineHeight: 1 }}>JXM</div>
+              <div style={{ fontSize: 9, color: "#9ca3af", fontWeight: 600, letterSpacing: "0.12em", marginTop: 2 }}>FAMILY OFFICE</div>
+            </div>
+          </div>
+          {/* Project name below */}
+          <div style={{ fontSize: 11, color: "#374151", fontWeight: 600, letterSpacing: "0.02em" }}>Camp Forestmere</div>
         </div>
 
         {/* Nav */}
