@@ -260,11 +260,15 @@ async function seedIfEmpty() {
 
   // CHANGE ORDERS
   const cosRows = [
-    ['CO-007','03-330','Cast In Place Concrete',401900,148000,16725,164725,549900,'Includes waived fee of $7,695.','Jan 20, 2026'],
-    ['CO-009','31-640','Sheet Pile / Caissons',416472,57677.7,9516.82,67194.52,474149.7,null,'Jan 20, 2026'],
     ['CO-003','33-370','Electrical Service',788495,1710,282.15,1992.15,790205,'Savings from buyout applied.','Jan 20, 2026'],
+    ['CO-007','03-330','Cast In Place Concrete',401900,148000,16725,164725,549900,'Includes waived fee of $7,695. Waived fee of $7,695 applied.','Jan 20, 2026'],
+    ['CO-009','31-640','Sheet Pile / Caissons',416472,57677.7,9516.82,67194.52,474149.7,null,'Jan 20, 2026'],
     ['CO-013','23-100','HVAC',398900,50787,8379.86,59166.86,449687,null,'Jan 20, 2026'],
+    ['CO-015','26-100','Electrical Power & Switching - Deduction per Schaefer Engineering',244183,-41620.49,-6867.38,-48487.87,202562.51,'Credit/deduction per revised scope.','Jan 20, 2026'],
     ['CO-016','23-100','HVAC (Additional)',449687,38425,5187.38,43612.38,488112,'Additional HVAC scope.','Jan 20, 2026'],
+    ['CO-017a','06-470','Interior Wood Trims - Material',125167,11396.84,1880.48,13277.32,136563.84,null,'Jan 20, 2026'],
+    ['CO-017b','09-640','Wood Flooring',36670,5282.92,871.68,6154.60,41952.92,null,'Jan 20, 2026'],
+    ['CO-018','13-200','Special Purpose Rooms',100125,4785,789.53,5574.53,104910,'IR Installation scope addition.','Jan 20, 2026'],
   ];
   for (const r of cosRows) {
     await pool.query('INSERT INTO change_orders VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT DO NOTHING', r);
@@ -664,6 +668,153 @@ app.delete('/api/documents/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+
+
+// ─── RECONCILIATION ENGINE ────────────────────────────────────────────────────
+app.get('/api/reconciliation', async (req, res) => {
+  try {
+    const [budgetR, cosR, invoicesR, lineItemsR, billingsR] = await Promise.all([
+      pool.query('SELECT * FROM budget'),
+      pool.query('SELECT * FROM change_orders'),
+      pool.query('SELECT * FROM invoices ORDER BY id'),
+      pool.query('SELECT * FROM line_items'),
+      pool.query('SELECT * FROM line_item_billings'),
+    ]);
+
+    const checks = [];
+
+    // ── CHECK 1: Original contract amount ──────────────────────────────────
+    const budgetTotal = budgetR.rows.reduce((s, b) => s + parseFloat(b.budget), 0);
+    const TACONIC_CONTRACT = 13093419.47;
+    const contractDiff = Math.abs(budgetTotal - TACONIC_CONTRACT);
+    checks.push({
+      id: 'contract_amount',
+      label: 'Original Contract Amount',
+      description: 'Control budget total matches Taconic contract value',
+      expected: TACONIC_CONTRACT,
+      actual: budgetTotal,
+      diff: budgetTotal - TACONIC_CONTRACT,
+      pass: contractDiff < 5,
+      severity: contractDiff > 100 ? 'error' : 'warn',
+    });
+
+    // ── CHECK 2: Approved COs — Change Orders sheet vs Line Item Billing ───
+    const coTotal = cosR.rows.reduce((s, c) => s + parseFloat(c.approved_co), 0);
+    const liCoTotal = lineItemsR.rows.reduce((s, l) => s + parseFloat(l.cos || 0), 0);
+    const coDiff = Math.abs(coTotal - liCoTotal);
+    checks.push({
+      id: 'co_total',
+      label: 'Change Orders vs Line Item Billing COs',
+      description: 'Sum of approved COs matches CO column in Line Item Billing',
+      expected: coTotal,
+      actual: liCoTotal,
+      diff: liCoTotal - coTotal,
+      pass: coDiff < 5,
+      severity: 'error',
+    });
+
+    // ── CHECK 3: Each invoice — line items sum vs invoice job total ─────────
+    const invNums = invoicesR.rows.map(i => i.inv_num);
+    for (const inv of invoicesR.rows) {
+      const billedRows = billingsR.rows.filter(b => b.inv_num === inv.inv_num);
+      const liSum = billedRows.reduce((s, b) => s + parseFloat(b.amount), 0);
+      const jobTotal = parseFloat(inv.job_total);
+      // Only check if we have line item data for this invoice
+      if (billedRows.length > 0) {
+        const diff = Math.abs(liSum - jobTotal);
+        checks.push({
+          id: `inv_${inv.id}`,
+          label: `${inv.inv_num} — Line Items vs Job Total`,
+          description: `Sum of line items billed should equal invoice job total`,
+          expected: jobTotal,
+          actual: liSum,
+          diff: liSum - jobTotal,
+          pass: diff < 1,
+          severity: diff > 100 ? 'error' : 'warn',
+          invoiceId: inv.id,
+        });
+      }
+    }
+
+    // ── CHECK 4: Total paid vs sum of approved invoices ────────────────────
+    const paidInvs = invoicesR.rows.filter(i => i.status === 'Paid');
+    const totalPaid = paidInvs.reduce((s, i) => s + parseFloat(i.approved), 0);
+    const totalApproved = invoicesR.rows.reduce((s, i) => s + parseFloat(i.approved), 0);
+    checks.push({
+      id: 'paid_total',
+      label: 'Total Paid Invoices',
+      description: `${paidInvs.length} of ${invoicesR.rows.length} invoices paid`,
+      expected: totalApproved,
+      actual: totalPaid,
+      diff: totalPaid - totalApproved,
+      pass: true, // informational only
+      severity: 'info',
+      note: `$${(totalApproved - totalPaid).toLocaleString('en-US', {maximumFractionDigits:0})} outstanding`,
+    });
+
+    // ── CHECK 5: Revised contract = original + COs ────────────────────────
+    const revisedExpected = TACONIC_CONTRACT + coTotal;
+    const TACONIC_REVISED = 13397251.74;
+    const revisedDiff = Math.abs(revisedExpected - TACONIC_REVISED);
+    checks.push({
+      id: 'revised_contract',
+      label: 'Revised Contract Amount',
+      description: 'Original contract + approved COs = revised contract',
+      expected: TACONIC_REVISED,
+      actual: revisedExpected,
+      diff: revisedExpected - TACONIC_REVISED,
+      pass: revisedDiff < 5,
+      severity: 'error',
+    });
+
+    // ── CHECK 6: Retainage — cumulative running total ─────────────────────
+    let retainageRunning = 0;
+    const retainageChecks = [];
+    for (const inv of invoicesR.rows) {
+      retainageRunning += Math.abs(parseFloat(inv.retainage || 0));
+      retainageChecks.push({ inv: inv.inv_num, cumulative: retainageRunning });
+    }
+    const EXPECTED_RETAINAGE = 247807.87; // from invoice #1976
+    const lastRetainage = retainageRunning;
+    const retainageDiff = Math.abs(lastRetainage - EXPECTED_RETAINAGE);
+    checks.push({
+      id: 'retainage_total',
+      label: 'Cumulative Retainage Held',
+      description: 'Running retainage matches Taconic certified total',
+      expected: EXPECTED_RETAINAGE,
+      actual: lastRetainage,
+      diff: lastRetainage - EXPECTED_RETAINAGE,
+      pass: retainageDiff < 5,
+      severity: 'error',
+      detail: retainageChecks,
+    });
+
+    // ── CHECK 7: Completed to date — line items vs invoice statement ───────
+    const liCompletedTotal = lineItemsR.rows.reduce((s, l) => s + parseFloat(l.done || 0), 0);
+    const TACONIC_COMPLETED = 3472724.02; // from invoice #1976 page 2
+    const completedDiff = Math.abs(liCompletedTotal - TACONIC_COMPLETED);
+    checks.push({
+      id: 'completed_to_date',
+      label: 'Completed to Date',
+      description: 'Sum of line items completed matches Taconic statement',
+      expected: TACONIC_COMPLETED,
+      actual: liCompletedTotal,
+      diff: liCompletedTotal - TACONIC_COMPLETED,
+      pass: completedDiff < 100,
+      severity: completedDiff > 1000 ? 'error' : 'warn',
+      note: completedDiff > 100 ? 'May reflect line items not yet entered for latest invoice' : null,
+    });
+
+    const passed = checks.filter(c => c.pass).length;
+    const failed = checks.filter(c => !c.pass && c.severity === 'error').length;
+    const warned = checks.filter(c => !c.pass && c.severity === 'warn').length;
+
+    res.json({ checks, summary: { total: checks.length, passed, failed, warned } });
+  } catch (err) {
+    console.error('Reconciliation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ─── DOCUMENT PARSING (AI) ────────────────────────────────────────────────────
 app.post('/api/parse-document', upload.single('file'), async (req, res) => {
