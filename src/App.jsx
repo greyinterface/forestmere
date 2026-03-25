@@ -608,44 +608,98 @@ function COsView() {
 function InvoicesView() {
   const { invoices, taconicPaid, taconicPending, refresh } = useAppData();
   const [modal, setModal] = useState(null);
+  const [markPaidModal, setMarkPaidModal] = useState(null);
+  const [payForm, setPayForm] = useState({ actualPaid: "", creditApplied: "", paidDate: "" });
+  const [creditData, setCreditData] = useState(null);
 
-  const markPaid = async (inv) => {
-    const paidDate = new Date().toLocaleDateString("en-US");
-    await apiFetch(`/invoices/${inv.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'Paid', paidDate, notes: inv.notes })
+  useEffect(() => {
+    apiFetch('/credit-balance').then(d => setCreditData(d)).catch(() => {});
+  }, [invoices]);
+
+  const openMarkPaid = (inv) => {
+    setMarkPaidModal(inv);
+    setPayForm({
+      actualPaid: String(inv.approved),
+      creditApplied: "0",
+      paidDate: new Date().toLocaleDateString("en-US"),
     });
-    refresh();
     setModal(null);
   };
+
+  const submitMarkPaid = async () => {
+    const actualPaid = parseFloat(payForm.actualPaid) || 0;
+    const creditApplied = parseFloat(payForm.creditApplied) || 0;
+    await apiFetch(`/invoices/${markPaidModal.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'Paid',
+        paidDate: payForm.paidDate,
+        notes: markPaidModal.notes,
+        actualPaid: actualPaid || null,
+        creditApplied: creditApplied || null,
+      })
+    });
+    await refresh();
+    setMarkPaidModal(null);
+  };
+
+  const retainageHeld = invoices.reduce((s, i) => s + Math.abs(parseFloat(i.retainage || 0)), 0);
+  const inp = "w-full bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 text-xs outline-none focus:border-amber-400";
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Gross Invoiced" value={$f(invoices.reduce((s, i) => s + parseFloat(i.job_total), 0))} sub="Before retainage & deposits" onClick={() => setModal("all")} />
         <Stat label="Total Paid" value={$f(taconicPaid)} sub={invoices.filter(i => i.status === "Paid").length + " invoices paid"} onClick={() => setModal("paid")} />
-        <Stat label="Retainage Held" value="$217,342" sub="Released at close" onClick={() => setModal("retainage")} />
+        <Stat label="Retainage Held" value={$f(retainageHeld)} sub="Released at close" onClick={() => setModal("retainage")} />
         <Stat label="Pending" value={$f(taconicPending)} accent sub={invoices.filter(i => i.status !== "Paid").length + " invoices outstanding"} onClick={() => setModal("pending")} />
       </div>
-      <div className="space-y-2">
-        {invoices.map(inv => (
-          <Card key={inv.id} className="overflow-hidden hover:border-amber-300 dark:hover:border-amber-700 transition-colors cursor-pointer" onClick={() => setModal(inv)}>
-            <div className="px-4 py-3.5 flex items-center justify-between">
-              <div className="flex items-center gap-4 min-w-0">
-                <span className="font-mono text-xs text-amber-600 dark:text-amber-400 w-20 shrink-0">{inv.id}</span>
-                <span className="font-mono text-xs font-bold text-zinc-700 dark:text-zinc-300 w-28 shrink-0">{inv.inv_num}</span>
-                <span className="text-xs text-zinc-400 truncate">{inv.description}</span>
-              </div>
-              <div className="flex items-center gap-3 shrink-0 ml-4">
-                <span className="text-sm font-bold text-zinc-900 dark:text-white tabular-nums">{$f(inv.approved)}</span>
-                {statusTag(inv.status)}
-                {inv.notes && <span className="inline-flex items-center gap-1 text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50 rounded-full px-2 py-0.5">⚑ Note</span>}
-                <span className="text-zinc-300 dark:text-zinc-700">›</span>
-              </div>
+
+      {/* Credit balance banner */}
+      {creditData && creditData.creditBalance !== 0 && (
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/40 rounded-xl px-4 py-3 flex items-start gap-3">
+          <span className="text-blue-500 mt-0.5 text-lg">↩</span>
+          <div>
+            <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">
+              Credit Balance: {$f(creditData.creditBalance)}
+            </p>
+            <p className="text-xs text-blue-600/70 dark:text-blue-500/70 mt-0.5">
+              Overpayment from PAY-006 (#1880) — being applied against future invoices
+            </p>
+            <div className="flex gap-3 mt-1.5 text-xs text-blue-500 dark:text-blue-400">
+              {creditData.ledger?.map((l, i) => (
+                <span key={i}>{l.inv}: {l.amount > 0 ? "+" : ""}{$f(l.amount)}</span>
+              ))}
             </div>
-          </Card>
-        ))}
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {invoices.map(inv => {
+          const hasOverpay = parseFloat(inv.actual_paid || 0) > parseFloat(inv.approved || 0);
+          const usedCredit = parseFloat(inv.credit_applied || 0) > 0;
+          return (
+            <Card key={inv.id} className="overflow-hidden hover:border-amber-300 dark:hover:border-amber-700 transition-colors cursor-pointer" onClick={() => setModal(inv)}>
+              <div className="px-4 py-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-4 min-w-0">
+                  <span className="font-mono text-xs text-amber-600 dark:text-amber-400 w-20 shrink-0">{inv.id}</span>
+                  <span className="font-mono text-xs font-bold text-zinc-700 dark:text-zinc-300 w-28 shrink-0">{inv.inv_num}</span>
+                  <span className="text-xs text-zinc-400 truncate">{inv.description}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-4">
+                  <span className="text-sm font-bold text-zinc-900 dark:text-white tabular-nums">{$f(inv.approved)}</span>
+                  {statusTag(inv.status)}
+                  {hasOverpay && <span className="text-xs font-semibold bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700/50 rounded-full px-2 py-0.5">⚠ Overpaid</span>}
+                  {usedCredit && <span className="text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-700/50 rounded-full px-2 py-0.5">↩ Credit</span>}
+                  {inv.notes && !hasOverpay && <span className="inline-flex items-center gap-1 text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50 rounded-full px-2 py-0.5">⚑ Note</span>}
+                  <span className="text-zinc-300 dark:text-zinc-700">›</span>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
       {modal && typeof modal === "object" && modal.id && (
@@ -654,16 +708,18 @@ function InvoicesView() {
             ["Invoice Number", modal.inv_num], ["Request Date", modal.req_date],
             ["Paid Date", modal.paid_date || "—"], ["Status", modal.status],
             ["Job Total", $f(modal.job_total)], ["GC Fees", $f(modal.fees)],
-            ["Deposit Applied", $f(modal.deposit_applied)], ["Retainage Held", $f(Math.abs(parseFloat(modal.retainage)))],
+            ["Deposit Applied", $f(modal.deposit_applied)], ["Retainage Held", $f(Math.abs(parseFloat(modal.retainage || 0)))],
             ["Amount Due", $f(modal.amt_due)], ["Approved Amount", $f(modal.approved)],
+            parseFloat(modal.actual_paid || 0) > 0 ? ["Actual Wire Sent", $f(modal.actual_paid)] : null,
+            parseFloat(modal.credit_applied || 0) > 0 ? ["Credit Applied", $f(modal.credit_applied)] : null,
           ]} />
           {modal.notes && (
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-lg px-4 py-3">
-              <p className="text-xs text-amber-700 dark:text-amber-400">{modal.notes}</p>
+            <div className={`border rounded-lg px-4 py-3 ${parseFloat(modal.actual_paid || 0) > parseFloat(modal.approved || 0) ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/40" : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/40"}`}>
+              <p className={`text-xs ${parseFloat(modal.actual_paid || 0) > parseFloat(modal.approved || 0) ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400"}`}>{modal.notes}</p>
             </div>
           )}
           {modal.status !== "Paid" && (
-            <button onClick={() => markPaid(modal)} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors">
+            <button onClick={() => openMarkPaid(modal)} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors">
               Mark as Paid
             </button>
           )}
@@ -677,7 +733,7 @@ function InvoicesView() {
       {(modal === "all" || modal === "paid" || modal === "pending") && (
         <Modal title={modal === "all" ? "All Invoices" : modal === "paid" ? "Paid Invoices" : "Pending Invoices"} onClose={() => setModal(null)} wide>
           <table className="w-full text-xs">
-            <thead><tr><TH>Invoice</TH><TH>Description</TH><TH right>Job Total</TH><TH right>Approved</TH><TH>Status</TH></tr></thead>
+            <thead><tr><TH>Invoice</TH><TH>Description</TH><TH right>Job Total</TH><TH right>Approved</TH><TH right>Wire Sent</TH><TH>Status</TH></tr></thead>
             <tbody>
               {invoices.filter(i => modal === "all" || (modal === "paid" ? i.status === "Paid" : i.status !== "Paid")).map(i => (
                 <TR key={i.id}>
@@ -685,11 +741,61 @@ function InvoicesView() {
                   <TD className="text-zinc-700 dark:text-zinc-300">{i.description}</TD>
                   <TD right muted>{$f(i.job_total)}</TD>
                   <TD right bold className="text-zinc-900 dark:text-white">{$f(i.approved)}</TD>
+                  <TD right className={parseFloat(i.actual_paid||0) > parseFloat(i.approved||0) ? "text-red-500 font-bold" : parseFloat(i.credit_applied||0) > 0 ? "text-blue-500" : "text-zinc-400"}>
+                    {parseFloat(i.actual_paid||0) > 0 ? $f(i.actual_paid) : parseFloat(i.credit_applied||0) > 0 ? "↩ Credit" : "—"}
+                  </TD>
                   <TD>{statusTag(i.status)}</TD>
                 </TR>
               ))}
             </tbody>
           </table>
+        </Modal>
+      )}
+
+      {/* Mark as Paid modal with wire / credit fields */}
+      {markPaidModal && (
+        <Modal title={`Mark as Paid — ${markPaidModal.inv_num}`} subtitle={`Approved amount: ${$f(markPaidModal.approved)}`} onClose={() => setMarkPaidModal(null)}>
+          <div className="space-y-3">
+            <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg px-3 py-2.5 text-xs text-zinc-500">
+              {creditData?.creditBalance > 0 && (
+                <p className="text-blue-600 dark:text-blue-400 font-semibold mb-1">↩ Available credit: {$f(creditData.creditBalance)}</p>
+              )}
+              Enter how this invoice was settled — wire sent, credit applied, or a combination of both.
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-zinc-500 block mb-1">Actual Wire Sent ($)</label>
+                <input value={payForm.actualPaid} onChange={e => setPayForm(f => ({...f, actualPaid: e.target.value}))} placeholder="0.00" className={inp} />
+                <p className="text-xs text-zinc-400 mt-0.5">Leave 0 if fully covered by credit</p>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 block mb-1">Credit Applied ($)</label>
+                <input value={payForm.creditApplied} onChange={e => setPayForm(f => ({...f, creditApplied: e.target.value}))} placeholder="0.00" className={inp} />
+                <p className="text-xs text-zinc-400 mt-0.5">From overpayment balance</p>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-zinc-500 block mb-1">Payment Date</label>
+              <input value={payForm.paidDate} onChange={e => setPayForm(f => ({...f, paidDate: e.target.value}))} placeholder="MM/DD/YYYY" className={inp} />
+            </div>
+            {/* Validation */}
+            {(() => {
+              const wire = parseFloat(payForm.actualPaid) || 0;
+              const credit = parseFloat(payForm.creditApplied) || 0;
+              const total = wire + credit;
+              const approved = parseFloat(markPaidModal.approved) || 0;
+              const diff = total - approved;
+              return (
+                <div className={`rounded-lg px-3 py-2 text-xs font-medium ${Math.abs(diff) < 1 ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400" : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"}`}>
+                  Wire + Credit = {$f(total)} vs Approved {$f(approved)} →
+                  {Math.abs(diff) < 1 ? " ✓ Balanced" : diff > 0 ? ` +${$f(diff)} overpayment` : ` ${$f(diff)} shortfall`}
+                </div>
+              );
+            })()}
+            <button onClick={submitMarkPaid} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors">
+              Confirm Payment
+            </button>
+          </div>
         </Modal>
       )}
     </div>
