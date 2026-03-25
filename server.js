@@ -62,8 +62,13 @@ async function createSchema() {
       approved NUMERIC(14,2),
       paid_date VARCHAR(20),
       status VARCHAR(30),
-      notes TEXT
+      notes TEXT,
+      actual_paid NUMERIC(14,2),
+      credit_applied NUMERIC(14,2)
     );
+    -- Add columns if they don't exist yet (safe migration)
+    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS actual_paid NUMERIC(14,2);
+    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS credit_applied NUMERIC(14,2);
     CREATE TABLE IF NOT EXISTS line_items (
       code VARCHAR(20) PRIMARY KEY,
       name TEXT,
@@ -281,12 +286,16 @@ async function seedIfEmpty() {
     ['PAY-003','09/16/2025','#1693','Period to: August 31, 2025',445713.57,75347.88,-161669.51,-47865.87,311526.07,311536.07,'09/18/2025','Paid',null],
     ['PAY-004','10/17/2025','#1750','Period to: September 30, 2025',574205.05,97069.36,-70273.47,-63883.97,537116.97,537116.97,'11/07/2025','Paid',null],
     ['PAY-005','11/19/2025','#1819','Period to: October 31, 2025',525618.85,88855.86,-126944.29,-56704.94,430825.48,430845.48,'12/30/2025','Paid',null],
-    ['PAY-006','12/22/2025','#1880','Period to: November 30, 2025',196594.55,33234.30,-66221.94,-11728.54,151878.37,151878.37,null,'Pending Payment','$430,845.48 paid twice in error. Balance to be applied against next invoice.'],
-    ['PAY-007','01/23/2026','#1956','Period to: December 31, 2025',78875.63,13333.93,-26602.41,-2948.72,62658.43,62658.43,null,'Pending Payment',null],
+    ['PAY-006','12/22/2025','#1880','Period to: November 30, 2025',196594.55,33234.30,-66221.94,-11728.54,151878.37,151878.37,'12/22/2025','Paid','Wire of $430,845.48 sent in error (should have been $151,878.37). Overpayment of $278,967.11 held as credit against future invoices.'],
+    ['PAY-007','01/23/2026','#1956','Period to: December 31, 2025',78875.63,13333.93,-26602.41,-2948.72,62658.43,62658.43,'01/23/2026','Paid','Covered by credit from PAY-006 overpayment. No wire sent. Credit remaining after: $216,308.68.'],
   ];
   for (const r of invoicesRows) {
-    await pool.query('INSERT INTO invoices VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT DO NOTHING', r);
+    await pool.query('INSERT INTO invoices (id,req_date,inv_num,description,job_total,fees,deposit_applied,retainage,amt_due,approved,paid_date,status,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT DO NOTHING', r);
   }
+  // Set actual_paid and credit_applied for overpayment invoices
+  await pool.query("UPDATE invoices SET actual_paid=430845.48, credit_applied=0 WHERE id='PAY-006' AND (actual_paid IS NULL)");
+  await pool.query("UPDATE invoices SET actual_paid=0, credit_applied=62658.43, paid_date='01/23/2026', status='Paid' WHERE id='PAY-007' AND status='Pending Payment'");
+  await pool.query("UPDATE invoices SET paid_date='12/22/2025', status='Paid' WHERE id='PAY-006' AND status='Pending Payment'");
 
   // LINE ITEMS
   const lineItemsRows = [
@@ -584,12 +593,36 @@ app.post('/api/invoices', async (req, res) => {
 
 app.put('/api/invoices/:id', async (req, res) => {
   try {
-    const { status, paidDate, notes } = req.body;
+    const { status, paidDate, notes, actualPaid, creditApplied } = req.body;
     const { rows } = await pool.query(
-      'UPDATE invoices SET status=$1, paid_date=$2, notes=$3 WHERE id=$4 RETURNING *',
-      [status, paidDate || null, notes || null, req.params.id]
+      'UPDATE invoices SET status=$1, paid_date=$2, notes=$3, actual_paid=$4, credit_applied=$5 WHERE id=$6 RETURNING *',
+      [status, paidDate || null, notes || null, actualPaid ?? null, creditApplied ?? null, req.params.id]
     );
     res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── CREDIT BALANCE ───────────────────────────────────────────────────────────
+app.get('/api/credit-balance', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id, inv_num, approved, actual_paid, credit_applied, status FROM invoices ORDER BY id');
+    let creditBalance = 0;
+    const ledger = [];
+    for (const inv of rows) {
+      const approved = parseFloat(inv.approved || 0);
+      const actualPaid = parseFloat(inv.actual_paid || 0);
+      const creditUsed = parseFloat(inv.credit_applied || 0);
+      // If actual_paid > approved, that's an overpayment adding to credit
+      if (actualPaid > 0 && actualPaid > approved) {
+        const overpayment = actualPaid - approved;
+        creditBalance += overpayment;
+        ledger.push({ id: inv.id, inv: inv.inv_num, event: 'Overpayment', amount: overpayment, balance: creditBalance });
+      } else if (creditUsed > 0) {
+        creditBalance -= creditUsed;
+        ledger.push({ id: inv.id, inv: inv.inv_num, event: 'Credit Applied', amount: -creditUsed, balance: creditBalance });
+      }
+    }
+    res.json({ creditBalance, ledger });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
