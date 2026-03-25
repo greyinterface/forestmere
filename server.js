@@ -954,6 +954,39 @@ app.post('/api/parse-document', upload.single('file'), async (req, res) => {
   try {
     if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
     const base64 = req.file.buffer.toString('base64');
+    const docType = req.body.doc_type || 'taconic_invoice';
+
+    // Vendor invoice prompt
+    if (docType === 'vendor_invoice') {
+      const prompt = `Parse this vendor invoice PDF and return ONLY valid JSON (no markdown, no backticks):
+{"invNum":"string","date":"MM/DD/YYYY","vendorName":"string","description":"string","amount":0,"subtotal":0,"tax":0,"total":0}
+Extract the invoice number, date, vendor/company name, description of services, and total amount due. Return raw JSON only.`;
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: prompt }] }] })
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error.message);
+      const parsed = JSON.parse(data.content[0].text.replace(/```json|```/g, '').trim());
+      return res.json({ ok: true, parsed, docType: 'vendor_invoice' });
+    }
+
+    // Award letter prompt
+    if (docType === 'award_letter') {
+      const prompt = `Parse this construction award letter / contract PDF and return ONLY valid JSON (no markdown, no backticks):
+{"vendor":"string","contractNumber":"string","awardDate":"MM/DD/YYYY","csiCode":"string","division":"string","description":"string","awardAmount":0,"notes":"string"}
+Extract vendor/contractor name, contract number, award date, CSI code if present, division/scope description, and total award amount. Return raw JSON only.`;
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: prompt }] }] })
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error.message);
+      const parsed = JSON.parse(data.content[0].text.replace(/```json|```/g, '').trim());
+      return res.json({ ok: true, parsed, docType: 'award_letter' });
+    }
     const prompt = `You are parsing a Taconic Builders Application for Payment PDF for Camp Forestmere project C25-104.
 
 The PDF has multiple pages. Page 1 is the summary. Page 2+ is the "Continuation Sheet" or "Schedule of Values" which lists every line item. You MUST extract ALL line items from the continuation sheet.
