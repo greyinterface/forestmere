@@ -5,9 +5,16 @@ const $f = (n) => n == null || n === "" ? "—" : "$" + Math.abs(Number(n)).toLo
 
 // Input that auto-fills placeholder on click
 function SmartInput({ value, onChange, placeholder, className, type="text" }) {
+  const ref = useRef();
+  const fill = () => {
+    onChange({ target: { value: placeholder } });
+    // Focus and select all so user can immediately type to override
+    setTimeout(() => { if (ref.current) { ref.current.focus(); ref.current.select(); } }, 10);
+  };
   return (
     <div className="relative">
       <input
+        ref={ref}
         type={type}
         value={value}
         placeholder={placeholder}
@@ -17,10 +24,10 @@ function SmartInput({ value, onChange, placeholder, className, type="text" }) {
       {!value && placeholder && (
         <button
           type="button"
-          onClick={() => onChange({ target: { value: placeholder } })}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-300 hover:text-indigo-400 transition-colors px-1"
+          onClick={fill}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-300 hover:text-indigo-400 transition-colors px-1 py-0.5 rounded"
           tabIndex={-1}
-          title="Use suggested value"
+          title="Click to use suggested value"
         >↵</button>
       )}
     </div>
