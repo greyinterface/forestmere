@@ -88,17 +88,22 @@ export function SmartUploadView() {
       if (data.ok && data.parsed) {
         const p = data.parsed;
         const h = p.header || {};
-        // Pre-populate all line items billed this period
-        const lineItems = (p.lineItemsBilled || [])
-          .filter(li => li.currentBill > 0)
-          .map(li => ({ code: li.code || "", name: li.name || "", currentBill: String(li.currentBill || "") }));
+
+        // Extract ALL line items - try multiple possible locations in parsed data
+        const rawItems = p.lineItemsBilled || p.lineItems || p.items || [];
+        const lineItems = rawItems
+          .filter(li => (li.currentBill || li.current_bill || li.thisPeriod || li.amount || 0) > 0)
+          .map(li => ({
+            code: li.code || li.csiCode || li.lineCode || "",
+            name: li.name || li.description || li.desc || "",
+            currentBill: String(li.currentBill || li.current_bill || li.thisPeriod || li.amount || ""),
+          }));
 
         setInvForm(f => ({
           ...f,
           invNum: h.invNum ? String(h.invNum) : f.invNum,
           reqDate: h.invoiceDate || f.reqDate,
           periodTo: h.periodTo || f.periodTo,
-          jobTotal: h.completedToDate ? "" : f.jobTotal,
           fees: p.fees ? String((p.fees.gcFee||0) + (p.fees.insurance||0)) : f.fees,
           depositApplied: p.fees?.depositApplied ? String(Math.abs(p.fees.depositApplied)) : f.depositApplied,
           retainageHeld: p.fees?.retainageThisPeriod ? String(Math.abs(p.fees.retainageThisPeriod)) : f.retainageHeld,
@@ -413,11 +418,11 @@ export function SmartUploadView() {
             {invForm.lineItems.map((li, i) => (
               <div key={i} className="grid grid-cols-12 gap-2 items-end p-3 bg-gray-50 rounded-lg border border-gray-100">
                 <div className="col-span-2"><label className="block text-xs text-gray-400 mb-1">CSI Code</label>
-                  <SmartInput value={li.code} onChange={e=>updateLineItem(i,"code",e.target.value)} placeholder="01-001" className={inp}/></div>
+                  <input value={li.code} onChange={e=>updateLineItem(i,"code",e.target.value)} placeholder="" className={inp}/></div>
                 <div className="col-span-5"><label className="block text-xs text-gray-400 mb-1">Description</label>
-                  <SmartInput value={li.name} onChange={e=>updateLineItem(i,"name",e.target.value)} placeholder="Project Staffing" className={inp}/></div>
+                  <input value={li.name} onChange={e=>updateLineItem(i,"name",e.target.value)} placeholder="" className={inp}/></div>
                 <div className="col-span-4"><label className="block text-xs text-gray-400 mb-1">This Period ($)</label>
-                  <SmartInput value={li.currentBill} onChange={e=>updateLineItem(i,"currentBill",e.target.value)} placeholder="22420.00" className={inp}/></div>
+                  <input value={li.currentBill} onChange={e=>updateLineItem(i,"currentBill",e.target.value)} placeholder="" className={inp}/></div>
                 <div className="col-span-1"><button onClick={()=>removeLineItem(i)} className="w-full py-2 text-xs text-gray-300 hover:text-red-400 rounded-lg border border-gray-200 hover:border-red-200">✕</button></div>
               </div>
             ))}
