@@ -929,8 +929,8 @@ function InvoicesView() {
         status: isFullyPaid ? 'Paid' : 'Pending Payment',
         paidDate: isFullyPaid ? payForm.paidDate : null,
         notes: markPaidModal.notes,
-        actualPaid: wire || null,
-        creditApplied: credit || null
+        actualPaid: wire,
+        creditApplied: credit
       })
     });
     await refresh(); setMarkPaidModal(null);
