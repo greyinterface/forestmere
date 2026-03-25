@@ -6,6 +6,16 @@ const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm
 
 
 
+
+function SuCard({ title, children }) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
+      {title && <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-5">{title}</h3>}
+      {children}
+    </div>
+  );
+}
+
 export function SmartUploadView() {
   const [stage, setStage] = useState("upload");
   const [docType, setDocType] = useState("taconic_invoice");
@@ -179,60 +189,23 @@ export function SmartUploadView() {
     setVend({ vendorKey:"ivan",invNum:"",date:"",desc:"",amount:"",status:"Pending" });
   };
 
-  // Layout: split screen when PDF loaded, single column otherwise
-  const Wrap = ({ children }) => pdfUrl && stage==="form" ? (
-    <div className="flex gap-5 items-start">
-      <div className="flex-1 min-w-0 space-y-5">{children}</div>
-      <div className="w-[44%] shrink-0 sticky top-4">
-        <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
-            <p className="text-xs font-semibold text-gray-600 truncate">{pendingFile?.name}</p>
-            <span className="text-xs text-gray-300 shrink-0 ml-2">{pendingFile?(pendingFile.size/1024).toFixed(0)+"KB":""}</span>
-          </div>
-          <iframe src={pdfUrl} className="w-full" style={{height:"calc(100vh - 160px)"}} title="PDF Preview"/>
+  // PDF preview panel - stable, not recreated on state changes
+  const pdfPanel = pdfUrl && stage === "form" ? (
+    <div className="w-[44%] shrink-0 sticky top-4">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
+          <p className="text-xs font-semibold text-gray-600 truncate">{pendingFile?.name}</p>
+          <span className="text-xs text-gray-300 shrink-0 ml-2">{pendingFile?(pendingFile.size/1024).toFixed(0)+"KB":""}</span>
         </div>
+        <iframe src={pdfUrl} className="w-full" style={{height:"calc(100vh - 160px)"}} title="PDF Preview"/>
       </div>
     </div>
-  ) : <div className="space-y-5 max-w-2xl">{children}</div>;
-
-  const Form = ({ children }) => <div className="space-y-5">{children}</div>;
-
-  const Card = ({ title, children }) => (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
-      {title && <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-5">{title}</h3>}
-      {children}
-    </div>
-  );
-
-  const FileBanner = () => (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] px-5 py-3 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <span className="text-lg">📄</span>
-        <div>
-          <p className="text-sm font-semibold text-gray-800">{pendingFile?.name}</p>
-          {parsing && <p className="text-xs text-indigo-500 mt-0.5 animate-pulse">Parsing PDF...</p>}
-          {!parsing && (inv.invNum || co.no) && <p className="text-xs text-emerald-600 mt-0.5">✓ Data extracted from PDF</p>}
-        </div>
-      </div>
-      <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600 ml-4 shrink-0">Change file</button>
-    </div>
-  );
-
-  const Btns = ({ onSave, disabled }) => (
-    <div className="flex gap-3">
-      <button onClick={reset} className="px-5 py-3 text-sm font-semibold rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50">Cancel</button>
-      <button onClick={onSave} disabled={disabled || saving}
-        className="flex-1 py-3 text-sm font-bold rounded-xl text-white transition-colors"
-        style={{ background: disabled||saving?"#e5e7eb":"#111827", color: disabled||saving?"#9ca3af":"#fff" }}>
-        {saving ? "Saving..." : "Save →"}
-      </button>
-    </div>
-  );
+  ) : null;
 
   // ── UPLOAD ──────────────────────────────────────────────────────────────
   if (stage === "upload") return (
     <div className="space-y-5 max-w-2xl">
-      <Card title="Upload Document">
+      <SuCard title="Upload Document">
         <p className="text-xs text-gray-400 -mt-3 mb-5">Taconic invoices and Change Orders auto-parse from PDF.</p>
         <div className="flex gap-2 mb-5 flex-wrap">
           {[["taconic_invoice","Taconic Invoice"],["change_order","Change Order"],["vendor_invoice","Vendor Invoice"],["award_letter","Award Letter"]].map(([id,lb]) => (
@@ -252,18 +225,18 @@ export function SmartUploadView() {
           <p className="text-sm font-semibold text-gray-700">Drop PDF here or click to browse</p>
           <p className="text-xs text-gray-400 mt-1">{docType==="taconic_invoice"?"AI extracts all fields and line items":docType==="change_order"?"AI extracts CO details":"PDF stored in Documents"}</p>
         </div>
-      </Card>
+      </SuCard>
     </div>
   );
 
   // ── TACONIC INVOICE FORM ────────────────────────────────────────────────
   if (stage === "form" && docType === "taconic_invoice") return (
-    <Wrap>
-      <Form>
+    <div className={pdfUrl ? "flex gap-5 items-start" : "space-y-5 max-w-2xl"}>
+      <div className={pdfUrl ? "flex-1 min-w-0 space-y-5" : "space-y-5"}>
         <FileBanner/>
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
 
-        <Card title="Invoice Header">
+        <SuCard title="Invoice Header">
           <div className="grid grid-cols-2 gap-4">
             <div className="">
       <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Payment ID <span className="text-red-400">*</span></label>
@@ -279,9 +252,9 @@ export function SmartUploadView() {
       <input value={inv.periodTo} onChange={si("periodTo")} placeholder="January 31, 2026" className={inp}/>
     </div>
           </div>
-        </Card>
+        </SuCard>
 
-        <Card title="Amounts">
+        <SuCard title="Amounts">
           <div className="grid grid-cols-2 gap-4">
             <div className="">
       <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Job Total (Contract Works)</label>
@@ -314,9 +287,9 @@ export function SmartUploadView() {
               {balanced?"✓ Amounts balance correctly":wireFee?`✓ Balanced — $${diff.toFixed(2)} wire fee included`:`⚠ Calculated: ${$f(calc)} vs Approved: ${$f(appr)} — ${$f(diff)} difference`}
             </div>
           )}
-        </Card>
+        </SuCard>
 
-        <Card title="Payment">
+        <SuCard title="Payment">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Status</label>
@@ -338,9 +311,9 @@ export function SmartUploadView() {
       <input value={inv.notes} onChange={si("notes")} placeholder="Optional..." className={inp}/>
     </div>
           </div>
-        </Card>
+        </SuCard>
 
-        <Card title="Line Items Billed This Period">
+        <SuCard title="Line Items Billed This Period">
           <div className="flex items-center justify-between -mt-3 mb-4">
             <p className="text-xs text-gray-300">Completed to date auto-calculated</p>
             <button onClick={()=>setInv(f=>({...f,lines:[...f.lines,{code:"",name:"",bill:""}]}))}
@@ -371,20 +344,21 @@ export function SmartUploadView() {
               </div>
             ))}
           </div>
-        </Card>
+        </SuCard>
 
         <Btns onSave={saveTaconic} disabled={!inv.payId||!inv.invNum||!inv.approved}/>
-      </Form>
-    </Wrap>
+      </div>
+      {pdfPanel}
+    </div>
   );
 
   // ── CHANGE ORDER FORM ───────────────────────────────────────────────────
   if (stage === "form" && docType === "change_order") return (
-    <Wrap>
-      <Form>
+    <div className={pdfUrl ? "flex gap-5 items-start" : "space-y-5 max-w-2xl"}>
+      <div className={pdfUrl ? "flex-1 min-w-0 space-y-5" : "space-y-5"}>
         <FileBanner/>
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
-        <Card title="Change Order Details">
+        <SuCard title="Change Order Details">
           <div className="grid grid-cols-2 gap-4">
             <div className="">
       <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">CO # <span className="text-red-400">*</span></label>
@@ -417,19 +391,20 @@ export function SmartUploadView() {
               Fees auto-calculated: 13.5% GC + 3% insurance = Total +{$f((parseFloat(co.amount)||0)*1.165)}
             </div>
           )}
-        </Card>
+        </SuCard>
         <Btns onSave={saveCO} disabled={!co.no||!co.amount}/>
-      </Form>
-    </Wrap>
+      </div>
+      {pdfPanel}
+    </div>
   );
 
   // ── VENDOR INVOICE FORM ─────────────────────────────────────────────────
   if (stage === "form" && docType === "vendor_invoice") return (
-    <Wrap>
-      <Form>
+    <div className={pdfUrl ? "flex gap-5 items-start" : "space-y-5 max-w-2xl"}>
+      <div className={pdfUrl ? "flex-1 min-w-0 space-y-5" : "space-y-5"}>
         <FileBanner/>
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
-        <Card title="Vendor Invoice">
+        <SuCard title="Vendor Invoice">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Vendor</label>
@@ -459,22 +434,24 @@ export function SmartUploadView() {
               </select>
             </div>
           </div>
-        </Card>
+        </SuCard>
         <Btns onSave={saveVendor} disabled={!vend.invNum||!vend.amount}/>
-      </Form>
-    </Wrap>
+      </div>
+      {pdfPanel}
+    </div>
   );
 
   // ── STORE ONLY ──────────────────────────────────────────────────────────
   if (stage === "form") return (
-    <Wrap>
-      <Form>
+    <div className={pdfUrl ? "flex gap-5 items-start" : "space-y-5 max-w-2xl"}>
+      <div className={pdfUrl ? "flex-1 min-w-0 space-y-5" : "space-y-5"}>
         <FileBanner/>
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
-        <Card><p className="text-sm text-gray-500">Ready to store as Award Letter — PDF saved to Documents.</p></Card>
+        <SuCard><p className="text-sm text-gray-500">Ready to store as Award Letter — PDF saved to Documents.</p></SuCard>
         <Btns onSave={async()=>{setSaving(true);const fd=new FormData();fd.append("file",pendingFile);fd.append("name",pendingFile.name);fd.append("type","Award Letter");fd.append("vendor_key","");fd.append("linked_id","");await fetch(API+'/documents',{method:'POST',body:fd});setDoneMsg(`${pendingFile.name} stored.`);setStage("done");setSaving(false);}} disabled={false}/>
-      </Form>
-    </Wrap>
+      </div>
+      {pdfPanel}
+    </div>
   );
 
   // ── DONE ────────────────────────────────────────────────────────────────
