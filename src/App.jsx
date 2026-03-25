@@ -1661,7 +1661,7 @@ function DocumentsView() {
     } catch(e) {}
   };
 
-  useEffect(() => { loadDocs(); }, []);
+  useEffect(() => { loadDocs(); }, []); // load on mount always
 
   const deleteDoc = async (id) => {
     if (!confirm("Delete this document? This cannot be undone.")) return;
@@ -1702,7 +1702,7 @@ function DocumentsView() {
           Upload Document
         </button>
         <button onClick={() => { setView("history"); loadDocs(); }} className={`px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all ${view==="history" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
-          Document History {docs.length > 0 && <span className="ml-1 text-gray-300">({docs.length})</span>}
+          Document History {docs.length > 0 ? <span className="ml-1 text-gray-400">({docs.length})</span> : ""}
         </button>
       </div>
 
