@@ -1207,17 +1207,36 @@ function parseTaconicInvoice(text) {
 }
 
 function parseChangeOrder(text) {
+  // Format: "Number:CO-017", "Date:Feb 3,    2026", Grand total at bottom
   const findStr = (p) => { const m = text.match(p); return m ? m[1].trim() : ''; };
   const findNum = (p) => { const m = text.match(p); return m ? parseFloat(m[1].replace(/[,$]/g,'')) : 0; };
-  return {
-    coNumber:       findStr(/(?:Change\s*Order|CO)\s*(?:No\.?|#)[:\s]*([\w-]+)/i),
-    date:           findStr(/Date[:\s]*([\d]{1,2}\/[\d]{1,2}\/[\d]{2,4})/i),
-    csiCode:        findStr(/(?:CSI|Division|Code)[:\s]*([\d-]+)/i),
-    division:       findStr(/(?:Division|Scope|Work)[:\s]*([^\n]{5,60})/i),
-    originalBudget: findNum(/(?:Original|Current)\s*(?:Contract|Budget)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i),
-    coAmount:       findNum(/(?:Amount\s*of\s*(?:this\s*)?Change|Change\s*Order\s*Amount)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i),
-    description:    findStr(/(?:Description|Scope)[:\s]*([^\n]{10,200})/i),
-  };
+
+  // CO Number: "Number:CO-017" or "Number: CO-017"
+  const coNumber = findStr(/Number[:\s]+([A-Z]{1,3}-?\d{3}[a-z]?)/i);
+
+  // Date: "Date:Feb 3,    2026" or "Date:01/15/2026"
+  const dateStr = findStr(/Date[:\s]+([A-Za-z]+ \d+[,\s]+\d{4})/i) ||
+                  findStr(/Date[:\s]+([\d]{1,2}\/[\d]{1,2}\/[\d]{2,4})/i);
+
+  // Description: line after "Description" or "Revised..." first meaningful line
+  const description = findStr(/Description\s*\n([^\n]{5,100})/i) ||
+                       findStr(/(?:Revised|Change to|Addition of)([^\n]{5,100})/i);
+
+  // CO Amount: "Grand total" line, or "Reimbursable Costs" = net before fees
+  const grandTotal    = findNum(/Grand\s*total[\s\n]+([\d,]+\.\d{2})/i);
+  const reimbursable  = findNum(/Reimbursable\s*Costs[\s\n]+([\d,]+\.\d{2})/i);
+  // Net CO amount = reimbursable (before fee/insurance), or grand total if no breakdown
+  const coAmount = reimbursable || grandTotal;
+
+  // Delta lines: "Delta = $11,396.84" — collect all deltas for line items
+  const deltas = [];
+  const deltaRe = /Delta\s*=\s*\$?([\d,]+\.\d{2})/gi;
+  let dm;
+  while ((dm = deltaRe.exec(text)) !== null) {
+    deltas.push(parseFloat(dm[1].replace(/,/g,'')));
+  }
+
+  return { coNumber, date: dateStr, description, coAmount, reimbursable, grandTotal, deltas };
 }
 
 function parseVendorInvoice(text) {
