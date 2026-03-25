@@ -744,7 +744,7 @@ app.delete('/api/line-item-billings/:code/:invNum', async (req, res) => {
 
 app.get('/api/documents', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT id, name, type, vendor_key, vendor_label, linked_id, note, created_at FROM documents ORDER BY created_at DESC');
+    const { rows } = await pool.query('SELECT id, name, type, vendor_key, vendor_label, linked_id, note, uploaded_at FROM documents ORDER BY uploaded_at DESC');
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
