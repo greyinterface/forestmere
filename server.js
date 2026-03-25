@@ -5,6 +5,7 @@ import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
+import { PDFParse } from 'pdf-parse';
 
 const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1084,13 +1085,15 @@ app.post('/api/parse-document', upload.single('file'), async (req, res) => {
     const pdfBuffer = req.file.buffer;
 
     // Use pdf-parse to extract text - no API key needed, works offline
-    let pdfParse;
-    try { pdfParse = require('pdf-parse'); } catch(e) {
-      return res.status(500).json({ error: 'pdf-parse not installed. Run: npm install pdf-parse' });
+    const parser = new PDFParse({});
+    await parser.load(pdfBuffer);
+    // Extract text from all pages
+    const pageCount = parser.pdfDocument ? await parser.pdfDocument.numPages : 0;
+    let text = '';
+    for (let i = 1; i <= Math.min(pageCount, 50); i++) {
+      try { const t = await parser.getPageText(i); text += t + '\n'; } catch(e) {}
     }
-
-    const pdfData = await pdfParse(pdfBuffer);
-    const text = pdfData.text;
+    if (!text.trim()) throw new Error('Could not extract text from PDF');
 
     if (docType === 'taconic_invoice') {
       const parsed = parseTaconicInvoice(text);
