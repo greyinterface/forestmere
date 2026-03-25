@@ -52,7 +52,7 @@ export function SmartUploadView() {
         const p = data.parsed; const h = p.header || {};
         const lines = (p.lineItemsBilled || [])
           .filter(l => parseFloat(l.currentBill) > 0)
-          .map(l => ({ code: l.code||"", name: l.name||"", bill: String(l.currentBill||"") }));
+          .map(l => ({ code: l.code||"", name: l.name||"", bill: String(l.currentBill||""), _suggested: true }));
         setInv(f => ({
           ...f,
           invNum: h.invNum ? String(h.invNum) : f.invNum,
@@ -291,30 +291,88 @@ export function SmartUploadView() {
           <div className="grid grid-cols-2 gap-4">
             <div><label className={lbl}>Status</label><select value={inv.status} onChange={si("status")} className={inp}>{["Pending Payment","Paid"].map(s=><option key={s}>{s}</option>)}</select></div>
             {inv.status==="Paid"&&<div><label className={lbl}>Date Paid</label><input value={inv.paidDate} onChange={si("paidDate")} placeholder="MM/DD/YYYY" className={inp}/></div>}
-            <div><label className={lbl}>Actual Wire ($)</label><input value={inv.wire} onChange={si("wire")} placeholder="0 if credit" className={inp}/></div>
-            <div><label className={lbl}>Credit Applied ($)</label><input value={inv.credit} onChange={si("credit")} placeholder="0.00" className={inp}/></div>
+            <div>
+              <label className={lbl}>Wire Sent ($) — leave 0 if paid via credit</label>
+              <input value={inv.wire} onChange={si("wire")} placeholder="0" className={inp}/>
+            </div>
+            <div>
+              <label className={lbl}>Credit Applied ($) — from credit on account</label>
+              <input value={inv.credit} onChange={si("credit")} placeholder="0.00" className={inp}/>
+            </div>
             <div className="col-span-2"><label className={lbl}>Notes</label><input value={inv.notes} onChange={si("notes")} placeholder="Optional..." className={inp}/></div>
           </div>
         </div>
 
         {/* Line Items */}
         <div className={card}>
-          <div className="flex items-center justify-between mb-4">
-            <div><p className={sectionTitle}>Line Items Billed This Period</p><p className="text-xs text-gray-300 -mt-4">Completed to date auto-calculated</p></div>
-            <button onClick={()=>setInv(f=>({...f,lines:[...f.lines,{code:"",name:"",bill:""}]}))} className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">+ Add Line</button>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className={sectionTitle}>Line Items Billed This Period</p>
+              <p className="text-xs text-gray-300 -mt-4 mb-3">Parsed from invoice continuation sheet · completed to date auto-calculated</p>
+            </div>
+            <button onClick={()=>setInv(f=>({...f,lines:[...f.lines,{code:"",name:"",bill:"",_suggested:false}]}))} className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">+ Add Line</button>
           </div>
-          {parsing && <p className="text-center text-xs text-indigo-500 animate-pulse py-3">Extracting line items...</p>}
-          {!parsing && inv.lines.length===0 && <p className="text-center text-xs text-gray-300 py-3">No line items — add manually or upload parseable PDF</p>}
+          {parsing && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-xs text-indigo-600 font-medium animate-pulse mb-3">
+              ⟳ Extracting all line items from continuation sheet...
+            </div>
+          )}
+          {!parsing && inv.lines.length === 0 && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-xs text-gray-400 mb-3">
+              No line items parsed — PDF may not have a readable continuation sheet. Add manually using "+ Add Line".
+            </div>
+          )}
+          {/* Column headers */}
+          {inv.lines.length > 0 && (
+            <div className="grid grid-cols-12 gap-2 mb-1 px-1">
+              <div className="col-span-2"><span className="text-xs text-gray-400 uppercase tracking-widest font-semibold">Code</span></div>
+              <div className="col-span-5"><span className="text-xs text-gray-400 uppercase tracking-widest font-semibold">Description</span></div>
+              <div className="col-span-4"><span className="text-xs text-gray-400 uppercase tracking-widest font-semibold">This Period ($)</span></div>
+              <div className="col-span-1"/>
+            </div>
+          )}
           <div className="space-y-2">
             {inv.lines.map((li,i)=>(
-              <div key={i} className="grid grid-cols-12 gap-2 items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
-                <div className="col-span-2">{i===0&&<label className="block text-xs text-gray-400 mb-1">Code</label>}<input value={li.code} onChange={e=>{const l=[...inv.lines];l[i]={...l[i],code:e.target.value};setInv(f=>({...f,lines:l}));}} className={inp}/></div>
-                <div className="col-span-5">{i===0&&<label className="block text-xs text-gray-400 mb-1">Description</label>}<input value={li.name} onChange={e=>{const l=[...inv.lines];l[i]={...l[i],name:e.target.value};setInv(f=>({...f,lines:l}));}} className={inp}/></div>
-                <div className="col-span-4">{i===0&&<label className="block text-xs text-gray-400 mb-1">This Period ($)</label>}<input value={li.bill} onChange={e=>{const l=[...inv.lines];l[i]={...l[i],bill:e.target.value};setInv(f=>({...f,lines:l}));}} className={inp}/></div>
-                <div className="col-span-1">{i===0&&<div className="mb-1 h-4"/>}<button onClick={()=>setInv(f=>({...f,lines:f.lines.filter((_,idx)=>idx!==i)}))} className="w-full py-2 text-xs text-gray-300 hover:text-red-400 rounded-lg border border-gray-100">✕</button></div>
+              <div key={i} className={`grid grid-cols-12 gap-2 items-center p-2.5 rounded-lg border ${li._suggested ? "bg-indigo-50 border-indigo-200" : "bg-gray-50 border-gray-100"}`}>
+                <div className="col-span-2">
+                  {li._suggested && !li._codeEdited ? (
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium text-indigo-700 px-2 py-1.5 bg-white border border-indigo-200 rounded-lg flex-1 truncate">{li.code}</span>
+                      <button type="button" onClick={()=>{const l=[...inv.lines];l[i]={...l[i],_codeEdited:true};setInv(f=>({...f,lines:l}));}} className="text-xs text-gray-300 hover:text-indigo-500 shrink-0">✎</button>
+                    </div>
+                  ) : (
+                    <input value={li.code} onChange={e=>{const l=[...inv.lines];l[i]={...l[i],code:e.target.value,_codeEdited:true};setInv(f=>({...f,lines:l}));}} className={inp}/>
+                  )}
+                </div>
+                <div className="col-span-5">
+                  {li._suggested && !li._nameEdited ? (
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium text-indigo-700 px-2 py-1.5 bg-white border border-indigo-200 rounded-lg flex-1 truncate" title={li.name}>{li.name}</span>
+                      <button type="button" onClick={()=>{const l=[...inv.lines];l[i]={...l[i],_nameEdited:true};setInv(f=>({...f,lines:l}));}} className="text-xs text-gray-300 hover:text-indigo-500 shrink-0">✎</button>
+                    </div>
+                  ) : (
+                    <input value={li.name} onChange={e=>{const l=[...inv.lines];l[i]={...l[i],name:e.target.value,_nameEdited:true};setInv(f=>({...f,lines:l}));}} className={inp}/>
+                  )}
+                </div>
+                <div className="col-span-4">
+                  {li._suggested && !li._billEdited ? (
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-bold text-indigo-700 px-2 py-1.5 bg-white border border-indigo-200 rounded-lg flex-1">{li.bill}</span>
+                      <button type="button" onClick={()=>{const l=[...inv.lines];l[i]={...l[i],_billEdited:true};setInv(f=>({...f,lines:l}));}} className="text-xs text-gray-300 hover:text-indigo-500 shrink-0">✎</button>
+                    </div>
+                  ) : (
+                    <input value={li.bill} onChange={e=>{const l=[...inv.lines];l[i]={...l[i],bill:e.target.value,_billEdited:true};setInv(f=>({...f,lines:l}));}} className={inp}/>
+                  )}
+                </div>
+                <div className="col-span-1">
+                  <button onClick={()=>setInv(f=>({...f,lines:f.lines.filter((_,idx)=>idx!==i)}))} className="w-full py-2 text-xs text-gray-300 hover:text-red-400 rounded-lg border border-gray-100 hover:border-red-200 transition-colors">✕</button>
+                </div>
               </div>
             ))}
           </div>
+          {inv.lines.filter(l=>l._suggested).length > 0 && (
+            <p className="text-xs text-indigo-400 mt-2">✎ Click to edit any field · indigo = parsed from PDF</p>
+          )}
         </div>
 
         {/* Buttons */}
