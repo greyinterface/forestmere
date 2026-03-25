@@ -418,21 +418,21 @@ export function SmartUploadView() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className={lbl}>Invoice # <span className="text-red-400">*</span></label>
-                {!inv.invNum && <button type="button" tabIndex={-1} onClick={()=>setInv(f=>({...f,invNum:"1976"}))} className="text-xs text-indigo-400 hover:text-indigo-600">↵ 1976</button>}
+
               </div>
               <input value={inv.invNum} onChange={si("invNum")} placeholder="1976" className={inp}/>
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className={lbl}>Request Date</label>
-                {!inv.reqDate && <button type="button" tabIndex={-1} onClick={()=>setInv(f=>({...f,reqDate:"02/09/2026"}))} className="text-xs text-indigo-400 hover:text-indigo-600">↵ 02/09/2026</button>}
+
               </div>
               <input value={inv.reqDate} onChange={si("reqDate")} placeholder="02/09/2026" className={inp}/>
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className={lbl}>Period To</label>
-                {!inv.periodTo && <button type="button" tabIndex={-1} onClick={()=>setInv(f=>({...f,periodTo:"January 31, 2026"}))} className="text-xs text-indigo-400 hover:text-indigo-600">↵ Jan 31, 2026</button>}
+
               </div>
               <input value={inv.periodTo} onChange={si("periodTo")} placeholder="January 31, 2026" className={inp}/>
             </div>
@@ -444,19 +444,16 @@ export function SmartUploadView() {
           <p className={sectionTitle}>Amounts</p>
           <div className="grid grid-cols-2 gap-4">
             {[
-              {label:"Job Total", k:"jobTotal", s:"286510.66"},
-              {label:"GC Fee + Insurance", k:"fees", s:"48434.63"},
-              {label:"Deposit Applied", k:"deposit", s:"121719.15", hint:"Enter positive"},
-              {label:"Retainage This Period", k:"retainage", s:"30465.49"},
-              {label:"Amount Due", k:"amtDue", s:"182760.65"},
-              {label:"Approved Amount", k:"approved", s:"182770.65", req:true},
-            ].map(({label,k,s,hint,req})=>(
+              {label:"Job Total", k:"jobTotal", hint:null, req:false},
+              {label:"GC Fee + Insurance", k:"fees", hint:null, req:false},
+              {label:"Deposit Applied", k:"deposit", hint:"Enter positive", req:false},
+              {label:"Retainage This Period", k:"retainage", hint:null, req:false},
+              {label:"Amount Due", k:"amtDue", hint:null, req:false},
+              {label:"Approved Amount", k:"approved", hint:null, req:true},
+            ].map(({label,k,hint,req})=>(
               <div key={k}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className={lbl}>{label}{req && <span className="text-red-400 ml-0.5">*</span>}</label>
-                  {!inv[k] && <button type="button" tabIndex={-1} onClick={()=>setInv(f=>({...f,[k]:s}))} className="text-xs text-indigo-400 hover:text-indigo-600">↵ {s}</button>}
-                </div>
-                <input value={inv[k]} onChange={si(k)} placeholder={s} className={inp}/>
+                <label className={lbl}>{label}{req && <span className="text-red-400 ml-0.5">*</span>}</label>
+                <input value={inv[k]} onChange={si(k)} placeholder="0.00" className={inp}/>
                 {hint && <p className="text-xs text-gray-300 mt-1">{hint}</p>}
               </div>
             ))}
