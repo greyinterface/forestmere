@@ -4,28 +4,7 @@ const API = '/api';
 const $f = (n) => n == null || n === "" ? "—" : "$" + Math.abs(Number(n)).toLocaleString("en-US", { maximumFractionDigits: 2 });
 const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-300 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100";
 
-// Label + optional "↵ use X" button + plain input
-function F({ label, value, onChange, suggest, required, hint, col2 }) {
-  return (
-    <div className={col2 ? "col-span-2" : ""}>
-      <div className="flex items-center justify-between mb-1.5">
-        <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-          {label}{required && <span className="text-red-400 ml-0.5">*</span>}
-        </label>
-        {!value && suggest && (
-          <button type="button" tabIndex={-1}
-            onClick={() => onChange({ target: { value: suggest } })}
-            className="text-xs text-indigo-400 hover:text-indigo-600 font-medium">
-            ↵ {suggest.length > 14 ? suggest.slice(0,14)+"…" : suggest}
-          </button>
-        )}
-      </div>
-      <input value={value} onChange={onChange} placeholder={suggest || ""}
-        className={inp} />
-      {hint && <p className="text-xs text-gray-300 mt-1">{hint}</p>}
-    </div>
-  );
-}
+
 
 export function SmartUploadView() {
   const [stage, setStage] = useState("upload");
@@ -286,21 +265,49 @@ export function SmartUploadView() {
 
         <Card title="Invoice Header">
           <div className="grid grid-cols-2 gap-4">
-            <F label="Payment ID" required value={inv.payId} onChange={si("payId")} suggest="PAY-008"/>
-            <F label="Invoice #" required value={inv.invNum} onChange={si("invNum")} suggest="1976"/>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Payment ID <span className="text-red-400">*</span></label>
+      <input value={inv.payId} onChange={si("payId")} placeholder="PAY-008" className={inp}/>
+    </div>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Invoice # <span className="text-red-400">*</span></label>
+      <input value={inv.invNum} onChange={si("invNum")} placeholder="1976" className={inp}/>
+    </div>
             <F label="Request Date" value={inv.reqDate} onChange={si("reqDate")} suggest="02/09/2026"/>
-            <F label="Period To" value={inv.periodTo} onChange={si("periodTo")} suggest="January 31, 2026"/>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Period To</label>
+      <input value={inv.periodTo} onChange={si("periodTo")} placeholder="January 31, 2026" className={inp}/>
+    </div>
           </div>
         </Card>
 
         <Card title="Amounts">
           <div className="grid grid-cols-2 gap-4">
-            <F label="Job Total (Contract Works)" value={inv.jobTotal} onChange={si("jobTotal")} suggest="286510.66"/>
-            <F label="GC Fee + Insurance" value={inv.fees} onChange={si("fees")} suggest="48434.63"/>
-            <F label="Deposit Applied" value={inv.deposit} onChange={si("deposit")} suggest="121719.15" hint="Enter positive"/>
-            <F label="Retainage This Period" value={inv.retainage} onChange={si("retainage")} suggest="30465.49"/>
-            <F label="Amount Due" value={inv.amtDue} onChange={si("amtDue")} suggest="182760.65"/>
-            <F label="Approved Amount" required value={inv.approved} onChange={si("approved")} suggest="182770.65"/>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Job Total (Contract Works)</label>
+      <input value={inv.jobTotal} onChange={si("jobTotal")} placeholder="286510.66" className={inp}/>
+    </div>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">GC Fee + Insurance</label>
+      <input value={inv.fees} onChange={si("fees")} placeholder="48434.63" className={inp}/>
+    </div>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Deposit Applied</label>
+      <input value={inv.deposit} onChange={si("deposit")} placeholder="121719.15" className={inp}/>
+      <p className="text-xs text-gray-300 mt-1">{"Enter positive"}</p>
+    </div>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Retainage This Period</label>
+      <input value={inv.retainage} onChange={si("retainage")} placeholder="30465.49" className={inp}/>
+    </div>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Amount Due</label>
+      <input value={inv.amtDue} onChange={si("amtDue")} placeholder="182760.65" className={inp}/>
+    </div>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Approved Amount <span className="text-red-400">*</span></label>
+      <input value={inv.approved} onChange={si("approved")} placeholder="182770.65" className={inp}/>
+    </div>
           </div>
           {inv.approved && inv.jobTotal && (
             <div className={`mt-4 rounded-lg px-4 py-2.5 text-xs font-medium border ${balanced||wireFee?"bg-emerald-50 border-emerald-200 text-emerald-700":"bg-amber-50 border-amber-200 text-amber-700"}`}>
@@ -318,9 +325,18 @@ export function SmartUploadView() {
               </select>
             </div>
             {inv.status==="Paid"&&<F label="Date Paid" value={inv.paidDate} onChange={si("paidDate")} suggest="MM/DD/YYYY"/>}
-            <F label="Actual Wire ($)" value={inv.wire} onChange={si("wire")} suggest="0 if credit"/>
-            <F label="Credit Applied ($)" value={inv.credit} onChange={si("credit")} suggest="0.00"/>
-            <F label="Notes" col2 value={inv.notes} onChange={si("notes")} suggest="Optional..."/>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Actual Wire ($)</label>
+      <input value={inv.wire} onChange={si("wire")} placeholder="0 if credit" className={inp}/>
+    </div>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Credit Applied ($)</label>
+      <input value={inv.credit} onChange={si("credit")} placeholder="0.00" className={inp}/>
+    </div>
+            <div className="col-span-2">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Notes</label>
+      <input value={inv.notes} onChange={si("notes")} placeholder="Optional..." className={inp}/>
+    </div>
           </div>
         </Card>
 
@@ -370,12 +386,30 @@ export function SmartUploadView() {
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
         <Card title="Change Order Details">
           <div className="grid grid-cols-2 gap-4">
-            <F label="CO #" required value={co.no} onChange={sc("no")} suggest="CO-019"/>
-            <F label="Date" value={co.date} onChange={sc("date")} suggest="Mar 25, 2026"/>
-            <F label="CSI Code" value={co.code} onChange={sc("code")} suggest="06-100"/>
-            <F label="Division" value={co.div} onChange={sc("div")} suggest="Rough Carpentry"/>
-            <F label="Original Budget" value={co.origBudget} onChange={sc("origBudget")} suggest="139000"/>
-            <F label="CO Amount" required value={co.amount} onChange={sc("amount")} suggest="15000"/>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">CO # <span className="text-red-400">*</span></label>
+      <input value={co.no} onChange={sc("no")} placeholder="CO-019" className={inp}/>
+    </div>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Date</label>
+      <input value={co.date} onChange={sc("date")} placeholder="Mar 25, 2026" className={inp}/>
+    </div>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">CSI Code</label>
+      <input value={co.code} onChange={sc("code")} placeholder="06-100" className={inp}/>
+    </div>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Division</label>
+      <input value={co.div} onChange={sc("div")} placeholder="Rough Carpentry" className={inp}/>
+    </div>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Original Budget</label>
+      <input value={co.origBudget} onChange={sc("origBudget")} placeholder="139000" className={inp}/>
+    </div>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">CO Amount <span className="text-red-400">*</span></label>
+      <input value={co.amount} onChange={sc("amount")} placeholder="15000" className={inp}/>
+    </div>
             <F label="Description / Notes" col2 value={co.notes} onChange={sc("notes")} suggest="Scope change description..."/>
           </div>
           {co.amount && (
@@ -405,10 +439,19 @@ export function SmartUploadView() {
                 <option value="arch">Architecturefirm</option>
               </select>
             </div>
-            <F label="Invoice #" required value={vend.invNum} onChange={sv("invNum")} suggest="103443"/>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Invoice # <span className="text-red-400">*</span></label>
+      <input value={vend.invNum} onChange={sv("invNum")} placeholder="103443" className={inp}/>
+    </div>
             <F label="Date" value={vend.date} onChange={sv("date")} suggest="01/05/2026"/>
-            <F label="Description" col2 value={vend.desc} onChange={sv("desc")} suggest="CM Phase C..."/>
-            <F label="Amount ($)" required value={vend.amount} onChange={sv("amount")} suggest="2655.00"/>
+            <div className="col-span-2">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Description</label>
+      <input value={vend.desc} onChange={sv("desc")} placeholder="CM Phase C..." className={inp}/>
+    </div>
+            <div className="">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Amount ($) <span className="text-red-400">*</span></label>
+      <input value={vend.amount} onChange={sv("amount")} placeholder="2655.00" className={inp}/>
+    </div>
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Status</label>
               <select value={vend.status} onChange={sv("status")} className={inp}>
