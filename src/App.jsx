@@ -1053,74 +1053,104 @@ function InvoicesView() {
 
 // ─── LINE ITEM BILLING ────────────────────────────────────────────────────────
 function LineItemView() {
-  const { lineItems, INV_NUMS } = useAppData();
+  const { lineItems, INV_NUMS, refresh } = useAppData();
   const [sel, setSel] = useState("All");
   const [modal, setModal] = useState(null);
+  const [editingBilling, setEditingBilling] = useState(null); // {code, invNum, amount}
+  const [editVal, setEditVal] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  // All line items - in "All" view show all; in invoice view filter to billed lines
-  const rows = sel === "All"
-    ? lineItems
-    : lineItems.filter(li => li.inv && li.inv[sel] != null && li.inv[sel] > 0);
-
+  const rows = sel === "All" ? lineItems : lineItems.filter(li => li.inv && li.inv[sel] != null && li.inv[sel] !== 0);
   const totalBudget = rows.reduce((s,li) => s + li.budget, 0);
   const totalCOs    = rows.reduce((s,li) => s + li.cos, 0);
   const totalDone   = rows.reduce((s,li) => s + li.done, 0);
 
+  const saveBilling = async () => {
+    if (!editingBilling || saving) return;
+    setSaving(true);
+    const { code, invNum } = editingBilling;
+    const amount = parseFloat(editVal) || 0;
+    if (amount === 0) {
+      // Delete the billing
+      await apiFetch(`/line-item-billings/${encodeURIComponent(code)}/${encodeURIComponent(invNum)}`, { method: 'DELETE' });
+    } else {
+      // Upsert
+      await apiFetch('/line-item-billings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, invNum, amount })
+      });
+    }
+    await refresh();
+    setEditingBilling(null);
+    setSaving(false);
+  };
+
+  const inp = "bg-white border border-indigo-300 rounded px-2 py-1 text-xs outline-none focus:border-indigo-500 w-28 text-right";
+
   return (
     <div className="space-y-4">
-      {/* Summary stats */}
       <div className="grid grid-cols-3 gap-3">
-        <Stat label="Control Budget" value={$f(lineItems.reduce((s,l)=>s+l.budget,0))} sub={`${lineItems.length} line items tracked`} />
-        <Stat label="Completed to Date" value={$f(lineItems.reduce((s,l)=>s+l.done,0))} sub={pf(lineItems.reduce((s,l)=>s+l.done,0)/lineItems.reduce((s,l)=>s+l.budget+l.cos,1)) + " of revised"} accent />
+        <Stat label="Control Budget" value={$f(lineItems.reduce((s,l)=>s+l.budget,0))} sub={`${lineItems.length} line items`} />
+        <Stat label="Completed to Date" value={$f(lineItems.reduce((s,l)=>s+l.done,0))} sub={pf(lineItems.reduce((s,l)=>s+l.done,0)/Math.max(lineItems.reduce((s,l)=>s+l.budget+l.cos,0),1)) + " of revised"} accent />
         <Stat label="Balance to Finish" value={$f(lineItems.reduce((s,l)=>s+(l.budget+l.cos-l.done),0))} sub="Remaining work" />
       </div>
 
-      {/* Invoice filter */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-gray-400 font-medium">Filter by invoice:</span>
-        {["All", ...INV_NUMS].map(n => (
-          <button key={n} onClick={() => setSel(n)}
-            className={cx("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              sel === n ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-400 hover:text-gray-800")}>
-            {n}
-          </button>
-        ))}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-gray-400 font-medium">Filter:</span>
+          {["All", ...INV_NUMS].map(n => (
+            <button key={n} onClick={() => setSel(n)}
+              className={cx("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                sel === n ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-400 hover:text-gray-800")}>
+              {n}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-300">Click any amount to edit</p>
       </div>
 
       <Card className="overflow-hidden">
         <table className="w-full">
           <thead><tr>
             <TH>Code</TH><TH>Description</TH>
-            <TH right>Control Budget</TH>
-            <TH right>Approved COs</TH>
-            <TH right>Revised Budget</TH>
-            <TH right>Completed to Date</TH>
-            <TH className="w-36">Progress</TH>
+            <TH right>Budget</TH><TH right>COs</TH><TH right>Revised</TH>
+            <TH right>Completed</TH><TH className="w-32">Progress</TH>
             <TH right>Balance</TH>
-            {sel !== "All" && <TH right>{sel}</TH>}
+            {sel !== "All" && <TH right className="text-indigo-600">{sel}</TH>}
           </tr></thead>
           <tbody>
             {rows.map(li => {
               const rev = li.budget + li.cos;
               const bal = rev - li.done;
+              const isEditing = editingBilling?.code === li.code && editingBilling?.invNum === sel;
               return (
                 <TR key={li.code} onClick={() => setModal(li)}>
-                  <TD mono muted>{li.code}</TD>
+                  <TD muted>{li.code}</TD>
                   <TD bold className="text-gray-800">{li.name}</TD>
                   <TD right muted>{$f(li.budget)}</TD>
-                  <TD right className={li.cos !== 0 ? (li.cos < 0 ? "text-emerald-600 font-medium" : "text-indigo-600 font-medium") : "text-gray-300"}>
-                    {li.cos !== 0 ? `${li.cos > 0 ? "+" : ""}${$f(li.cos)}` : "—"}
-                  </TD>
+                  <TD right className={li.cos !== 0 ? (li.cos < 0 ? "text-emerald-600" : "text-indigo-600") : "text-gray-300"}>{li.cos !== 0 ? `${li.cos>0?"+":""}${$f(li.cos)}` : "—"}</TD>
                   <TD right muted>{$f(rev)}</TD>
                   <TD right bold className="text-gray-900">{$f(li.done)}</TD>
-                  <TD>
-                    <div className="flex items-center gap-2">
-                      <BarFill value={li.done} max={rev} />
-                      <span className="text-gray-400 text-xs w-10 shrink-0">{pf(li.pct)}</span>
-                    </div>
-                  </TD>
+                  <TD><div className="flex items-center gap-2"><BarFill value={li.done} max={rev} /><span className="text-gray-400 text-xs w-10 shrink-0">{pf(li.pct)}</span></div></TD>
                   <TD right className={bal < 0 ? "text-red-500 font-bold" : "text-gray-400"}>{$f(bal)}</TD>
-                  {sel !== "All" && <TD right className="text-indigo-600 font-bold">{li.inv && li.inv[sel] ? $f(li.inv[sel]) : "—"}</TD>}
+                  {sel !== "All" && (
+                    <TD right onClick={e => { e.stopPropagation(); setEditingBilling({code:li.code, invNum:sel}); setEditVal(String(li.inv?.[sel] || "")); }}>
+                      {isEditing ? (
+                        <div className="flex items-center gap-1" onClick={e=>e.stopPropagation()}>
+                          <input value={editVal} onChange={e=>setEditVal(e.target.value)}
+                            className={inp} autoFocus
+                            onKeyDown={e=>{if(e.key==="Enter")saveBilling();if(e.key==="Escape")setEditingBilling(null);}}/>
+                          <button onClick={saveBilling} disabled={saving} className="text-xs px-1.5 py-1 bg-gray-900 text-white rounded">{saving?"…":"✓"}</button>
+                          <button onClick={()=>setEditingBilling(null)} className="text-xs px-1.5 py-1 bg-gray-100 text-gray-500 rounded">✕</button>
+                        </div>
+                      ) : (
+                        <span className={cx("cursor-pointer hover:text-indigo-600 transition-colors", li.inv?.[sel] ? "text-indigo-600 font-bold" : "text-gray-200 hover:text-gray-400")}>
+                          {li.inv?.[sel] ? $f(li.inv[sel]) : "—"}
+                        </span>
+                      )}
+                    </TD>
+                  )}
                 </TR>
               );
             })}
@@ -1132,8 +1162,8 @@ function LineItemView() {
               <TD right bold className="text-indigo-600">{totalCOs !== 0 ? `+${$f(totalCOs)}` : "—"}</TD>
               <TD right bold muted>{$f(totalBudget + totalCOs)}</TD>
               <TD right bold className="text-gray-900">{$f(totalDone)}</TD>
-              <TD /><TD right bold className="text-gray-500">{$f((totalBudget + totalCOs) - totalDone)}</TD>
-              {sel !== "All" && <TD right bold className="text-indigo-600">{$f(rows.reduce((s,li) => s + (li.inv && li.inv[sel] ? li.inv[sel] : 0), 0))}</TD>}
+              <TD /><TD right bold className="text-gray-500">{$f((totalBudget+totalCOs)-totalDone)}</TD>
+              {sel !== "All" && <TD right bold className="text-indigo-600">{$f(rows.reduce((s,li)=>s+(li.inv?.[sel]||0),0))}</TD>}
             </TR>
           </tfoot>
         </table>
@@ -1143,11 +1173,11 @@ function LineItemView() {
         <Modal title={`${modal.code} — ${modal.name}`} subtitle="Line item billing detail" onClose={() => setModal(null)}>
           <KVGrid rows={[
             ["Control Budget", $f(modal.budget)],
-            ["Approved COs", modal.cos !== 0 ? `${modal.cos > 0 ? "+" : ""}${$f(modal.cos)}` : "—"],
+            ["Approved COs", modal.cos !== 0 ? `${modal.cos>0?"+":""}${$f(modal.cos)}` : "—"],
             ["Revised Budget", $f(modal.budget + modal.cos)],
             ["Completed to Date", $f(modal.done)],
             ["% Complete", pf(modal.pct)],
-            ["Balance to Finish", $f((modal.budget + modal.cos) - modal.done)],
+            ["Balance to Finish", $f((modal.budget+modal.cos)-modal.done)],
           ]} />
           {modal.inv && Object.keys(modal.inv).length > 0 && (
             <>
@@ -1155,16 +1185,10 @@ function LineItemView() {
               <table className="w-full text-xs">
                 <thead><tr><TH>Invoice</TH><TH right>Amount Billed</TH></tr></thead>
                 <tbody>
-                  {Object.entries(modal.inv).filter(([,v]) => v > 0).map(([invNum, amt]) => (
-                    <TR key={invNum}>
-                      <TD mono muted>{invNum}</TD>
-                      <TD right bold className="text-gray-900">{$f(amt)}</TD>
-                    </TR>
+                  {Object.entries(modal.inv).filter(([,v])=>v&&v!==0).map(([invNum,amt])=>(
+                    <TR key={invNum}><TD muted>{invNum}</TD><TD right bold className={parseFloat(amt)<0?"text-red-500":"text-gray-900"}>{$f(amt)}</TD></TR>
                   ))}
-                  <TR subtle>
-                    <TD bold muted>Total billed</TD>
-                    <TD right bold className="text-gray-900">{$f(Object.values(modal.inv).reduce((s,v)=>s+v,0))}</TD>
-                  </TR>
+                  <TR subtle><TD bold muted>Total billed</TD><TD right bold className="text-gray-900">{$f(Object.values(modal.inv).filter(v=>v>0).reduce((s,v)=>s+v,0))}</TD></TR>
                 </tbody>
               </table>
             </>
@@ -1778,7 +1802,7 @@ function ReconcileView({ setTab }) {
   const runReseed = async () => {
     setReseeding(true);
     try {
-      await apiFetch('/admin/reseed-line-items', { method: 'POST' });
+      await apiFetch('/admin/reseed-billings', { method: 'POST' });
       setReseedDone(true);
       await load();
     } catch(e) {}
@@ -1980,13 +2004,13 @@ function ReconcileView({ setTab }) {
           {!reseedDone && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-4 flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-blue-700">Run One-Time Data Fix</p>
-                <p className="text-xs text-blue-500 mt-0.5">Seeds 3 missing line items (Water Service, Gas Services, Septic) that were in the original budget but not stored in the database.</p>
+                <p className="text-sm font-semibold text-blue-700">Fix All Billing Data</p>
+                <p className="text-xs text-blue-500 mt-0.5">Reseeds all 67 line item billings from Excel data (PAY-001 to PAY-007) — including Fee, Insurance, Deposit rows. Run this once after deploy.</p>
               </div>
               <button onClick={runReseed} disabled={reseeding}
                 className="ml-4 px-4 py-2 text-xs font-bold rounded-lg text-white shrink-0"
                 style={{ background: reseeding ? "#93c5fd" : "#1d4ed8" }}>
-                {reseeding ? "Running..." : "Fix Now →"}
+                {reseeding ? "Running..." : "Fix Billing Data →"}
               </button>
             </div>
           )}
