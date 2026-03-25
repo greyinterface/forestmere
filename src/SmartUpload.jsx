@@ -7,6 +7,137 @@ const lbl = "block text-xs font-semibold text-gray-400 uppercase tracking-widest
 const card = "bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6";
 const sectionTitle = "text-xs font-bold uppercase tracking-widest text-gray-400 mb-5";
 
+
+// ─── LINE ITEMS SECTION ───────────────────────────────────────────────────────
+// Loads all budget line items from the app, lets user enter current period amount
+// No AI/API needed - works entirely from local data
+function LineItemsSection({ lines, parsing, onChange, inp, sectionTitle, card }) {
+  const [budgetLines, setBudgetLines] = useState([]);
+  const [filter, setFilter] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
+
+  useEffect(() => {
+    // Load line items from the API
+    fetch('/api/data').then(r=>r.json()).then(d => {
+      if (d.lineItems) setBudgetLines(d.lineItems);
+    }).catch(()=>{});
+  }, []);
+
+  const addLine = (li) => {
+    // Check not already added
+    if (lines.find(l => l.code === li.code)) return;
+    onChange([...lines, { code: li.code, name: li.name, bill: "", suggested: false }]);
+    setShowPicker(false);
+    setFilter("");
+  };
+
+  const addBlankLine = () => {
+    onChange([...lines, { code: "", name: "", bill: "", suggested: false }]);
+  };
+
+  const removeLine = (i) => {
+    onChange(lines.filter((_,idx) => idx !== i));
+  };
+
+  const updateLine = (i, field, val) => {
+    const l = [...lines];
+    l[i] = {...l[i], [field]: val};
+    onChange(l);
+  };
+
+  const filtered = budgetLines.filter(li =>
+    !filter ||
+    li.code.toLowerCase().includes(filter.toLowerCase()) ||
+    (li.name||"").toLowerCase().includes(filter.toLowerCase())
+  );
+
+  return (
+    <div className={card}>
+      <div className="flex items-center justify-between mb-1">
+        <p className={sectionTitle}>Line Items Billed This Period</p>
+        <div className="flex gap-2">
+          <button onClick={() => setShowPicker(v=>!v)}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-900 text-white hover:bg-gray-700">
+            + From Budget
+          </button>
+          <button onClick={addBlankLine}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
+            + Manual
+          </button>
+        </div>
+      </div>
+      <p className="text-xs text-gray-300 mb-4">
+        Click <strong className="text-gray-500">+ From Budget</strong> to pick a line item, enter current period amount · completed to date auto-calculated
+      </p>
+
+      {/* Budget line picker */}
+      {showPicker && (
+        <div className="mb-4 border border-indigo-200 rounded-xl overflow-hidden">
+          <div className="p-3 bg-indigo-50 border-b border-indigo-100">
+            <input
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              placeholder="Search by code or name..."
+              className="w-full bg-white border border-indigo-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-400"
+              autoFocus
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.slice(0,30).map(li => (
+              <button key={li.code} onClick={() => addLine(li)}
+                className="w-full text-left px-4 py-2.5 text-xs hover:bg-indigo-50 border-b border-gray-50 flex items-center justify-between transition-colors"
+                style={{opacity: lines.find(l=>l.code===li.code) ? 0.4 : 1}}>
+                <span><strong className="text-gray-700">{li.code}</strong> <span className="text-gray-500 ml-2">{li.name}</span></span>
+                {lines.find(l=>l.code===li.code) && <span className="text-gray-300 text-xs">already added</span>}
+              </button>
+            ))}
+            {filtered.length === 0 && <p className="px-4 py-3 text-xs text-gray-300">No matching line items</p>}
+          </div>
+        </div>
+      )}
+
+      {parsing && <p className="text-center text-xs text-indigo-500 animate-pulse py-4">Extracting from PDF...</p>}
+      {!parsing && lines.length === 0 && (
+        <p className="text-center text-xs text-gray-300 py-4">No line items added yet — use + From Budget to select</p>
+      )}
+
+      {lines.length > 0 && (
+        <>
+          <div className="grid grid-cols-12 gap-2 mb-1 px-1">
+            <div className="col-span-2"><span className="text-xs text-gray-400 font-semibold uppercase tracking-wide">Code</span></div>
+            <div className="col-span-5"><span className="text-xs text-gray-400 font-semibold uppercase tracking-wide">Description</span></div>
+            <div className="col-span-4"><span className="text-xs text-gray-400 font-semibold uppercase tracking-wide">This Period ($)</span></div>
+          </div>
+          <div className="space-y-2">
+            {lines.map((li, i) => (
+              <div key={i} className={`grid grid-cols-12 gap-2 items-center p-2.5 rounded-lg border ${li.suggested ? "bg-indigo-50 border-indigo-200" : "bg-gray-50 border-gray-100"}`}>
+                <div className="col-span-2">
+                  <input value={li.code} onChange={e=>updateLine(i,"code",e.target.value)} className={inp + " text-xs"} placeholder="01-001"/>
+                </div>
+                <div className="col-span-5">
+                  <input value={li.name} onChange={e=>updateLine(i,"name",e.target.value)} className={inp + " text-xs"} placeholder="Description"/>
+                </div>
+                <div className="col-span-4">
+                  <input value={li.bill} onChange={e=>updateLine(i,"bill",e.target.value)} className={inp + " text-xs"} placeholder="0.00" autoFocus={li.bill===""&&li.code!==""} />
+                </div>
+                <div className="col-span-1">
+                  <button onClick={()=>removeLine(i)} className="w-full py-2 text-xs text-gray-300 hover:text-red-400 rounded-lg border border-gray-100 transition-colors">✕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {lines.filter(l=>l.suggested).length > 0 && (
+            <div className="mt-3 flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
+              <p className="text-xs text-indigo-600">{lines.filter(l=>l.suggested).length} lines parsed from PDF</p>
+              <button onClick={()=>onChange(lines.map(l=>({...l,suggested:false})))} className="text-xs text-indigo-600 font-semibold hover:text-indigo-800">Accept All ✓</button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function SmartUploadView() {
   const [stage, setStage] = useState("upload");
   const [docType, setDocType] = useState("taconic_invoice");
@@ -17,6 +148,7 @@ export function SmartUploadView() {
   const [parsing, setParsing] = useState(false);
   const [doneMsg, setDoneMsg] = useState("");
   const [error, setError] = useState(null);
+  const [parseMsg, setParseMsg] = useState(null);
   const fileRef = useRef();
 
   const [inv, setInv] = useState({
@@ -51,18 +183,18 @@ export function SmartUploadView() {
       const fd = new FormData(); fd.append("file", file); fd.append("doc_type", "taconic_invoice");
       const res = await fetch(API + '/parse-document', { method:"POST", body:fd });
       if (!res.ok) {
-        // API unavailable - show form empty for manual entry
         setParsing(false);
-        setError("Auto-parse unavailable — please fill in the fields manually from the PDF on the right.");
+        setParseMsg("API unavailable — fill in the fields manually using the PDF on the right.");
         return;
       }
       const data = await res.json();
       if (!data.ok || !data.parsed) {
         setParsing(false);
-        setError(data.error || "Parse failed — please fill in fields manually.");
+        setParseMsg("Could not auto-parse — fill in the fields manually using the PDF on the right.");
         return;
       }
       if (data.ok && data.parsed) {
+        setParseMsg(null);
         const p = data.parsed; const h = p.header || {};
         const lines = (p.lineItemsBilled || [])
           .filter(l => parseFloat(l.currentBill) > 0)
@@ -218,6 +350,7 @@ export function SmartUploadView() {
 
   const reset = () => {
     setStage("upload"); setPendingFile(null); setPdfUrl(null); setError(null); setDoneMsg("");
+    setParseMsg(null);
     setInv({ payId:"",invNum:"",reqDate:"",periodTo:"",jobTotal:"",fees:"",deposit:"",retainage:"",
       amtDue:"",approved:"",paidDate:"",status:"Pending Payment",wire:"",credit:"",notes:"",lines:[] });
     setCo({ no:"",date:"",code:"",div:"",origBudget:"",amount:"",notes:"" });
@@ -269,6 +402,7 @@ export function SmartUploadView() {
           <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600">Change file</button>
         </div>
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
+        {parseMsg && <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-700">⚠ {parseMsg}</div>}
 
         {/* Header */}
         <div className={card}>
