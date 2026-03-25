@@ -887,10 +887,7 @@ function COsView() {
             <COFileUpload coNo={editModal.no} onUploaded={() => {}} onParsed={(p) => {
                   setEditForm(f => ({
                     ...f,
-                    code: p.csiCode || f.code,
-                    div: p.division || f.div,
-                    origBudget: p.originalBudget ? String(p.originalBudget) : f.origBudget,
-                    approvedCO: p.coAmount ? String(p.coAmount) : f.approvedCO,
+                    approvedCO: p.reimbursable ? String(p.reimbursable) : p.coAmount ? String(p.coAmount) : f.approvedCO,
                     notes: p.description || f.notes,
                   }));
                 }} />
@@ -921,10 +918,7 @@ function COsView() {
                     ...f,
                     no: p.coNumber || f.no,
                     date: p.date || f.date,
-                    code: p.csiCode || f.code,
-                    div: p.division || f.div,
-                    origBudget: p.originalBudget ? String(p.originalBudget) : f.origBudget,
-                    approvedCO: p.coAmount ? String(p.coAmount) : f.approvedCO,
+                    approvedCO: p.reimbursable ? String(p.reimbursable) : p.coAmount ? String(p.coAmount) : f.approvedCO,
                     notes: p.description || f.notes,
                   }));
                 }} />
