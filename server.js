@@ -286,8 +286,8 @@ async function seedIfEmpty() {
     ['PAY-003','09/16/2025','#1693','Period to: August 31, 2025',445713.57,75347.88,-161669.51,-47865.87,311526.07,311536.07,'09/18/2025','Paid',null],
     ['PAY-004','10/17/2025','#1750','Period to: September 30, 2025',574205.05,97069.36,-70273.47,-63883.97,537116.97,537116.97,'11/07/2025','Paid',null],
     ['PAY-005','11/19/2025','#1819','Period to: October 31, 2025',525618.85,88855.86,-126944.29,-56704.94,430825.48,430845.48,'12/30/2025','Paid',null],
-    ['PAY-006','12/22/2025','#1880','Period to: November 30, 2025',196594.55,33234.30,-66221.94,-11728.54,151878.37,151878.37,'12/22/2025','Paid','Wire of $430,845.48 sent in error (should have been $151,878.37). Overpayment of $278,967.11 held as credit against future invoices.'],
-    ['PAY-007','01/23/2026','#1956','Period to: December 31, 2025',78875.63,13333.93,-26602.41,-2948.72,62658.43,62658.43,'01/23/2026','Paid','Covered by credit from PAY-006 overpayment. No wire sent. Credit remaining after: $216,308.68.'],
+    ['PAY-006','12/22/2025','#1880','Period to: November 30, 2025',196594.55,33234.30,-66221.94,-11728.54,151878.37,151878.37,'12/22/2025','Paid','Payment applied against credit on account. Excess balance applied to subsequent invoices.'],
+    ['PAY-007','01/23/2026','#1956','Period to: December 31, 2025',78875.63,13333.93,-26602.41,-2948.72,62658.43,62658.43,'01/23/2026','Paid','Settled via credit on account. No wire required.'],
   ];
   for (const r of invoicesRows) {
     await pool.query('INSERT INTO invoices (id,req_date,inv_num,description,job_total,fees,deposit_applied,retainage,amt_due,approved,paid_date,status,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT DO NOTHING', r);
@@ -296,6 +296,9 @@ async function seedIfEmpty() {
   await pool.query("UPDATE invoices SET actual_paid=430845.48, credit_applied=0 WHERE id='PAY-006' AND (actual_paid IS NULL)");
   await pool.query("UPDATE invoices SET actual_paid=0, credit_applied=62658.43, paid_date='01/23/2026', status='Paid' WHERE id='PAY-007' AND status='Pending Payment'");
   await pool.query("UPDATE invoices SET paid_date='12/22/2025', status='Paid' WHERE id='PAY-006' AND status='Pending Payment'");
+  // Update notes to clean language
+  await pool.query("UPDATE invoices SET notes='Payment applied against credit on account. Excess balance applied to subsequent invoices.' WHERE id='PAY-006'");
+  await pool.query("UPDATE invoices SET notes='Settled via credit on account. No wire required.' WHERE id='PAY-007' AND notes IS NULL");
 
   // LINE ITEMS
   const lineItemsRows = [
