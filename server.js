@@ -906,7 +906,7 @@ Rules: only include lineItemsBilled where currentBill > 0. Include ALL COs from 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4000, messages: [{ role: 'user', content: [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: prompt }] }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 8000, messages: [{ role: 'user', content: [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: prompt }] }] })
     });
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
@@ -930,13 +930,27 @@ app.post('/api/approve-items', async (req, res) => {
           results.push({ type: item.type, ok: true });
         } else if (item.type === 'line_item_billing') {
           const d = item.data;
-          const ex = await pool.query('SELECT code FROM line_items WHERE code=$1', [d.code]);
+          const currentBill = parseFloat(d.currentBill) || 0;
+
+          // Insert the billing record first
+          await pool.query('INSERT INTO line_item_billings (line_item_code,inv_num,amount) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [d.code, d.invNum, currentBill]);
+
+          // Auto-calculate completed to date = sum of ALL billings for this line item
+          const billedSum = await pool.query('SELECT COALESCE(SUM(amount),0) as total FROM line_item_billings WHERE line_item_code=$1', [d.code]);
+          const completedToDate = parseFloat(billedSum.rows[0].total) || 0;
+
+          // Check if line item exists
+          const ex = await pool.query('SELECT code, budget, cos FROM line_items WHERE code=$1', [d.code]);
           if (ex.rows.length > 0) {
-            await pool.query('UPDATE line_items SET done=$1, pct=$2 WHERE code=$3', [d.completedToDate, d.pctComplete / 100, d.code]);
+            // Auto-calculate pct = completedToDate / (budget + cos)
+            const revised = parseFloat(ex.rows[0].budget || 0) + parseFloat(ex.rows[0].cos || 0);
+            const pct = revised > 0 ? completedToDate / revised : 0;
+            await pool.query('UPDATE line_items SET done=$1, pct=$2 WHERE code=$3', [completedToDate, pct, d.code]);
           } else {
-            await pool.query('INSERT INTO line_items (code,name,budget,cos,done,pct) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING', [d.code, d.name, d.completedToDate, 0, d.completedToDate, d.pctComplete / 100]);
+            // Create new line item - use completedToDate as budget placeholder
+            await pool.query('INSERT INTO line_items (code,name,budget,cos,done,pct) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING',
+              [d.code, d.name || d.code, completedToDate, 0, completedToDate, 1.0]);
           }
-          await pool.query('INSERT INTO line_item_billings (line_item_code,inv_num,amount) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [d.code, d.invNum, d.currentBill]);
           results.push({ type: item.type, code: d.code, ok: true });
         }
       } catch (ie) { results.push({ type: item.type, ok: false, error: ie.message }); }
