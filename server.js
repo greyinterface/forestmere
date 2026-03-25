@@ -1126,90 +1126,83 @@ app.post('/api/parse-document', upload.single('file'), async (req, res) => {
 });
 
 // ─── TACONIC AIA G702/G703 PARSER ─────────────────────────────────────────────
+// Based on actual PDF text format from Taconic Builders invoices
 function parseTaconicInvoice(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-  // Helper: find number after label
-  const findNum = (pattern) => {
-    const m = text.match(pattern);
-    return m ? parseFloat(m[1].replace(/[,$]/g,'')) : 0;
-  };
-  const findStr = (pattern) => {
-    const m = text.match(pattern);
-    return m ? m[1].trim() : '';
-  };
+  const parseAmt = (s) => parseFloat((s||'').replace(/[$,()\s]/g,'')) || 0;
 
-  // Header fields
-  const invNum = findStr(/Invoice\s*(?:No\.?|Number|#)[:\s]*([\d]+)/i) ||
-                 findStr(/Application\s*(?:No\.?|Number|#)[:\s]*([\d]+)/i);
-  const invoiceDate = findStr(/(?:Invoice\s*Date|Date)[:\s]*([\d]{1,2}\/[\d]{1,2}\/[\d]{2,4})/i);
-  const periodTo = findStr(/Period\s*(?:To|Ending)[:\s]*([^\n]+)/i);
+  // ── Invoice number: appears alone on a line as a 4-digit number ──
+  // Text format: "3/13/2026\n2039\n  To:Camp Forestmere..."
+  let invNum = '';
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\d{3,5}$/.test(lines[i]) && i > 0) { invNum = lines[i]; break; }
+  }
 
-  const originalContract = findNum(/Original\s*Contract\s*(?:Amount)?[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
-  const approvedChanges   = findNum(/(?:Approved\s*Changes?|Net\s*Change)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
-  const revisedContract   = findNum(/(?:Revised\s*Contract|Contract\s*to\s*Date)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
-  const completedToDate   = findNum(/(?:Total\s*Completed|Contract\s*Completed)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
-  const totalRetainage    = findNum(/(?:Total\s*Retainage|Less\s*Retainage)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
-  const previousRequests  = findNum(/(?:Previous\s*(?:Certificates?|Requests?)|Less\s*Previous)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
-  const currentAmountDue  = findNum(/(?:Current\s*(?:Payment|Amount)\s*Due|Amount\s*Due)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
-  const balanceToFinish   = findNum(/Balance\s*(?:to\s*Finish|Remaining)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
+  // ── Invoice date: MM/DD/YYYY near top ──
+  const invoiceDate = (text.match(/^(\d{1,2}\/\d{1,2}\/\d{4})/m)||[])[1] || '';
 
-  // Parse Schedule of Values / Continuation Sheet
-  // Format: CODE  DESCRIPTION  SCHEDULED_VALUE  PREV_BILLED  THIS_PERIOD  ...
+  // ── Period To: "Date: February 28, 2026" or "Period To: ..." ──
+  const periodTo = (text.match(/Date:\s*([A-Za-z]+ \d+,\s*\d{4})/)||
+                    text.match(/Period\s*To[:\s]+([A-Za-z]+ \d+,\s*\d{4})/i)||[])[1] || '';
+
+  // ── Current Amount Due: "Total Amount Due$159,592.64" ──
+  // The actual amount EXCLUDING $10 wire fee is shown just before
+  // Prefer the pre-wire amount
+  let currentAmountDue = 0;
+  const wireMatch = text.match(/\$([\d,]+\.\d{2})\s*\nWire Fee/);
+  if (wireMatch) {
+    currentAmountDue = parseAmt(wireMatch[1]);
+  } else {
+    const amtMatch = text.match(/Total Amount Due\$?([\d,]+\.\d{2})/);
+    if (amtMatch) currentAmountDue = parseAmt(amtMatch[1]);
+  }
+
+  // ── Line items: XX-XXX Description $orig $cos $scheduled $prev $current $completed % ──
+  // Actual format: "01-001Project Staffing$1,367,556.67 $0.00 $1,367,556.67 $186,786.64 $26,545.00 $213,331.64 15.60%"
   const lineItemsBilled = [];
-  
-  // Look for lines matching CSI code pattern (XX-XXX or similar)
-  const csiPattern = /^(\d{2}-\d{3}[a-z]?|\d{2}-\d{4}|\d{2}-\d{2}|\d{5,6})\s+(.+?)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/;
-  
-  for (const line of lines) {
-    const m = line.match(csiPattern);
-    if (m) {
-      const thisperiod = parseFloat(m[5].replace(/,/g,''));
-      if (thisperiod > 0) {
-        lineItemsBilled.push({
-          code: m[1],
-          name: m[2].trim(),
-          previousBilled: parseFloat(m[4].replace(/,/g,'')),
-          currentBill: thisperiod,
-          completedToDate: parseFloat(m[3].replace(/,/g,'')),
-          pctComplete: 0
-        });
-      }
+  // Match: code + description + 6+ dollar amounts
+  const lineRe = /(\d{2}-\d{3}[a-z]?)([^$]+)\$([\d,]+\.\d{2})\s+\$?([\d,().\-]+)\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})/g;
+  let m;
+  while ((m = lineRe.exec(text)) !== null) {
+    const code = m[1];
+    const name = m[2].trim().replace(/\s+/g,' ');
+    // Columns: origBudget(3) | approvedCOs(4) | scheduledVal(5) | prevBilled(6) | currentBill(7) | completedToDate(8)
+    const currentBill = parseAmt(m[7]);
+    const prevBilled  = parseAmt(m[6]);
+    const completedToDate = parseAmt(m[8]);
+    if (currentBill > 0) {
+      lineItemsBilled.push({ code, name, previousBilled: prevBilled, currentBill, completedToDate });
     }
   }
 
-  // Also try tab/space delimited table rows
-  if (lineItemsBilled.length === 0) {
-    // Alternative: look for dollar amounts after known codes
-    const altPattern = /([0-9]{2}-[0-9]{3})\b(.{5,40})\b([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/;
-    for (const line of lines) {
-      const m = line.match(altPattern);
-      if (m) {
-        const thisperiod = parseFloat(m[5].replace(/,/g,''));
-        if (thisperiod > 0) {
-          lineItemsBilled.push({
-            code: m[1], name: m[2].trim(),
-            currentBill: thisperiod,
-            previousBilled: parseFloat(m[4].replace(/,/g,'')),
-            completedToDate: parseFloat(m[3].replace(/,/g,'')),
-          });
-        }
-      }
-    }
-  }
+  // ── Fees: find 97-000 and 98-000 rows ──
+  let gcFee = 0, insurance = 0;
+  const feeRow = lineItemsBilled.find(l => l.code === '97-000');
+  const insRow = lineItemsBilled.find(l => l.code === '98-000');
+  if (feeRow) gcFee = feeRow.currentBill;
+  if (insRow) insurance = insRow.currentBill;
 
-  // Parse fees section
-  const gcFee = findNum(/(?:GC\s*Fee|General\s*Conditions\s*Fee|Contractor.*Fee)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
-  const insurance = findNum(/(?:Insurance|Builders?\s*Risk)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
-  const depositApplied = findNum(/(?:Deposit\s*Applied|Less\s*Deposit)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
-  const retainageThisPeriod = findNum(/(?:Retainage\s*(?:This\s*Period|Withheld)|Current\s*Retainage)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
+  // ── Job total = sum of all non-fee/insurance/deposit current bills ──
+  const jobTotal = lineItemsBilled
+    .filter(l => !['97-000','97-001','98-000','99-200'].includes(l.code))
+    .reduce((s,l) => s + l.currentBill, 0);
+
+  // ── Deposit row (99-200) ──
+  const depositRow = lineItemsBilled.find(l => l.code === '99-200');
+  const depositApplied = depositRow ? Math.abs(depositRow.currentBill) : 0;
+
+  // ── Retainage: derive from summary totals ──
+  // retainage = jobTotal + gcFee + insurance - depositApplied - currentAmountDue
+  const retainageThisPeriod = Math.round(
+    Math.max(0, (jobTotal + gcFee + insurance) - depositApplied - currentAmountDue) * 100
+  ) / 100;
 
   return {
-    header: { invNum, invoiceDate, periodTo, originalContract, approvedChanges,
-              revisedContract, completedToDate, totalRetainage, previousRequests,
-              currentAmountDue, balanceToFinish },
+    header: { invNum, invoiceDate, periodTo, currentAmountDue },
     lineItemsBilled,
-    fees: { gcFee, insurance, depositApplied, retainageThisPeriod }
+    fees: { gcFee, insurance, depositApplied, retainageThisPeriod,
+            jobTotal: Math.round(jobTotal * 100) / 100 }
   };
 }
 
