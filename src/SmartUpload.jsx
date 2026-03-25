@@ -3,18 +3,9 @@ import { useState, useRef } from "react";
 const API = '/api';
 const $f = (n) => n == null || n === "" ? "—" : "$" + Math.abs(Number(n)).toLocaleString("en-US", { maximumFractionDigits: 2 });
 const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-300 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100";
-
-
-
-
-function SuCard({ title, children }) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
-      {title && <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-5">{title}</h3>}
-      {children}
-    </div>
-  );
-}
+const lbl = "block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5";
+const card = "bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6";
+const sectionTitle = "text-xs font-bold uppercase tracking-widest text-gray-400 mb-5";
 
 export function SmartUploadView() {
   const [stage, setStage] = useState("upload");
@@ -32,10 +23,8 @@ export function SmartUploadView() {
     payId:"", invNum:"", reqDate:"", periodTo:"",
     jobTotal:"", fees:"", deposit:"", retainage:"",
     amtDue:"", approved:"", paidDate:"", status:"Pending Payment",
-    wire:"", credit:"", notes:"",
-    lines:[],
+    wire:"", credit:"", notes:"", lines:[],
   });
-
   const [co, setCo] = useState({ no:"", date:"", code:"", div:"", origBudget:"", amount:"", notes:"" });
   const [vend, setVend] = useState({ vendorKey:"ivan", invNum:"", date:"", desc:"", amount:"", status:"Pending" });
 
@@ -48,9 +37,9 @@ export function SmartUploadView() {
     setError(null);
     setPendingFile(file);
     setPdfUrl(URL.createObjectURL(file));
-    if (docType === "taconic_invoice") { setStage("form"); parseInvoice(file); }
-    else if (docType === "change_order") { setStage("form"); parseCO(file); }
-    else setStage("form");
+    setStage("form");
+    if (docType === "taconic_invoice") parseInvoice(file);
+    else if (docType === "change_order") parseCO(file);
   };
 
   const parseInvoice = async (file) => {
@@ -60,10 +49,8 @@ export function SmartUploadView() {
       const res = await fetch(API + '/parse-document', { method:"POST", body:fd });
       const data = await res.json();
       if (data.ok && data.parsed) {
-        const p = data.parsed;
-        const h = p.header || {};
-        const rawLines = p.lineItemsBilled || [];
-        const lines = rawLines
+        const p = data.parsed; const h = p.header || {};
+        const lines = (p.lineItemsBilled || [])
           .filter(l => parseFloat(l.currentBill) > 0)
           .map(l => ({ code: l.code||"", name: l.name||"", bill: String(l.currentBill||"") }));
         setInv(f => ({
@@ -101,12 +88,9 @@ export function SmartUploadView() {
     setParsing(false);
   };
 
-  // Balance check - $10 wire fee is normal
   const calc = (parseFloat(inv.jobTotal)||0) + (parseFloat(inv.fees)||0) - (parseFloat(inv.deposit)||0) - (parseFloat(inv.retainage)||0);
   const appr = parseFloat(inv.approved) || 0;
   const diff = Math.abs(calc - appr);
-  const balanced = diff < 1;
-  const wireFee = diff >= 9.5 && diff <= 10.5;
 
   const saveTaconic = async () => {
     if (!inv.payId || !inv.invNum || !inv.approved) { setError("Payment ID, Invoice #, and Approved Amount required."); return; }
@@ -149,8 +133,8 @@ export function SmartUploadView() {
       const amt = parseFloat(co.amount)||0;
       await fetch(API + '/change-orders', { method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ no:co.no, code:co.code, div:co.div, origBudget:parseFloat(co.origBudget)||0,
-          approvedCO:amt, fees:amt*0.135, total:amt*1.165, revisedBudget:(parseFloat(co.origBudget)||0)+amt*1.165,
-          notes:co.notes, date:co.date })
+          approvedCO:amt, fees:amt*0.135, total:amt*1.165,
+          revisedBudget:(parseFloat(co.origBudget)||0)+amt*1.165, notes:co.notes, date:co.date })
       });
       if (pendingFile) {
         const fd = new FormData();
@@ -184,29 +168,18 @@ export function SmartUploadView() {
 
   const reset = () => {
     setStage("upload"); setPendingFile(null); setPdfUrl(null); setError(null); setDoneMsg("");
-    setInv({ payId:"",invNum:"",reqDate:"",periodTo:"",jobTotal:"",fees:"",deposit:"",retainage:"",amtDue:"",approved:"",paidDate:"",status:"Pending Payment",wire:"",credit:"",notes:"",lines:[] });
+    setInv({ payId:"",invNum:"",reqDate:"",periodTo:"",jobTotal:"",fees:"",deposit:"",retainage:"",
+      amtDue:"",approved:"",paidDate:"",status:"Pending Payment",wire:"",credit:"",notes:"",lines:[] });
     setCo({ no:"",date:"",code:"",div:"",origBudget:"",amount:"",notes:"" });
     setVend({ vendorKey:"ivan",invNum:"",date:"",desc:"",amount:"",status:"Pending" });
   };
 
-  // PDF preview panel - stable, not recreated on state changes
-  const pdfPanel = pdfUrl && stage === "form" ? (
-    <div className="w-[44%] shrink-0 sticky top-4">
-      <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-        <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
-          <p className="text-xs font-semibold text-gray-600 truncate">{pendingFile?.name}</p>
-          <span className="text-xs text-gray-300 shrink-0 ml-2">{pendingFile?(pendingFile.size/1024).toFixed(0)+"KB":""}</span>
-        </div>
-        <iframe src={pdfUrl} className="w-full" style={{height:"calc(100vh - 160px)"}} title="PDF Preview"/>
-      </div>
-    </div>
-  ) : null;
-
   // ── UPLOAD ──────────────────────────────────────────────────────────────
   if (stage === "upload") return (
     <div className="space-y-5 max-w-2xl">
-      <SuCard title="Upload Document">
-        <p className="text-xs text-gray-400 -mt-3 mb-5">Taconic invoices and Change Orders auto-parse from PDF.</p>
+      <div className={card}>
+        <h2 className="text-sm font-bold text-gray-900 mb-1">Upload Document</h2>
+        <p className="text-xs text-gray-400 mb-5">Taconic invoices and Change Orders auto-parse from PDF.</p>
         <div className="flex gap-2 mb-5 flex-wrap">
           {[["taconic_invoice","Taconic Invoice"],["change_order","Change Order"],["vendor_invoice","Vendor Invoice"],["award_letter","Award Letter"]].map(([id,lb]) => (
             <button key={id} onClick={()=>setDocType(id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
@@ -223,234 +196,185 @@ export function SmartUploadView() {
           <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={e=>handleFile(e.target.files[0])}/>
           <div className="text-3xl mb-3">📄</div>
           <p className="text-sm font-semibold text-gray-700">Drop PDF here or click to browse</p>
-          <p className="text-xs text-gray-400 mt-1">{docType==="taconic_invoice"?"AI extracts all fields and line items":docType==="change_order"?"AI extracts CO details":"PDF stored in Documents"}</p>
+          <p className="text-xs text-gray-400 mt-1">{docType==="taconic_invoice"||docType==="change_order"?"AI extracts all fields automatically":"PDF stored in Documents"}</p>
         </div>
-      </SuCard>
+      </div>
     </div>
   );
 
-  // ── TACONIC INVOICE FORM ────────────────────────────────────────────────
-  if (stage === "form" && docType === "taconic_invoice") return (
-    <div className={pdfUrl ? "flex gap-5 items-start" : "space-y-5 max-w-2xl"}>
-      <div className={pdfUrl ? "flex-1 min-w-0 space-y-5" : "space-y-5"}>
-        <FileBanner/>
+  // ── FORM LAYOUT ──────────────────────────────────────────────────────────
+  const formContent = () => {
+    if (docType === "taconic_invoice") return (
+      <div className="space-y-5">
+        {/* File banner */}
+        <div className={card + " !p-4 flex items-center justify-between"}>
+          <div className="flex items-center gap-3">
+            <span className="text-lg">📄</span>
+            <div>
+              <p className="text-sm font-semibold text-gray-800">{pendingFile?.name}</p>
+              {parsing && <p className="text-xs text-indigo-500 mt-0.5 animate-pulse">Parsing invoice data...</p>}
+              {!parsing && inv.invNum && <p className="text-xs text-emerald-600 mt-0.5">✓ Data extracted from PDF</p>}
+            </div>
+          </div>
+          <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600">Change file</button>
+        </div>
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
 
-        <SuCard title="Invoice Header">
+        {/* Header */}
+        <div className={card}>
+          <p className={sectionTitle}>Invoice Header</p>
           <div className="grid grid-cols-2 gap-4">
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Payment ID <span className="text-red-400">*</span></label>
-      <input value={inv.payId} onChange={si("payId")} placeholder="PAY-008" className={inp}/>
-    </div>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Invoice # <span className="text-red-400">*</span></label>
-      <input value={inv.invNum} onChange={si("invNum")} placeholder="1976" className={inp}/>
-    </div>
-            <F label="Request Date" value={inv.reqDate} onChange={si("reqDate")} suggest="02/09/2026"/>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Period To</label>
-      <input value={inv.periodTo} onChange={si("periodTo")} placeholder="January 31, 2026" className={inp}/>
-    </div>
+            <div><label className={lbl}>Payment ID <span className="text-red-400">*</span></label><input value={inv.payId} onChange={si("payId")} placeholder="PAY-008" className={inp}/></div>
+            <div><label className={lbl}>Invoice #<span className="text-red-400">*</span></label><input value={inv.invNum} onChange={si("invNum")} placeholder="1976" className={inp}/></div>
+            <div><label className={lbl}>Request Date</label><input value={inv.reqDate} onChange={si("reqDate")} placeholder="02/09/2026" className={inp}/></div>
+            <div><label className={lbl}>Period To</label><input value={inv.periodTo} onChange={si("periodTo")} placeholder="January 31, 2026" className={inp}/></div>
           </div>
-        </SuCard>
+        </div>
 
-        <SuCard title="Amounts">
+        {/* Amounts */}
+        <div className={card}>
+          <p className={sectionTitle}>Amounts</p>
           <div className="grid grid-cols-2 gap-4">
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Job Total (Contract Works)</label>
-      <input value={inv.jobTotal} onChange={si("jobTotal")} placeholder="286510.66" className={inp}/>
-    </div>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">GC Fee + Insurance</label>
-      <input value={inv.fees} onChange={si("fees")} placeholder="48434.63" className={inp}/>
-    </div>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Deposit Applied</label>
-      <input value={inv.deposit} onChange={si("deposit")} placeholder="121719.15" className={inp}/>
-      <p className="text-xs text-gray-300 mt-1">{"Enter positive"}</p>
-    </div>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Retainage This Period</label>
-      <input value={inv.retainage} onChange={si("retainage")} placeholder="30465.49" className={inp}/>
-    </div>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Amount Due</label>
-      <input value={inv.amtDue} onChange={si("amtDue")} placeholder="182760.65" className={inp}/>
-    </div>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Approved Amount <span className="text-red-400">*</span></label>
-      <input value={inv.approved} onChange={si("approved")} placeholder="182770.65" className={inp}/>
-    </div>
+            <div><label className={lbl}>Job Total</label><input value={inv.jobTotal} onChange={si("jobTotal")} placeholder="286510.66" className={inp}/></div>
+            <div><label className={lbl}>GC Fee + Insurance</label><input value={inv.fees} onChange={si("fees")} placeholder="48434.63" className={inp}/></div>
+            <div><label className={lbl}>Deposit Applied</label><input value={inv.deposit} onChange={si("deposit")} placeholder="121719.15" className={inp}/><p className="text-xs text-gray-300 mt-1">Enter positive</p></div>
+            <div><label className={lbl}>Retainage This Period</label><input value={inv.retainage} onChange={si("retainage")} placeholder="30465.49" className={inp}/></div>
+            <div><label className={lbl}>Amount Due</label><input value={inv.amtDue} onChange={si("amtDue")} placeholder="182760.65" className={inp}/></div>
+            <div><label className={lbl}>Approved Amount <span className="text-red-400">*</span></label><input value={inv.approved} onChange={si("approved")} placeholder="182770.65" className={inp}/></div>
           </div>
           {inv.approved && inv.jobTotal && (
-            <div className={`mt-4 rounded-lg px-4 py-2.5 text-xs font-medium border ${balanced||wireFee?"bg-emerald-50 border-emerald-200 text-emerald-700":"bg-amber-50 border-amber-200 text-amber-700"}`}>
-              {balanced?"✓ Amounts balance correctly":wireFee?`✓ Balanced — $${diff.toFixed(2)} wire fee included`:`⚠ Calculated: ${$f(calc)} vs Approved: ${$f(appr)} — ${$f(diff)} difference`}
+            <div className={`mt-4 rounded-lg px-4 py-2.5 text-xs font-medium border ${diff<1?"bg-emerald-50 border-emerald-200 text-emerald-700":diff>=9.5&&diff<=10.5?"bg-emerald-50 border-emerald-200 text-emerald-700":"bg-amber-50 border-amber-200 text-amber-700"}`}>
+              {diff<1?"✓ Amounts balance":diff>=9.5&&diff<=10.5?`✓ Balanced — $${diff.toFixed(2)} wire fee included`:`⚠ Calculated ${$f(calc)} vs Approved ${$f(appr)} — ${$f(diff)} difference`}
             </div>
           )}
-        </SuCard>
+        </div>
 
-        <SuCard title="Payment">
+        {/* Payment */}
+        <div className={card}>
+          <p className={sectionTitle}>Payment</p>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Status</label>
-              <select value={inv.status} onChange={si("status")} className={inp}>
-                {["Pending Payment","Paid"].map(s=><option key={s}>{s}</option>)}
-              </select>
-            </div>
-            {inv.status==="Paid"&&<F label="Date Paid" value={inv.paidDate} onChange={si("paidDate")} suggest="MM/DD/YYYY"/>}
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Actual Wire ($)</label>
-      <input value={inv.wire} onChange={si("wire")} placeholder="0 if credit" className={inp}/>
-    </div>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Credit Applied ($)</label>
-      <input value={inv.credit} onChange={si("credit")} placeholder="0.00" className={inp}/>
-    </div>
-            <div className="col-span-2">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Notes</label>
-      <input value={inv.notes} onChange={si("notes")} placeholder="Optional..." className={inp}/>
-    </div>
+            <div><label className={lbl}>Status</label><select value={inv.status} onChange={si("status")} className={inp}>{["Pending Payment","Paid"].map(s=><option key={s}>{s}</option>)}</select></div>
+            {inv.status==="Paid"&&<div><label className={lbl}>Date Paid</label><input value={inv.paidDate} onChange={si("paidDate")} placeholder="MM/DD/YYYY" className={inp}/></div>}
+            <div><label className={lbl}>Actual Wire ($)</label><input value={inv.wire} onChange={si("wire")} placeholder="0 if credit" className={inp}/></div>
+            <div><label className={lbl}>Credit Applied ($)</label><input value={inv.credit} onChange={si("credit")} placeholder="0.00" className={inp}/></div>
+            <div className="col-span-2"><label className={lbl}>Notes</label><input value={inv.notes} onChange={si("notes")} placeholder="Optional..." className={inp}/></div>
           </div>
-        </SuCard>
+        </div>
 
-        <SuCard title="Line Items Billed This Period">
-          <div className="flex items-center justify-between -mt-3 mb-4">
-            <p className="text-xs text-gray-300">Completed to date auto-calculated</p>
-            <button onClick={()=>setInv(f=>({...f,lines:[...f.lines,{code:"",name:"",bill:""}]}))}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">+ Add Line</button>
+        {/* Line Items */}
+        <div className={card}>
+          <div className="flex items-center justify-between mb-4">
+            <div><p className={sectionTitle}>Line Items Billed This Period</p><p className="text-xs text-gray-300 -mt-4">Completed to date auto-calculated</p></div>
+            <button onClick={()=>setInv(f=>({...f,lines:[...f.lines,{code:"",name:"",bill:""}]}))} className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">+ Add Line</button>
           </div>
-          {parsing&&<div className="text-center py-4 text-xs text-indigo-500 animate-pulse">Extracting line items from PDF...</div>}
-          {!parsing && inv.lines.length===0&&<div className="text-center py-4 text-xs text-gray-300">No line items found — add manually or check PDF has a billing schedule</div>}
+          {parsing && <p className="text-center text-xs text-indigo-500 animate-pulse py-3">Extracting line items...</p>}
+          {!parsing && inv.lines.length===0 && <p className="text-center text-xs text-gray-300 py-3">No line items — add manually or upload parseable PDF</p>}
           <div className="space-y-2">
             {inv.lines.map((li,i)=>(
               <div key={i} className="grid grid-cols-12 gap-2 items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
-                <div className="col-span-2">
-                  {i===0&&<label className="block text-xs text-gray-400 mb-1">CSI Code</label>}
-                  <input value={li.code} onChange={e=>{const l=[...inv.lines];l[i]={...l[i],code:e.target.value};setInv(f=>({...f,lines:l}));}} className={inp}/>
-                </div>
-                <div className="col-span-5">
-                  {i===0&&<label className="block text-xs text-gray-400 mb-1">Description</label>}
-                  <input value={li.name} onChange={e=>{const l=[...inv.lines];l[i]={...l[i],name:e.target.value};setInv(f=>({...f,lines:l}));}} className={inp}/>
-                </div>
-                <div className="col-span-4">
-                  {i===0&&<label className="block text-xs text-gray-400 mb-1">This Period ($)</label>}
-                  <input value={li.bill} onChange={e=>{const l=[...inv.lines];l[i]={...l[i],bill:e.target.value};setInv(f=>({...f,lines:l}));}} className={inp}/>
-                </div>
-                <div className="col-span-1">
-                  {i===0&&<div className="mb-1 h-4"/>}
-                  <button onClick={()=>setInv(f=>({...f,lines:f.lines.filter((_,idx)=>idx!==i)}))}
-                    className="w-full py-2 text-xs text-gray-300 hover:text-red-400 rounded-lg border border-gray-100 hover:border-red-200 transition-colors">✕</button>
-                </div>
+                <div className="col-span-2">{i===0&&<label className="block text-xs text-gray-400 mb-1">Code</label>}<input value={li.code} onChange={e=>{const l=[...inv.lines];l[i]={...l[i],code:e.target.value};setInv(f=>({...f,lines:l}));}} className={inp}/></div>
+                <div className="col-span-5">{i===0&&<label className="block text-xs text-gray-400 mb-1">Description</label>}<input value={li.name} onChange={e=>{const l=[...inv.lines];l[i]={...l[i],name:e.target.value};setInv(f=>({...f,lines:l}));}} className={inp}/></div>
+                <div className="col-span-4">{i===0&&<label className="block text-xs text-gray-400 mb-1">This Period ($)</label>}<input value={li.bill} onChange={e=>{const l=[...inv.lines];l[i]={...l[i],bill:e.target.value};setInv(f=>({...f,lines:l}));}} className={inp}/></div>
+                <div className="col-span-1">{i===0&&<div className="mb-1 h-4"/>}<button onClick={()=>setInv(f=>({...f,lines:f.lines.filter((_,idx)=>idx!==i)}))} className="w-full py-2 text-xs text-gray-300 hover:text-red-400 rounded-lg border border-gray-100">✕</button></div>
               </div>
             ))}
           </div>
-        </SuCard>
+        </div>
 
-        <Btns onSave={saveTaconic} disabled={!inv.payId||!inv.invNum||!inv.approved}/>
+        {/* Buttons */}
+        <div className="flex gap-3">
+          <button onClick={reset} className="px-5 py-3 text-sm font-semibold rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50">Cancel</button>
+          <button onClick={saveTaconic} disabled={saving||!inv.payId||!inv.invNum||!inv.approved} className="flex-1 py-3 text-sm font-bold rounded-xl text-white" style={{background:saving||!inv.payId||!inv.invNum||!inv.approved?"#e5e7eb":"#111827",color:saving||!inv.payId||!inv.invNum||!inv.approved?"#9ca3af":"#fff"}}>{saving?"Saving...":"Save Invoice + Line Items →"}</button>
+        </div>
       </div>
-      {pdfPanel}
-    </div>
-  );
+    );
 
-  // ── CHANGE ORDER FORM ───────────────────────────────────────────────────
-  if (stage === "form" && docType === "change_order") return (
-    <div className={pdfUrl ? "flex gap-5 items-start" : "space-y-5 max-w-2xl"}>
-      <div className={pdfUrl ? "flex-1 min-w-0 space-y-5" : "space-y-5"}>
-        <FileBanner/>
+    if (docType === "change_order") return (
+      <div className="space-y-5">
+        <div className={card + " !p-4 flex items-center justify-between"}>
+          <div className="flex items-center gap-3"><span>📄</span><div><p className="text-sm font-semibold text-gray-800">{pendingFile?.name}</p>{parsing&&<p className="text-xs text-indigo-500 animate-pulse">Parsing...</p>}</div></div>
+          <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600">Change file</button>
+        </div>
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
-        <SuCard title="Change Order Details">
+        <div className={card}>
+          <p className={sectionTitle}>Change Order Details</p>
           <div className="grid grid-cols-2 gap-4">
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">CO # <span className="text-red-400">*</span></label>
-      <input value={co.no} onChange={sc("no")} placeholder="CO-019" className={inp}/>
-    </div>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Date</label>
-      <input value={co.date} onChange={sc("date")} placeholder="Mar 25, 2026" className={inp}/>
-    </div>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">CSI Code</label>
-      <input value={co.code} onChange={sc("code")} placeholder="06-100" className={inp}/>
-    </div>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Division</label>
-      <input value={co.div} onChange={sc("div")} placeholder="Rough Carpentry" className={inp}/>
-    </div>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Original Budget</label>
-      <input value={co.origBudget} onChange={sc("origBudget")} placeholder="139000" className={inp}/>
-    </div>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">CO Amount <span className="text-red-400">*</span></label>
-      <input value={co.amount} onChange={sc("amount")} placeholder="15000" className={inp}/>
-    </div>
-            <F label="Description / Notes" col2 value={co.notes} onChange={sc("notes")} suggest="Scope change description..."/>
+            <div><label className={lbl}>CO # *</label><input value={co.no} onChange={sc("no")} placeholder="CO-019" className={inp}/></div>
+            <div><label className={lbl}>Date</label><input value={co.date} onChange={sc("date")} placeholder="Mar 25, 2026" className={inp}/></div>
+            <div><label className={lbl}>CSI Code</label><input value={co.code} onChange={sc("code")} placeholder="06-100" className={inp}/></div>
+            <div><label className={lbl}>Division</label><input value={co.div} onChange={sc("div")} placeholder="Rough Carpentry" className={inp}/></div>
+            <div><label className={lbl}>Original Budget</label><input value={co.origBudget} onChange={sc("origBudget")} placeholder="139000" className={inp}/></div>
+            <div><label className={lbl}>CO Amount *</label><input value={co.amount} onChange={sc("amount")} placeholder="15000" className={inp}/></div>
+            <div className="col-span-2"><label className={lbl}>Notes</label><input value={co.notes} onChange={sc("notes")} placeholder="Scope description..." className={inp}/></div>
           </div>
-          {co.amount && (
-            <div className="mt-3 bg-gray-50 rounded-lg px-3 py-2.5 text-xs text-gray-500">
-              Fees auto-calculated: 13.5% GC + 3% insurance = Total +{$f((parseFloat(co.amount)||0)*1.165)}
-            </div>
-          )}
-        </SuCard>
-        <Btns onSave={saveCO} disabled={!co.no||!co.amount}/>
+          {co.amount && <div className="mt-3 bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-500">Fees auto-calculated: 13.5% GC + 3% ins = Total +{$f((parseFloat(co.amount)||0)*1.165)}</div>}
+        </div>
+        <div className="flex gap-3">
+          <button onClick={reset} className="px-5 py-3 text-sm font-semibold rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50">Cancel</button>
+          <button onClick={saveCO} disabled={saving||!co.no||!co.amount} className="flex-1 py-3 text-sm font-bold rounded-xl text-white" style={{background:saving||!co.no||!co.amount?"#e5e7eb":"#111827"}}>{saving?"Saving...":"Save CO →"}</button>
+        </div>
       </div>
-      {pdfPanel}
-    </div>
-  );
+    );
 
-  // ── VENDOR INVOICE FORM ─────────────────────────────────────────────────
-  if (stage === "form" && docType === "vendor_invoice") return (
-    <div className={pdfUrl ? "flex gap-5 items-start" : "space-y-5 max-w-2xl"}>
-      <div className={pdfUrl ? "flex-1 min-w-0 space-y-5" : "space-y-5"}>
-        <FileBanner/>
+    if (docType === "vendor_invoice") return (
+      <div className="space-y-5">
+        <div className={card + " !p-4 flex items-center justify-between"}>
+          <div className="flex items-center gap-3"><span>📄</span><p className="text-sm font-semibold text-gray-800">{pendingFile?.name}</p></div>
+          <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600">Change file</button>
+        </div>
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
-        <SuCard title="Vendor Invoice">
+        <div className={card}>
+          <p className={sectionTitle}>Vendor Invoice</p>
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Vendor</label>
-              <select value={vend.vendorKey} onChange={sv("vendorKey")} className={inp}>
-                <option value="ivan">Ivan Zdrahal PE</option>
-                <option value="reed">Reed Hilderbrand</option>
-                <option value="arch">Architecturefirm</option>
-              </select>
-            </div>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Invoice # <span className="text-red-400">*</span></label>
-      <input value={vend.invNum} onChange={sv("invNum")} placeholder="103443" className={inp}/>
-    </div>
-            <F label="Date" value={vend.date} onChange={sv("date")} suggest="01/05/2026"/>
-            <div className="col-span-2">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Description</label>
-      <input value={vend.desc} onChange={sv("desc")} placeholder="CM Phase C..." className={inp}/>
-    </div>
-            <div className="">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Amount ($) <span className="text-red-400">*</span></label>
-      <input value={vend.amount} onChange={sv("amount")} placeholder="2655.00" className={inp}/>
-    </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Status</label>
-              <select value={vend.status} onChange={sv("status")} className={inp}>
-                {["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}
-              </select>
-            </div>
+            <div className="col-span-2"><label className={lbl}>Vendor</label><select value={vend.vendorKey} onChange={sv("vendorKey")} className={inp}><option value="ivan">Ivan Zdrahal PE</option><option value="reed">Reed Hilderbrand</option><option value="arch">Architecturefirm</option></select></div>
+            <div><label className={lbl}>Invoice # *</label><input value={vend.invNum} onChange={sv("invNum")} placeholder="103443" className={inp}/></div>
+            <div><label className={lbl}>Date</label><input value={vend.date} onChange={sv("date")} placeholder="01/05/2026" className={inp}/></div>
+            <div className="col-span-2"><label className={lbl}>Description</label><input value={vend.desc} onChange={sv("desc")} placeholder="CM Phase C..." className={inp}/></div>
+            <div><label className={lbl}>Amount ($) *</label><input value={vend.amount} onChange={sv("amount")} placeholder="2655.00" className={inp}/></div>
+            <div><label className={lbl}>Status</label><select value={vend.status} onChange={sv("status")} className={inp}>{["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}</select></div>
           </div>
-        </SuCard>
-        <Btns onSave={saveVendor} disabled={!vend.invNum||!vend.amount}/>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={reset} className="px-5 py-3 text-sm font-semibold rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50">Cancel</button>
+          <button onClick={saveVendor} disabled={saving||!vend.invNum||!vend.amount} className="flex-1 py-3 text-sm font-bold rounded-xl text-white" style={{background:saving||!vend.invNum||!vend.amount?"#e5e7eb":"#111827"}}>{saving?"Saving...":"Save →"}</button>
+        </div>
       </div>
-      {pdfPanel}
-    </div>
-  );
+    );
 
-  // ── STORE ONLY ──────────────────────────────────────────────────────────
+    // Award letter / other
+    return (
+      <div className="space-y-5">
+        <div className={card + " !p-4 flex items-center justify-between"}>
+          <p className="text-sm font-semibold text-gray-800">{pendingFile?.name}</p>
+          <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600">Change file</button>
+        </div>
+        {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
+        <div className={card}><p className="text-sm text-gray-500">Ready to store as Award Letter — saved to Documents tab.</p></div>
+        <div className="flex gap-3">
+          <button onClick={reset} className="px-5 py-3 text-sm font-semibold rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50">Cancel</button>
+          <button onClick={async()=>{setSaving(true);const fd=new FormData();fd.append("file",pendingFile);fd.append("name",pendingFile.name);fd.append("type","Award Letter");fd.append("vendor_key","");fd.append("linked_id","");await fetch(API+'/documents',{method:'POST',body:fd});setDoneMsg(`${pendingFile.name} stored.`);setStage("done");setSaving(false);}} disabled={saving} className="flex-1 py-3 text-sm font-bold rounded-xl text-white" style={{background:"#111827"}}>{saving?"Saving...":"Store Document →"}</button>
+        </div>
+      </div>
+    );
+  };
+
+  // ── FORM STAGE ──────────────────────────────────────────────────────────
   if (stage === "form") return (
-    <div className={pdfUrl ? "flex gap-5 items-start" : "space-y-5 max-w-2xl"}>
-      <div className={pdfUrl ? "flex-1 min-w-0 space-y-5" : "space-y-5"}>
-        <FileBanner/>
-        {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
-        <SuCard><p className="text-sm text-gray-500">Ready to store as Award Letter — PDF saved to Documents.</p></SuCard>
-        <Btns onSave={async()=>{setSaving(true);const fd=new FormData();fd.append("file",pendingFile);fd.append("name",pendingFile.name);fd.append("type","Award Letter");fd.append("vendor_key","");fd.append("linked_id","");await fetch(API+'/documents',{method:'POST',body:fd});setDoneMsg(`${pendingFile.name} stored.`);setStage("done");setSaving(false);}} disabled={false}/>
+    <div className={pdfUrl ? "flex gap-5 items-start" : ""}>
+      <div className={pdfUrl ? "flex-1 min-w-0" : "max-w-2xl"}>
+        {formContent()}
       </div>
-      {pdfPanel}
+      {pdfUrl && (
+        <div className="w-[44%] shrink-0 sticky top-4">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-600 truncate">{pendingFile?.name}</p>
+              <span className="text-xs text-gray-300 ml-2 shrink-0">{pendingFile?(pendingFile.size/1024).toFixed(0)+"KB":""}</span>
+            </div>
+            <iframe src={pdfUrl} className="w-full" style={{height:"calc(100vh - 160px)"}} title="PDF Preview"/>
+          </div>
+        </div>
+      )}
     </div>
   );
 
