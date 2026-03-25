@@ -256,7 +256,7 @@ function Dashboard({ setTab }) {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Phase 1.1 Total Paid" value={$f(phase11GrandTotal)} sub="All Phase 1.1 vendors" accent onClick={() => setModal("spend")} />
+        <Stat label="Total Project Spend" value={$f(phase11GrandTotal)} sub="All vendors · excl. prior phases" accent onClick={() => setModal("spend")} />
         <Stat label="GC Control Budget" value={$f(totalBudget)} sub="Taconic Phase 1.1" onClick={() => setTab("budget")} />
         <Stat label="GC Awarded" value={$f(totalAwarded)} sub={pf(totalAwarded / totalBudget) + " of budget"} onClick={() => setTab("awards")} />
         <Stat label="GC Paid to Date" value={$f(taconicPaid)} sub={pf(taconicPaid / totalAwarded) + " of awarded"} onClick={() => setTab("invoices")} />
@@ -270,7 +270,7 @@ function Dashboard({ setTab }) {
 
       <div className="grid md:grid-cols-2 gap-5">
         <Card className="p-5">
-          <SectionTitle>Total Spend by Vendor / Phase</SectionTitle>
+          <SectionTitle>Spend by Vendor</SectionTitle>
           <div className="space-y-3">
             {spendRows.map(v => (
               <button key={v.name} onClick={() => setModal({ type: "spendDetail", row: v })} className="w-full flex items-center gap-3 text-xs text-left hover:bg-[#f5f6f8] rounded-lg px-1 py-1 transition-colors">
@@ -325,7 +325,7 @@ function Dashboard({ setTab }) {
       </Card>
 
       {modal === "spend" && (
-        <Modal title="Grand Total Spend Breakdown" subtitle="All vendors and prior phases" onClose={() => setModal(null)}>
+        <Modal title="Total Project Spend" subtitle="All vendors · prior phases excluded (coming soon)" onClose={() => setModal(null)}>
           <table className="w-full text-xs">
             <thead><tr><TH>Vendor / Phase</TH><TH right>Paid to Date</TH><TH right>% of Total</TH></tr></thead>
             <tbody>
