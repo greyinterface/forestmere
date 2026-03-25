@@ -48,9 +48,20 @@ export function SmartUploadView() {
   const parseInvoice = async (file) => {
     setParsing(true);
     try {
-      const fd = new FormData(); fd.append("file", file);
+      const fd = new FormData(); fd.append("file", file); fd.append("doc_type", "taconic_invoice");
       const res = await fetch(API + '/parse-document', { method:"POST", body:fd });
+      if (!res.ok) {
+        // API unavailable - show form empty for manual entry
+        setParsing(false);
+        setError("Auto-parse unavailable — please fill in the fields manually from the PDF on the right.");
+        return;
+      }
       const data = await res.json();
+      if (!data.ok || !data.parsed) {
+        setParsing(false);
+        setError(data.error || "Parse failed — please fill in fields manually.");
+        return;
+      }
       if (data.ok && data.parsed) {
         const p = data.parsed; const h = p.header || {};
         const lines = (p.lineItemsBilled || [])
