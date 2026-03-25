@@ -1079,6 +1079,13 @@ app.post('/api/admin/reseed-line-items', async (req, res) => {
 });
 
 // ─── DOCUMENT PARSING (AI) ────────────────────────────────────────────────────
+app.post('/api/debug-pdf', upload.single('file'), async (req, res) => {
+  try {
+    const pdfData = await pdfParse(req.file.buffer);
+    res.json({ text: pdfData.text, lines: pdfData.text.split('\n').filter(l=>l.trim()).slice(0, 100) });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/parse-document', upload.single('file'), async (req, res) => {
   try {
     const docType = req.body.doc_type || 'taconic_invoice';
