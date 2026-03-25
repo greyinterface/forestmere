@@ -6,14 +6,24 @@ const $f = (n) => n == null || n === "" ? "—" : "$" + Math.abs(Number(n)).toLo
 // Input that auto-fills placeholder on click
 function SmartInput({ value, onChange, placeholder, className, type="text" }) {
   return (
-    <input
-      type={type}
-      value={value}
-      placeholder={placeholder}
-      className={className}
-      onChange={onChange}
-      onClick={e => { if (!e.target.value && placeholder) onChange({ target: { value: placeholder } }); }}
-    />
+    <div className="relative">
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        className={className}
+        onChange={onChange}
+      />
+      {!value && placeholder && (
+        <button
+          type="button"
+          onClick={() => onChange({ target: { value: placeholder } })}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-300 hover:text-indigo-400 transition-colors px-1"
+          tabIndex={-1}
+          title="Use suggested value"
+        >↵</button>
+      )}
+    </div>
   );
 }
 
