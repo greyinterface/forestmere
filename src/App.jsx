@@ -407,24 +407,25 @@ function BudgetView({ setTab }) {
         <table className="w-full">
           <tbody>
             {[
-              { label: "Construction Trades",       amount: constructionSub,     note: "51 line items", clickable: true, action: null },
-              { label: "General Conditions",        amount: generalConditions,   note: "01-000", clickable: true, action: () => setModal({type:"gc"}) },
-              { label: "GC Fee (13.5%)",            amount: 1512006.87,          note: "On construction cost", clickable: false },
-              { label: "Insurance (3.0%)",          amount: 381361.73,           note: "On construction cost", clickable: false },
-              { label: "Original Contract Amount",  amount: ORIGINAL_CONTRACT,   note: "Signed Jun 23, 2025", bold: true, clickable: false },
-              { label: "Approved Change Orders",    amount: totalCOsWithFees,    note: `${changeOrders.length} COs`, clickable: true, action: () => setTab && setTab("cos"), accent: true },
-              { label: "Revised Contract Amount",   amount: revisedContract,     note: "Current contract value", bold: true, clickable: true, action: () => setModal({type:"revised"}), accent: false },
+              { label: "Construction Trades",       amount: constructionSub,   note: "51 line items",          action: null },
+              { label: "General Conditions",        amount: generalConditions, note: "01-000",                 action: () => setModal({type:"gc"}) },
+              { label: "GC Fee (13.5%)",            amount: 1512006.87,        note: "On construction cost",   action: null },
+              { label: "Insurance (3.0%)",          amount: 381361.73,         note: "On construction cost",   action: null },
+              { label: "Original Contract Amount",  amount: ORIGINAL_CONTRACT, note: "Signed Jun 23, 2025",    action: null,  subtotal: true },
+              { label: "Approved Change Orders",    amount: totalCOsWithFees,  note: `${changeOrders.length} COs`, action: () => setTab && setTab("cos"), accent: true },
+              { label: "Revised Contract Amount",   amount: revisedContract,   note: "Current contract value", action: () => setModal({type:"revised"}), subtotal: true },
             ].map((row, i) => (
               <tr key={i}
-                onClick={row.clickable && row.action ? row.action : undefined}
-                className={row.clickable && row.action ? "cursor-pointer hover:bg-gray-50 transition-colors" : ""}
+                onClick={row.action ? row.action : undefined}
+                className={row.action ? "cursor-pointer hover:bg-gray-50 transition-colors" : ""}
+                style={{ borderTop: row.subtotal ? "2px solid #e5e7eb" : "1px solid #f3f4f6" }}
               >
-                <td className="px-5 py-3 text-sm" style={{ fontWeight: row.bold ? 700 : 500, color: row.bold ? "#111827" : "#374151", borderTop: i === 4 || i === 6 ? "2px solid #f3f4f6" : "1px solid #f9fafb" }}>
+                <td className="px-5 py-3.5" style={{ fontSize: 13, fontWeight: row.subtotal ? 700 : 500, color: row.subtotal ? "#111827" : "#374151" }}>
                   {row.label}
-                  {row.clickable && row.action && <span className="ml-1 text-gray-300 text-xs">→</span>}
+                  {row.action && <span className="ml-1 text-gray-300 text-xs">→</span>}
                 </td>
-                <td className="px-5 py-3 text-xs text-gray-400 text-right" style={{ borderTop: i === 4 || i === 6 ? "2px solid #f3f4f6" : "1px solid #f9fafb" }}>{row.note}</td>
-                <td className="px-5 py-3 text-right font-mono" style={{ fontWeight: row.bold ? 700 : 600, fontSize: row.bold ? 15 : 13, color: row.accent ? "#4f46e5" : row.bold ? "#111827" : "#374151", borderTop: i === 4 || i === 6 ? "2px solid #f3f4f6" : "1px solid #f9fafb" }}>
+                <td className="px-5 py-3.5 text-right" style={{ fontSize: 12, color: "#9ca3af" }}>{row.note}</td>
+                <td className="px-5 py-3.5 text-right" style={{ fontSize: 13, fontWeight: row.subtotal ? 700 : 600, color: row.accent ? "#4f46e5" : row.subtotal ? "#111827" : "#374151" }}>
                   {row.accent && totalCOsWithFees > 0 ? "+" : ""}{$f(row.amount)}
                 </td>
               </tr>
