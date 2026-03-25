@@ -428,22 +428,22 @@ function BudgetView({ setTab }) {
         <table className="w-full">
           <tbody>
             {[
-              { label: "Construction Trades",       amount: constructionSub,   note: "51 line items",          action: null },
-              { label: "General Conditions",        amount: generalConditions, note: "01-000",                 action: () => setModal({type:"gc"}) },
-              { label: "GC Fee (13.5%)",            amount: 1512006.87,        note: "On construction cost",   action: null },
-              { label: "Insurance (3.0%)",          amount: 381361.73,         note: "On construction cost",   action: null },
-              { label: "Original Contract Amount",  amount: ORIGINAL_CONTRACT, note: "Signed Jun 23, 2025",    action: null,  subtotal: true },
-              { label: "Approved Change Orders",    amount: totalCOsWithFees,  note: `${changeOrders.length} COs`, action: () => setTab && setTab("cos"), accent: true },
-              { label: "Revised Contract Amount",   amount: revisedContract,   note: "Current contract value", action: () => setModal({type:"revised"}), subtotal: true },
+              { label: "Construction Trades",      amount: constructionSub,   note: "51 line items · click to view", action: () => { setCat("All"); setQ(""); document.getElementById("budget-line-items")?.scrollIntoView({behavior:"smooth"}); } },
+              { label: "General Conditions",       amount: generalConditions, note: "01-000 · click to view",        action: () => setModal({type:"gc"}) },
+              { label: "GC Fee (13.5%)",           amount: 1512006.87,        note: "On construction cost",          action: () => setModal({type:"fee"}) },
+              { label: "Insurance (3.0%)",         amount: 381361.73,         note: "On construction cost",          action: () => setModal({type:"ins"}) },
+              { label: "Original Contract Amount", amount: ORIGINAL_CONTRACT, note: "Signed Jun 23, 2025",           action: () => setModal({type:"orig"}), subtotal: true },
+              { label: "Approved Change Orders",   amount: totalCOsWithFees,  note: `${changeOrders.length} COs · click to view`, action: () => setTab && setTab("cos"), accent: true },
+              { label: "Revised Contract Amount",  amount: revisedContract,   note: "Current contract value",        action: () => setModal({type:"revised"}), subtotal: true },
             ].map((row, i) => (
               <tr key={i}
-                onClick={row.action ? row.action : undefined}
-                className={row.action ? "cursor-pointer hover:bg-gray-50 transition-colors" : ""}
+                onClick={row.action}
+                className="cursor-pointer hover:bg-gray-50 transition-colors"
                 style={{ borderTop: row.subtotal ? "2px solid #e5e7eb" : "1px solid #f3f4f6" }}
               >
                 <td className="px-5 py-3.5" style={{ fontSize: 13, fontWeight: row.subtotal ? 700 : 500, color: row.subtotal ? "#111827" : "#374151" }}>
                   {row.label}
-                  {row.action && <span className="ml-1 text-gray-300 text-xs">→</span>}
+                  <span className="ml-1 text-gray-300 text-xs">→</span>
                 </td>
                 <td className="px-5 py-3.5 text-right" style={{ fontSize: 12, color: "#9ca3af" }}>{row.note}</td>
                 <td className="px-5 py-3.5 text-right" style={{ fontSize: 13, fontWeight: row.subtotal ? 700 : 600, color: row.accent ? "#4f46e5" : row.subtotal ? "#111827" : "#374151" }}>
@@ -456,7 +456,7 @@ function BudgetView({ setTab }) {
       </div>
 
       {/* Line items detail */}
-      <div className="flex flex-wrap gap-2 items-center">
+      <div id="budget-line-items" className="flex flex-wrap gap-2 items-center">
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search…" className={cx(inp, "w-44")} />
         <div className="flex flex-wrap gap-1">
           {cats.map(c => <button key={c} onClick={() => setCat(c)} className={cx("px-3 py-1.5 rounded-lg text-xs font-medium transition-all", cat === c ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-400 hover:text-gray-800")}>{c}</button>)}
@@ -524,7 +524,7 @@ function BudgetView({ setTab }) {
         </Modal>
       )}
       {modal?.type === "revised" && (
-        <Modal title="Revised Contract Detail" subtitle="Original contract + approved change orders" onClose={() => setModal(null)}>
+        <Modal title="Revised Contract Amount" subtitle="Original contract + all approved change orders" onClose={() => setModal(null)}>
           <KVGrid rows={[
             ["Original Contract", $f(ORIGINAL_CONTRACT)],
             ["Approved COs (net)", $f(totalCOs)],
@@ -532,6 +532,62 @@ function BudgetView({ setTab }) {
             ["Total COs incl. Fees", `+${$f(totalCOsWithFees)}`],
             ["Revised Contract", $f(revisedContract)],
           ]} />
+        </Modal>
+      )}
+      {modal?.type === "orig" && (
+        <Modal title="Original Contract Amount" subtitle="Taconic Builders · Signed Jun 23, 2025" onClose={() => setModal(null)}>
+          <KVGrid rows={[
+            ["Construction Trades", $f(constructionSub)],
+            ["General Conditions (01-000)", $f(generalConditions)],
+            ["Subtotal (Trades + GC)", $f(constructionSub + generalConditions)],
+            ["GC Fee (13.5%)", $f(1512006.87)],
+            ["Insurance (3.0%)", $f(381361.73)],
+            ["Original Contract Total", $f(ORIGINAL_CONTRACT)],
+            ["Contract Date", "June 23, 2025"],
+            ["Duration", "22 months"],
+            ["Est. Completion", "April 2027"],
+          ]} />
+        </Modal>
+      )}
+      {modal?.type === "fee" && (
+        <Modal title="GC Fee — 13.5%" subtitle="Applied to all construction trades and general conditions" onClose={() => setModal(null)}>
+          <KVGrid rows={[
+            ["Fee Rate", "13.5%"],
+            ["Applied To", "Construction trades + GC"],
+            ["Base Amount", $f(constructionSub + generalConditions)],
+            ["Fee Amount", $f(1512006.87)],
+            ["Note", "Fee is fixed per signed contract — does not fluctuate with buyout savings unless negotiated via CO"],
+          ]} />
+        </Modal>
+      )}
+      {modal?.type === "ins" && (
+        <Modal title="Insurance — 3.0%" subtitle="Builder's risk and liability insurance" onClose={() => setModal(null)}>
+          <KVGrid rows={[
+            ["Insurance Rate", "3.0%"],
+            ["Applied To", "Construction trades + GC"],
+            ["Base Amount", $f(constructionSub + generalConditions)],
+            ["Insurance Amount", $f(381361.73)],
+            ["Note", "Fixed per signed contract"],
+          ]} />
+        </Modal>
+      )}
+      {modal?.type === "gc" && (
+        <Modal title="General Conditions — 01-000" subtitle="Project overhead and site management" onClose={() => setModal(null)}>
+          <KVGrid rows={[
+            ["CSI Code", "01-000"],
+            ["Budget", $f(generalConditions)],
+            ["% of Construction", "15.28%"],
+            ["Includes", "Project staffing, site trailer, temp utilities, safety, insurance admin"],
+            ["GC", "Taconic Builders Inc."],
+          ]} />
+          <SectionTitle>What this covers</SectionTitle>
+          <div className="text-xs text-gray-500 space-y-1">
+            <p>• Joseph Hamilton — Project Manager</p>
+            <p>• Robert Noto — Site Supervisor</p>
+            <p>• Liam Hanley — Assistant PM</p>
+            <p>• Site trailer, porta-potties, storage containers</p>
+            <p>• Verizon, utilities, snow removal, fuel</p>
+          </div>
         </Modal>
       )}
     </div>
