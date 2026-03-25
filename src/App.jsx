@@ -208,7 +208,7 @@ function Dashboard({ setTab }) {
   budget.forEach(b => { catBudget[b.cat] = (catBudget[b.cat] || 0) + parseFloat(b.budget); });
 
   const spendRows = [
-    { name: "Taconic Builders (GC Phase 1.1)", paid: taconicPaid, color: "#4f46e5" },
+    { name: "Taconic Builders (GC)", paid: taconicPaid, color: "#4f46e5" },
     { name: "Architecturefirm",                paid: afPaid,      color: "#0891b2" },
     { name: "Reed Hilderbrand",                paid: rhPaid,      color: "#059669" },
     { name: "Ivan Zdrahal PE",                 paid: izPaid,      color: "#7c3aed" },
@@ -1970,7 +1970,7 @@ const NAV = [
 ];
 
 const PAGE_TITLES = {
-  dashboard:  { title: "Project Overview",      sub: "Phase 1.1 · Taconic Builders · Live" },
+  dashboard:  { title: "Project Overview",      sub: "Camp Forestmere · JXM / Camp Forestmere Corp." },
   budget:     { title: "Control Budget",        sub: "51 line items · Phase 1.1" },
   awards:     { title: "Contract Awards",       sub: "20 awards · Subcontractors" },
   cos:        { title: "Change Orders",         sub: "Approved scope changes" },
