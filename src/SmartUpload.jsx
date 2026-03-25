@@ -26,6 +26,7 @@ export function SmartUploadView() {
     wire:"", credit:"", notes:"", lines:[],
   });
   const [co, setCo] = useState({ no:"", date:"", code:"", div:"", origBudget:"", amount:"", notes:"" });
+  const [parsedAward, setParsedAward] = useState(null);
   const [vend, setVend] = useState({ vendorKey:"ivan", invNum:"", date:"", desc:"", amount:"", status:"Pending" });
 
   const si = (k) => (e) => setInv(f => ({...f, [k]: e.target.value}));
@@ -40,6 +41,8 @@ export function SmartUploadView() {
     setStage("form");
     if (docType === "taconic_invoice") parseInvoice(file);
     else if (docType === "change_order") parseCO(file);
+    else if (docType === "vendor_invoice") parseVendor(file);
+    else if (docType === "award_letter") parseAward(file);
   };
 
   const parseInvoice = async (file) => {
@@ -84,6 +87,41 @@ export function SmartUploadView() {
           div: p.division||f.div, origBudget: p.originalBudget?String(p.originalBudget):f.origBudget,
           amount: p.coAmount?String(p.coAmount):f.amount, notes: p.description||f.notes,
         }));
+      }
+    } catch(e) {}
+    setParsing(false);
+  };
+
+  const parseVendor = async (file) => {
+    setParsing(true);
+    try {
+      const fd = new FormData(); fd.append("file", file); fd.append("doc_type", "vendor_invoice");
+      const res = await fetch(API + '/parse-document', { method:"POST", body:fd });
+      const data = await res.json();
+      if (data.ok && data.parsed) {
+        const p = data.parsed;
+        setVend(f => ({
+          ...f,
+          invNum: p.invNum || f.invNum,
+          date: p.date || f.date,
+          desc: p.description || f.desc,
+          amount: p.total ? String(p.total) : p.amount ? String(p.amount) : f.amount,
+        }));
+      }
+    } catch(e) {}
+    setParsing(false);
+  };
+
+  const parseAward = async (file) => {
+    setParsing(true);
+    try {
+      const fd = new FormData(); fd.append("file", file); fd.append("doc_type", "award_letter");
+      const res = await fetch(API + '/parse-document', { method:"POST", body:fd });
+      const data = await res.json();
+      if (data.ok && data.parsed) {
+        const p = data.parsed;
+        // Store parsed award data for display
+        setParsedAward(p);
       }
     } catch(e) {}
     setParsing(false);
@@ -180,7 +218,7 @@ export function SmartUploadView() {
     <div className="space-y-5 max-w-2xl">
       <div className={card}>
         <h2 className="text-sm font-bold text-gray-900 mb-1">Upload Document</h2>
-        <p className="text-xs text-gray-400 mb-5">Taconic invoices and Change Orders auto-parse from PDF.</p>
+        <p className="text-xs text-gray-400 mb-5">All document types auto-parse and pre-fill fields from PDF.</p>
         <div className="flex gap-2 mb-5 flex-wrap">
           {[["taconic_invoice","Taconic Invoice"],["change_order","Change Order"],["vendor_invoice","Vendor Invoice"],["award_letter","Award Letter"]].map(([id,lb]) => (
             <button key={id} onClick={()=>setDocType(id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
@@ -197,7 +235,7 @@ export function SmartUploadView() {
           <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={e=>handleFile(e.target.files[0])}/>
           <div className="text-3xl mb-3">📄</div>
           <p className="text-sm font-semibold text-gray-700">Drop PDF here or click to browse</p>
-          <p className="text-xs text-gray-400 mt-1">{docType==="taconic_invoice"||docType==="change_order"?"AI extracts all fields automatically":"PDF stored in Documents"}</p>
+          <p className="text-xs text-gray-400 mt-1">AI extracts all fields automatically</p>
         </div>
       </div>
     </div>
@@ -413,7 +451,14 @@ export function SmartUploadView() {
     if (docType === "vendor_invoice") return (
       <div className="space-y-5">
         <div className={card + " !p-4 flex items-center justify-between"}>
-          <div className="flex items-center gap-3"><span>📄</span><p className="text-sm font-semibold text-gray-800">{pendingFile?.name}</p></div>
+          <div className="flex items-center gap-3">
+            <span>📄</span>
+            <div>
+              <p className="text-sm font-semibold text-gray-800">{pendingFile?.name}</p>
+              {parsing && <p className="text-xs text-indigo-500 mt-0.5 animate-pulse">Parsing invoice data...</p>}
+              {!parsing && vend.invNum && <p className="text-xs text-emerald-600 mt-0.5">✓ Data extracted from PDF</p>}
+            </div>
+          </div>
           <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600">Change file</button>
         </div>
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
@@ -439,11 +484,31 @@ export function SmartUploadView() {
     return (
       <div className="space-y-5">
         <div className={card + " !p-4 flex items-center justify-between"}>
-          <p className="text-sm font-semibold text-gray-800">{pendingFile?.name}</p>
+          <div className="flex items-center gap-3">
+            <span>📄</span>
+            <div>
+              <p className="text-sm font-semibold text-gray-800">{pendingFile?.name}</p>
+              {parsing && <p className="text-xs text-indigo-500 mt-0.5 animate-pulse">Parsing award letter...</p>}
+              {!parsing && parsedAward && <p className="text-xs text-emerald-600 mt-0.5">✓ Data extracted from PDF</p>}
+            </div>
+          </div>
           <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600">Change file</button>
         </div>
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
-        <div className={card}><p className="text-sm text-gray-500">Ready to store as Award Letter — saved to Documents tab.</p></div>
+        {parsedAward && (
+          <div className={card}>
+            <p className={sectionTitle}>Parsed Award Details</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[["Vendor", parsedAward.vendor],["Contract #", parsedAward.contractNumber],["Award Date", parsedAward.awardDate],["CSI Code", parsedAward.csiCode],["Division", parsedAward.division],["Award Amount", parsedAward.awardAmount ? "$"+Number(parsedAward.awardAmount).toLocaleString() : ""],["Notes", parsedAward.notes]].filter(([,v])=>v).map(([k,v])=>(
+                <div key={k} style={{background:"#f9fafb",border:"1px solid #f3f4f6",borderRadius:8,padding:"10px 12px"}}>
+                  <div style={{fontSize:11,color:"#9ca3af",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:3}}>{k}</div>
+                  <div style={{fontSize:13,fontWeight:600,color:"#111827"}}>{String(v)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {!parsedAward && !parsing && <div className={card}><p className="text-sm text-gray-500">Ready to store as Award Letter — saved to Documents tab.</p></div>}
         <div className="flex gap-3">
           <button onClick={reset} className="px-5 py-3 text-sm font-semibold rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50">Cancel</button>
           <button onClick={async()=>{setSaving(true);const fd=new FormData();fd.append("file",pendingFile);fd.append("name",pendingFile.name);fd.append("type","Award Letter");fd.append("vendor_key","");fd.append("linked_id","");await fetch(API+'/documents',{method:'POST',body:fd});setDoneMsg(`${pendingFile.name} stored.`);setStage("done");setSaving(false);}} disabled={saving} className="flex-1 py-3 text-sm font-bold rounded-xl text-white" style={{background:"#111827"}}>{saving?"Saving...":"Store Document →"}</button>
