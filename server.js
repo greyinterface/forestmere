@@ -594,6 +594,35 @@ app.post('/api/invoices', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.delete('/api/invoices/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM invoices WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/line-item-billings/rollback/:invNum', async (req, res) => {
+  try {
+    const invNum = decodeURIComponent(req.params.invNum);
+    // Get all line items billed on this invoice
+    const billed = await pool.query('SELECT line_item_code, amount FROM line_item_billings WHERE inv_num=$1', [invNum]);
+    // Delete the billings
+    await pool.query('DELETE FROM line_item_billings WHERE inv_num=$1', [invNum]);
+    // Recalculate done/pct for each affected line item
+    for (const row of billed.rows) {
+      const billedSum = await pool.query('SELECT COALESCE(SUM(amount),0) as total FROM line_item_billings WHERE line_item_code=$1', [row.line_item_code]);
+      const completedToDate = parseFloat(billedSum.rows[0].total) || 0;
+      const liRow = await pool.query('SELECT budget, cos FROM line_items WHERE code=$1', [row.line_item_code]);
+      if (liRow.rows.length > 0) {
+        const revised = parseFloat(liRow.rows[0].budget||0) + parseFloat(liRow.rows[0].cos||0);
+        const pct = revised > 0 ? completedToDate / revised : 0;
+        await pool.query('UPDATE line_items SET done=$1, pct=$2 WHERE code=$3', [completedToDate, pct, row.line_item_code]);
+      }
+    }
+    res.json({ ok: true, affected: billed.rows.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.put('/api/invoices/:id', async (req, res) => {
   try {
     const { status, paidDate, notes, actualPaid, creditApplied } = req.body;
@@ -691,6 +720,31 @@ app.delete('/api/vendors/invoices/:id', async (req, res) => {
 });
 
 // ─── DOCUMENTS ────────────────────────────────────────────────────────────────
+// ─── LINE ITEM BILLING DELETE ─────────────────────────────────────────────────
+app.delete('/api/line-item-billings/:code/:invNum', async (req, res) => {
+  try {
+    const { code, invNum } = req.params;
+    await pool.query('DELETE FROM line_item_billings WHERE line_item_code=$1 AND inv_num=$2', [code, invNum]);
+    // Recalculate done/pct for this line item
+    const billedSum = await pool.query('SELECT COALESCE(SUM(amount),0) as total FROM line_item_billings WHERE line_item_code=$1', [code]);
+    const completedToDate = parseFloat(billedSum.rows[0].total) || 0;
+    const liRow = await pool.query('SELECT budget, cos FROM line_items WHERE code=$1', [code]);
+    if (liRow.rows.length > 0) {
+      const revised = parseFloat(liRow.rows[0].budget||0) + parseFloat(liRow.rows[0].cos||0);
+      const pct = revised > 0 ? completedToDate / revised : 0;
+      await pool.query('UPDATE line_items SET done=$1, pct=$2 WHERE code=$3', [completedToDate, pct, code]);
+    }
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/documents', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id, name, type, vendor_key, vendor_label, linked_id, note, created_at FROM documents ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/documents', upload.single('file'), async (req, res) => {
   try {
     const { name, type, vendor_key, vendor_label, linked_id, note } = req.body;
@@ -900,9 +954,21 @@ app.post('/api/parse-document', upload.single('file'), async (req, res) => {
   try {
     if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
     const base64 = req.file.buffer.toString('base64');
-    const prompt = `You are parsing a Taconic Builders construction invoice PDF for Camp Forestmere project C25-104. Extract ALL data and return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
-{"documentType":"taconic_invoice","header":{"invNum":"string","invoiceDate":"MM/DD/YYYY","periodTo":"string","applicationNum":0,"originalContract":0,"approvedChanges":0,"revisedContract":0,"completedToDate":0,"totalRetainage":0,"previousRequests":0,"currentAmountDue":0,"balanceToFinish":0},"lineItemsBilled":[{"code":"string","name":"string","previousBilled":0,"currentBill":0,"completedToDate":0,"pctComplete":0,"approvedCOs":0}],"changeOrdersReferenced":[{"no":"string","code":"string","description":"string","amount":0}],"subcontractorInvoices":[{"invNum":"string","vendor":"string","code":"string","currentBill":0}],"fees":{"gcFee":0,"insurance":0,"depositApplied":0,"retainageThisPeriod":0}}
-Rules: only include lineItemsBilled where currentBill > 0. Include ALL COs from CO log. Return raw JSON only.`;
+    const prompt = `You are parsing a Taconic Builders Application for Payment PDF for Camp Forestmere project C25-104.
+
+The PDF has multiple pages. Page 1 is the summary. Page 2+ is the "Continuation Sheet" or "Schedule of Values" which lists every line item. You MUST extract ALL line items from the continuation sheet.
+
+Return ONLY a valid JSON object, no markdown, no explanation:
+{"documentType":"taconic_invoice","header":{"invNum":"string","invoiceDate":"MM/DD/YYYY","periodTo":"string","originalContract":0,"approvedChanges":0,"revisedContract":0,"completedToDate":0,"totalRetainage":0,"previousRequests":0,"currentAmountDue":0,"balanceToFinish":0},"lineItemsBilled":[{"code":"string","name":"string","scheduledValue":0,"previousBilled":0,"currentBill":0,"completedToDate":0,"pctComplete":0,"approvedCOs":0}],"fees":{"gcFee":0,"insurance":0,"depositApplied":0,"retainageThisPeriod":0}}
+
+CRITICAL RULES:
+1. Extract EVERY row from the continuation sheet where "Work Completed This Period" (column G or "Current") is greater than 0
+2. The item code is in the leftmost column (e.g. 01-001, 02-002, 33-370)
+3. The description is the next column
+4. currentBill = the amount billed THIS period only (not cumulative)
+5. completedToDate = total billed to date including this period
+6. Include ALL such rows - there may be 4-15 line items
+7. Return raw JSON only, no other text`;
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
