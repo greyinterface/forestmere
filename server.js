@@ -639,6 +639,24 @@ app.post('/api/change-orders', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.put('/api/change-orders/:no', async (req, res) => {
+  try {
+    const { code, div, origBudget, approvedCO, fees, total, revisedBudget, notes, date } = req.body;
+    const { rows } = await pool.query(
+      'UPDATE change_orders SET code=$1, div=$2, orig_budget=$3, approved_co=$4, fees=$5, total=$6, revised_budget=$7, notes=$8, co_date=$9 WHERE no=$10 RETURNING *',
+      [code, div, origBudget, approvedCO, fees, total, revisedBudget, notes||null, date, req.params.no]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/change-orders/:no', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM change_orders WHERE no=$1', [req.params.no]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ─── VENDOR INVOICES ──────────────────────────────────────────────────────────
 app.post('/api/vendors/:key/invoices', async (req, res) => {
   try {
@@ -847,6 +865,31 @@ app.get('/api/reconciliation', async (req, res) => {
     console.error('Reconciliation error:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ─── DB MIGRATION: ensure all line items seeded properly ────────────────────
+app.post('/api/admin/reseed-line-items', async (req, res) => {
+  try {
+    // Add any missing line items that were billed but not in line_items table
+    const missingItems = [
+      ['33-100','Water Service',108240,0,30902.11,0.2855],
+      ['33-150','Gas Services / Tank',10000,0,2000,0.2000],
+      ['33-300','Septic / Sewer Systems',132770,0,74889.10,0.5641],
+    ];
+    for (const r of missingItems) {
+      await pool.query('INSERT INTO line_items (code,name,budget,cos,done,pct) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING', r);
+    }
+    // Add billings for these items
+    const extraBillings = [
+      ['33-100','#1621',5412],['33-100','#1693',5412],['33-100','#1750',11684.22],['33-100','#1956',8393.89],
+      ['33-150','#1621',500],['33-150','#1956',1500],
+      ['33-300','#1750',63250.60],['33-300','#1956',11638.50],
+    ];
+    for (const r of extraBillings) {
+      await pool.query('INSERT INTO line_item_billings VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', r);
+    }
+    res.json({ ok: true, message: 'Missing line items seeded' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ─── DOCUMENT PARSING (AI) ────────────────────────────────────────────────────
