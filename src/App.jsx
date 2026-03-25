@@ -1533,7 +1533,7 @@ function UploadsView() {
 }
 
 // ─── RECONCILE VIEW ───────────────────────────────────────────────────────────
-function ReconcileView() {
+function ReconcileView({ setTab }) {
   const { invoices, changeOrders, lineItems, budget, refresh } = useAppData();
   const [recon, setRecon]   = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1553,6 +1553,13 @@ function ReconcileView() {
   if (loading) return (
     <div className="flex items-center justify-center py-20">
       <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (!recon) return (
+    <div className="bg-white rounded-xl border border-gray-100 p-8 text-center shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+      <p className="text-gray-400 text-sm mb-3">Could not load reconciliation data.</p>
+      <button onClick={load} className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-lg">Retry</button>
     </div>
   );
 
@@ -1606,8 +1613,6 @@ function ReconcileView() {
       plain: null, // informational only
     },
   };
-
-  const [navigateTo, setNavigateTo] = useState(null);
 
   return (
     <div className="space-y-5">
@@ -1709,7 +1714,7 @@ function ReconcileView() {
                   </div>
                   {action.tab && (
                     <button
-                      onClick={() => setActiveTab('_nav_' + action.tab)}
+                      onClick={() => { if (setTab) setTab(action.tab); }}
                       className="w-full py-2 bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold rounded-lg transition-colors"
                     >
                       {action.btnLabel}
@@ -1952,7 +1957,7 @@ function AppShell() {
           {tab === "prior"     && <PriorPhasesView />}
           {tab === "vendors"   && <VendorsView />}
           {tab === "uploads"   && <SmartUploadView />}
-          {tab === "reconcile" && <ReconcileView />}
+          {tab === "reconcile" && <ReconcileView setTab={setTab} />}
         </main>
       </div>
     </div>
