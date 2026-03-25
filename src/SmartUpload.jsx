@@ -3,33 +3,30 @@ import { useState, useRef } from "react";
 const API = '/api';
 const $f = (n) => n == null || n === "" ? "—" : "$" + Math.abs(Number(n)).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
-// Input that auto-fills placeholder on click
-function SmartInput({ value, onChange, placeholder, className, type="text" }) {
-  const ref = useRef();
-  const fill = () => {
-    onChange({ target: { value: placeholder } });
-    // Focus and select all so user can immediately type to override
-    setTimeout(() => { if (ref.current) { ref.current.focus(); ref.current.select(); } }, 10);
-  };
+// Simple field with optional "use suggested" button above input
+function Field({ label, value, onChange, placeholder, required, hint, span2 }) {
   return (
-    <div className="relative">
+    <div className={span2 ? "col-span-2" : ""}>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+          {label}{required && <span className="text-red-400 ml-0.5">*</span>}
+        </label>
+        {!value && placeholder && (
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => onChange({ target: { value: placeholder } })}
+            className="text-xs text-indigo-400 hover:text-indigo-600 font-medium"
+          >↵ use {placeholder.length > 12 ? placeholder.slice(0,12)+"…" : placeholder}</button>
+        )}
+      </div>
       <input
-        ref={ref}
-        type={type}
         value={value}
-        placeholder={placeholder}
-        className={className}
         onChange={onChange}
+        placeholder={placeholder}
+        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-300 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
       />
-      {!value && placeholder && (
-        <button
-          type="button"
-          onClick={fill}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-300 hover:text-indigo-400 transition-colors px-1 py-0.5 rounded"
-          tabIndex={-1}
-          title="Click to use suggested value"
-        >↵</button>
-      )}
+      {hint && <p className="text-xs text-gray-300 mt-1">{hint}</p>}
     </div>
   );
 }
@@ -346,13 +343,13 @@ export function SmartUploadView() {
           <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-5">Invoice Header</h3>
           <div className="grid grid-cols-2 gap-4">
             <div><label className={lbl}>Payment ID <span className="text-red-400">*</span></label>
-              <SmartInput value={invForm.payId} onChange={e=>setInvForm(f=>({...f,payId:e.target.value}))} placeholder="PAY-008" className={inp}/></div>
+              <input value={invForm.payId} onChange={e=>setInvForm(f=>({...f,payId:e.target.value}))} placeholder="PAY-008" className={inp}/></div>
             <div><label className={lbl}>Invoice # <span className="text-red-400">*</span></label>
-              <SmartInput value={invForm.invNum} onChange={e=>setInvForm(f=>({...f,invNum:e.target.value}))} placeholder="1976" className={inp}/></div>
+              <input value={invForm.invNum} onChange={e=>setInvForm(f=>({...f,invNum:e.target.value}))} placeholder="1976" className={inp}/></div>
             <div><label className={lbl}>Request Date</label>
-              <SmartInput value={invForm.reqDate} onChange={e=>setInvForm(f=>({...f,reqDate:e.target.value}))} placeholder="02/09/2026" className={inp}/></div>
+              <input value={invForm.reqDate} onChange={e=>setInvForm(f=>({...f,reqDate:e.target.value}))} placeholder="02/09/2026" className={inp}/></div>
             <div><label className={lbl}>Period To</label>
-              <SmartInput value={invForm.periodTo} onChange={e=>setInvForm(f=>({...f,periodTo:e.target.value}))} placeholder="January 31, 2026" className={inp}/></div>
+              <input value={invForm.periodTo} onChange={e=>setInvForm(f=>({...f,periodTo:e.target.value}))} placeholder="January 31, 2026" className={inp}/></div>
           </div>
         </div>
 
