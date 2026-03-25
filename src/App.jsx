@@ -1646,6 +1646,129 @@ function VendorsView() {
   );
 }
 
+// ─── DOCUMENTS VIEW ───────────────────────────────────────────────────────────
+function DocumentsView() {
+  const { refresh } = useAppData();
+  const [docs, setDocs] = useState([]);
+  const [lineBillings, setLineBillings] = useState([]);
+  const [view, setView] = useState("upload"); // "upload" | "history"
+  const [deleting, setDeleting] = useState(null);
+
+  const loadDocs = async () => {
+    try {
+      const d = await apiFetch('/documents');
+      if (Array.isArray(d)) setDocs(d);
+    } catch(e) {}
+  };
+
+  useEffect(() => { loadDocs(); }, []);
+
+  const deleteDoc = async (id) => {
+    if (!confirm("Delete this document? This cannot be undone.")) return;
+    setDeleting(id);
+    await apiFetch(`/documents/${id}`, { method: 'DELETE' });
+    await loadDocs();
+    setDeleting(null);
+  };
+
+  const rollbackInvoice = async (doc) => {
+    if (!doc.linked_id) return;
+    if (!confirm(`Roll back ${doc.linked_id}? This will delete the invoice record and all its line item billings.`)) return;
+    // Delete line item billings for this invoice
+    const invNum = doc.note?.match(/#\d+/)?.[0];
+    if (invNum) {
+      try { await apiFetch(`/line-item-billings/rollback/${encodeURIComponent(invNum)}`, { method: 'DELETE' }); } catch(e) {}
+    }
+    // Delete the invoice
+    try { await apiFetch(`/invoices/${doc.linked_id}`, { method: 'DELETE' }); } catch(e) {}
+    // Delete the document
+    await apiFetch(`/documents/${doc.id}`, { method: 'DELETE' });
+    await loadDocs();
+    await refresh();
+  };
+
+  const typeColor = (t) => {
+    if (t === "Invoice") return "bg-blue-50 text-blue-700 ring-1 ring-blue-200";
+    if (t === "Change Order") return "bg-purple-50 text-purple-700 ring-1 ring-purple-200";
+    if (t === "Award Letter") return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
+    return "bg-gray-100 text-gray-500";
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Tab toggle */}
+      <div className="flex gap-1 border-b border-gray-200">
+        <button onClick={() => setView("upload")} className={`px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all ${view==="upload" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
+          Upload Document
+        </button>
+        <button onClick={() => { setView("history"); loadDocs(); }} className={`px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all ${view==="history" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
+          Document History {docs.length > 0 && <span className="ml-1 text-gray-300">({docs.length})</span>}
+        </button>
+      </div>
+
+      {view === "upload" && <SmartUploadView onSaved={loadDocs} />}
+
+      {view === "history" && (
+        <div className="space-y-3">
+          {docs.length === 0 && (
+            <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
+              <p className="text-gray-400 text-sm">No documents uploaded yet.</p>
+            </div>
+          )}
+          {docs.length > 0 && (
+            <Card className="overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <TH>File Name</TH>
+                    <TH>Type</TH>
+                    <TH>Linked To</TH>
+                    <TH>Vendor</TH>
+                    <TH>Note</TH>
+                    <TH>Uploaded</TH>
+                    <TH>Actions</TH>
+                  </tr>
+                </thead>
+                <tbody>
+                  {docs.map(doc => (
+                    <TR key={doc.id}>
+                      <TD bold className="text-gray-800 max-w-[180px] truncate">{doc.name}</TD>
+                      <TD><span className={`text-xs font-medium px-2 py-0.5 rounded-full ${typeColor(doc.type)}`}>{doc.type}</span></TD>
+                      <TD muted>{doc.linked_id || "—"}</TD>
+                      <TD muted>{doc.vendor_label || doc.vendor_key || "—"}</TD>
+                      <TD muted className="max-w-[160px] truncate">{doc.note || "—"}</TD>
+                      <TD muted>{doc.created_at ? new Date(doc.created_at).toLocaleDateString("en-US") : "—"}</TD>
+                      <TD>
+                        <div className="flex gap-1">
+                          <a href={`/api/documents/${doc.id}/file`} target="_blank" rel="noreferrer"
+                            className="text-xs px-2 py-1 border border-gray-200 rounded text-gray-400 hover:text-gray-700 hover:border-gray-400 transition-colors">
+                            View
+                          </a>
+                          {doc.type === "Invoice" && doc.linked_id && (
+                            <button onClick={() => rollbackInvoice(doc)}
+                              className="text-xs px-2 py-1 border border-amber-200 rounded text-amber-500 hover:text-amber-700 hover:border-amber-400 transition-colors">
+                              Rollback
+                            </button>
+                          )}
+                          <button onClick={() => deleteDoc(doc.id)} disabled={deleting === doc.id}
+                            className="text-xs px-2 py-1 text-gray-300 hover:text-red-500 transition-colors">
+                            {deleting === doc.id ? "…" : "✕"}
+                          </button>
+                        </div>
+                      </TD>
+                    </TR>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ─── RECONCILE VIEW ───────────────────────────────────────────────────────────
 function ReconcileView({ setTab }) {
   const { invoices, changeOrders, lineItems, budget, refresh } = useAppData();
@@ -2106,7 +2229,7 @@ function AppShell() {
           {tab === "lineitem"  && <LineItemView />}
           {tab === "cos"       && <COsView />}
           {tab === "vendors"   && <VendorsView />}
-          {tab === "uploads"   && <SmartUploadView />}
+          {tab === "uploads"   && <DocumentsView />}
           {tab === "reconcile" && <ReconcileView setTab={setTab} />}
         </main>
       </div>
