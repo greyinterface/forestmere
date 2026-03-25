@@ -196,6 +196,13 @@ function Dashboard({ setTab }) {
     grandTotalPaid, izPaid, rhPaid, afPaid, priorPhases
   } = useAppData();
   const [modal, setModal] = useState(null);
+  const [reconSummary, setReconSummary] = useState(null);
+
+  useEffect(() => {
+    apiFetch('/reconciliation').then(r => {
+      if (r.summary) setReconSummary(r.summary);
+    }).catch(() => {});
+  }, []);
 
   const pendingInvs = invoices.filter(i => i.status !== "Paid");
   const catBudget = {};
@@ -215,6 +222,26 @@ function Dashboard({ setTab }) {
 
   return (
     <div className="space-y-5">
+      {reconSummary?.failed > 0 && (
+        <button onClick={() => setTab("reconcile")} className="w-full text-left flex items-start gap-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/60 rounded-xl px-4 py-3 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors">
+          <span className="text-red-500 mt-0.5">✕</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-red-700 dark:text-red-400">Reconciliation Errors Detected</p>
+            <p className="text-xs text-red-600/70 dark:text-red-500/70 mt-0.5">{reconSummary.failed} check{reconSummary.failed > 1 ? "s" : ""} failing — click to review in Reconcile tab</p>
+          </div>
+          <span className="text-red-400 text-sm mt-0.5">→</span>
+        </button>
+      )}
+      {reconSummary?.failed === 0 && reconSummary?.total > 0 && (
+        <button onClick={() => setTab("reconcile")} className="w-full text-left flex items-start gap-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl px-4 py-3 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 transition-colors">
+          <span className="text-emerald-500 mt-0.5">✓</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">All {reconSummary.total} Reconciliation Checks Passing</p>
+            <p className="text-xs text-emerald-600/70 dark:text-emerald-500/70 mt-0.5">Books are balanced — click to view details</p>
+          </div>
+          <span className="text-emerald-400 text-sm mt-0.5">→</span>
+        </button>
+      )}
       {pendingInvs.length > 0 && (
         <button onClick={() => setTab("invoices")} className="w-full text-left flex items-start gap-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl px-4 py-3 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors">
           <span className="text-amber-500 mt-0.5">⚠</span>
@@ -1400,6 +1427,179 @@ function UploadsView() {
   );
 }
 
+// ─── RECONCILE VIEW ───────────────────────────────────────────────────────────
+function ReconcileView() {
+  const { refresh } = useAppData();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await apiFetch('/reconciliation');
+      if (r.error) throw new Error(r.error);
+      setData(r);
+    } catch (e) {
+      setError(e.message);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (error) return (
+    <Card className="p-6 text-center">
+      <p className="text-red-500 text-sm font-semibold mb-2">Failed to load reconciliation</p>
+      <p className="text-xs text-zinc-400 mb-4">{error}</p>
+      <button onClick={load} className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg">Retry</button>
+    </Card>
+  );
+
+  const { checks, summary } = data;
+
+  const severityConfig = {
+    info:  { icon: "ℹ", bg: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40",  text: "text-blue-600 dark:text-blue-400",  badge: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" },
+    warn:  { icon: "⚠", bg: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40", text: "text-amber-600 dark:text-amber-400", badge: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" },
+    error: { icon: "✕", bg: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40",    text: "text-red-600 dark:text-red-400",    badge: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"   },
+  };
+
+  const passConfig = { icon: "✓", bg: "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/40", text: "text-emerald-600 dark:text-emerald-400", badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" };
+
+  const invoiceChecks = checks.filter(c => c.id.startsWith("inv_"));
+  const systemChecks  = checks.filter(c => !c.id.startsWith("inv_"));
+
+  return (
+    <div className="space-y-5">
+      {/* Summary bar */}
+      <div className="grid grid-cols-4 gap-3">
+        <Stat label="Total Checks" value={String(summary.total)} sub="All reconciliation rules" />
+        <Stat label="Passing" value={String(summary.passed)} sub="Balanced ✓" accent={false} onClick={load} />
+        <Stat label="Warnings" value={String(summary.warned)} sub="Minor discrepancies" accent={summary.warned > 0} />
+        <Stat label="Errors" value={String(summary.failed)} sub="Needs attention" accent={summary.failed > 0} onClick={load} />
+      </div>
+
+      {summary.failed > 0 && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-xl px-4 py-3 text-xs text-red-700 dark:text-red-400">
+          <strong>⚠ {summary.failed} reconciliation error{summary.failed > 1 ? "s" : ""} detected.</strong> Review the items below — these indicate the app data does not match Taconic&apos;s certified amounts.
+        </div>
+      )}
+
+      {summary.passed === summary.total && (
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-3 text-xs text-emerald-700 dark:text-emerald-400 font-semibold">
+          ✓ All checks passing — books are balanced.
+        </div>
+      )}
+
+      {/* System-level checks */}
+      <Card className="overflow-hidden">
+        <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-600">
+          <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Contract & Budget Checks</span>
+        </div>
+        <div className="divide-y divide-zinc-50 dark:divide-zinc-600/50">
+          {systemChecks.map(c => {
+            const cfg = c.pass ? passConfig : severityConfig[c.severity] || severityConfig.warn;
+            return (
+              <div key={c.id} className={`px-4 py-3.5 border-l-4 ${c.pass ? "border-l-emerald-400" : c.severity === "error" ? "border-l-red-400" : c.severity === "warn" ? "border-l-amber-400" : "border-l-blue-400"}`}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className={`text-sm font-bold ${cfg.text}`}>{cfg.icon}</span>
+                      <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{c.label}</p>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.badge}`}>
+                        {c.pass ? "Pass" : c.severity === "info" ? "Info" : c.severity === "warn" ? "Warning" : "Error"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500">{c.description}</p>
+                    {c.note && <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">{c.note}</p>}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-xs text-zinc-400 mb-0.5">Expected</div>
+                    <div className="font-mono text-xs font-bold text-zinc-700 dark:text-zinc-300">{c.expected != null ? $f(c.expected) : "—"}</div>
+                    {!c.pass && c.actual != null && (
+                      <>
+                        <div className="text-xs text-zinc-400 mt-1 mb-0.5">Actual</div>
+                        <div className={`font-mono text-xs font-bold ${c.severity === "error" ? "text-red-500 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>{$f(c.actual)}</div>
+                        <div className={`font-mono text-xs mt-0.5 ${c.diff < 0 ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                          {c.diff >= 0 ? "+" : ""}{$f(c.diff)}
+                        </div>
+                      </>
+                    )}
+                    {c.pass && c.actual != null && (
+                      <div className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-1">{$f(c.actual)}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* Per-invoice checks */}
+      {invoiceChecks.length > 0 && (
+        <Card className="overflow-hidden">
+          <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-600 flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Invoice Line Items vs Job Totals</span>
+            <span className="text-xs text-zinc-400">{invoiceChecks.filter(c => c.pass).length}/{invoiceChecks.length} balanced</span>
+          </div>
+          <table className="w-full">
+            <thead>
+              <tr>
+                <TH>Invoice</TH>
+                <TH right>Expected Job Total</TH>
+                <TH right>Line Items Sum</TH>
+                <TH right>Difference</TH>
+                <TH>Status</TH>
+              </tr>
+            </thead>
+            <tbody>
+              {invoiceChecks.map(c => (
+                <TR key={c.id}>
+                  <TD mono className="text-amber-600 dark:text-amber-400">{c.id.replace("inv_PAY-0", "#")}</TD>
+                  <TD right muted>{$f(c.expected)}</TD>
+                  <TD right bold className={c.pass ? "text-zinc-900 dark:text-white" : "text-red-500 dark:text-red-400"}>{$f(c.actual)}</TD>
+                  <TD right className={Math.abs(c.diff) < 1 ? "text-emerald-600 dark:text-emerald-400" : Math.abs(c.diff) < 100 ? "text-amber-600 dark:text-amber-400" : "text-red-500 dark:text-red-400 font-semibold"}>
+                    {Math.abs(c.diff) < 0.01 ? "—" : (c.diff >= 0 ? "+" : "") + $f(c.diff)}
+                  </TD>
+                  <TD>
+                    {c.pass
+                      ? <Tag text="✓ Balanced" color="green" />
+                      : Math.abs(c.diff) < 100
+                        ? <Tag text="⚠ Minor diff" color="amber" />
+                        : <Tag text="✕ Mismatch" color="red" />
+                    }
+                  </TD>
+                </TR>
+              ))}
+            </tbody>
+          </table>
+          <div className="px-4 py-3 border-t border-zinc-100 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/30">
+            <p className="text-xs text-zinc-400">
+              ℹ Differences appear when a Taconic invoice includes fees, deposits, or retainage adjustments not captured in individual line item billings.
+              Invoices with no line item detail uploaded will not appear here.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      <div className="flex justify-end">
+        <button onClick={load} className="px-4 py-2 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-zinc-600 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">
+          ↻ Refresh Checks
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 const TABS = [
   { id: "dashboard", label: "Dashboard"         },
@@ -1412,6 +1612,7 @@ const TABS = [
   { id: "cashflow",  label: "Cash Flow"         },
   { id: "prior",     label: "Prior Phases"      },
   { id: "uploads",   label: "Documents"         },
+  { id: "reconcile", label: "✓ Reconcile"        },
 ];
 
 function AppShell() {
@@ -1482,6 +1683,7 @@ function AppShell() {
         {tab === "prior"     && <PriorPhasesView />}
         {tab === "vendors"   && <VendorsView />}
         {tab === "uploads"   && <SmartUploadView />}
+        {tab === "reconcile" && <ReconcileView />}
       </main>
     </div>
   );
