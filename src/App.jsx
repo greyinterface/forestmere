@@ -950,7 +950,7 @@ function InvoicesView() {
           <span className="text-blue-500">↩</span>
           <div>
             <p className="text-sm font-semibold text-blue-700">Credit Balance: {$f(creditData.creditBalance)}</p>
-            <p className="text-xs text-blue-500 mt-0.5">From PAY-006 overpayment — applied against future invoices</p>
+            <p className="text-xs text-blue-500 mt-0.5">Credit on account — being applied against outstanding invoices</p>
           </div>
         </div>
       )}
@@ -2019,7 +2019,7 @@ function AppShell() {
         {/* Logo */}
         <div style={{ padding: "24px 20px 20px" }}>
           <div style={{ fontWeight: 700, fontSize: 15, color: "#111827", letterSpacing: "-0.3px" }}>Camp Forestmere</div>
-          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2, fontWeight: 500 }}>CONSTRUCTION PHASE 1.1</div>
+          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2, fontWeight: 500 }}>CAMP FORESTMERE CORP.</div>
         </div>
 
         {/* Nav */}
@@ -2090,7 +2090,7 @@ function AppShell() {
                 fontSize: 12, fontWeight: 600,
               }}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} />
-                Active Construction
+                Phase 1.1 Active
               </span>
             </div>
           </div>
