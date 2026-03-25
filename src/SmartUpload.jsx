@@ -1,415 +1,273 @@
-// ─── SMART UPLOAD VIEW ────────────────────────────────────────────────────────
-// Drop this component into App.jsx and replace UploadsView with SmartUploadView
-// Also add the classic UploadsView below for the stored documents library
+import { useState, useRef } from "react";
 
-import { useState, useRef, useContext } from "react";
-
-// Status config
-const STATUS = {
-  supported:  { icon: "✅", label: "Supported",           color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200" },
-  tentative:  { icon: "⚠️", label: "Tentative — CO Needed", color: "text-indigo-600",   bg: "bg-indigo-50 border-indigo-200"   },
-  conflict:   { icon: "❌", label: "Conflict",             color: "text-red-500",        bg: "bg-red-50 border-red-200"           },
-  duplicate:  { icon: "🔄", label: "Already in System",   color: "text-gray-400",                          bg: "bg-zinc-50 border-gray-200"          },
-};
+const API = '/api';
+const $f = (n) => n == null || n === "" ? "—" : "$" + Math.abs(Number(n)).toLocaleString("en-US", { maximumFractionDigits: 2 });
+const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-300 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100";
+const lbl = "block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5";
 
 export function SmartUploadView() {
-  // Pull data from context for reconciliation
-  const { budget, awards, changeOrders, invoices, lineItems, documents, refresh } = window.__appData || {};
-
-  const [stage, setStage] = useState("upload"); // upload | parsing | review | done
+  const [stage, setStage] = useState("upload");
+  const [docType, setDocType] = useState("taconic_invoice");
   const [pendingFile, setPendingFile] = useState(null);
-  const [parsed, setParsed] = useState(null);
-  const [reviewItems, setReviewItems] = useState([]);
-  const [approving, setApproving] = useState(false);
-  const [parseError, setParseError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
-  const [doneResults, setDoneResults] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [doneMsg, setDoneMsg] = useState("");
+  const [error, setError] = useState(null);
   const fileRef = useRef();
 
-  // ── RECONCILE parsed data against DB ──────────────────────────────────────
-  const buildReviewItems = (p) => {
-    const items = [];
-    const nextPayId = `PAY-${String((invoices?.length || 7) + 1).padStart(3, "0")}`;
-    const invNumFormatted = `#${p.header?.invNum}`;
+  const [invForm, setInvForm] = useState({
+    payId: "", invNum: "", reqDate: "", periodTo: "",
+    jobTotal: "", fees: "", depositApplied: "", retainageHeld: "",
+    amtDue: "", approved: "", paidDate: "", status: "Pending Payment",
+    actualPaid: "", creditApplied: "", notes: "",
+    lineItems: [{ code: "", name: "", currentBill: "", completedToDate: "", pctComplete: "" }],
+  });
 
-    // 1. Invoice header
-    const alreadyExists = invoices?.find(i => i.inv_num === invNumFormatted);
-    items.push({
-      id: "header",
-      type: "invoice_header",
-      section: "Invoice Header",
-      label: `Invoice ${invNumFormatted}`,
-      details: `Date: ${p.header?.invoiceDate} · Period to: ${p.header?.periodTo} · Amount Due: $${(p.header?.currentAmountDue || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`,
-      extraDetails: [
-        `Application #${p.header?.applicationNum}`,
-        `Revised Contract: $${(p.header?.revisedContract || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`,
-        `Completed to Date: $${(p.header?.completedToDate || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`,
-        `Balance to Finish: $${(p.header?.balanceToFinish || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`,
-        `Total Retainage: $${(p.header?.totalRetainage || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`,
-      ],
-      status: alreadyExists ? "duplicate" : "supported",
-      note: alreadyExists ? `Already in system as ${alreadyExists.id}` : null,
-      approved: !alreadyExists,
-      canToggle: !alreadyExists,
-      data: {
-        id: nextPayId,
-        reqDate: p.header?.invoiceDate,
-        invNum: invNumFormatted,
-        description: `Period to: ${p.header?.periodTo}`,
-        jobTotal: (p.lineItemsBilled || []).reduce((s, l) => s + (l.currentBill || 0), 0),
-        fees: (p.fees?.gcFee || 0) + (p.fees?.insurance || 0),
-        depositApplied: p.fees?.depositApplied || 0,
-        retainage: p.fees?.retainageThisPeriod || 0,
-        amtDue: p.header?.currentAmountDue || 0,
-      }
-    });
+  const [vendorForm, setVendorForm] = useState({
+    vendorKey: "ivan", invNum: "", date: "", desc: "", amount: "", status: "Pending",
+  });
 
-    // 2. Line items billed this period
-    for (const li of (p.lineItemsBilled || [])) {
-      if (!li.currentBill || li.currentBill === 0) continue;
-      const inBudget = budget?.find(b => b.code === li.code);
-      const inLineItems = lineItems?.find(l => l.code === li.code);
-      const alreadyBilled = lineItems?.find(l => l.code === li.code && l.inv?.[invNumFormatted]);
-
-      let status = "supported";
-      let note = null;
-      if (!inBudget) { status = "conflict"; note = "CSI code not found in control budget"; }
-      else if (alreadyBilled) { status = "duplicate"; note = "Already billed on this invoice in system"; }
-
-      items.push({
-        id: `li_${li.code}`,
-        type: "line_item_billing",
-        section: "Line Item Billing",
-        label: `${li.code} — ${li.name}`,
-        details: `This period: $${(li.currentBill || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })} · Completed to date: $${(li.completedToDate || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })} (${li.pctComplete}%)`,
-        extraDetails: [`Previously billed: $${(li.previousBilled || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`],
-        status,
-        note,
-        approved: status === "supported",
-        canToggle: status === "supported",
-        data: { ...li, invNum: invNumFormatted }
-      });
-    }
-
-    // 3. Change orders referenced
-    for (const co of (p.changeOrdersReferenced || [])) {
-      const existingCO = changeOrders?.find(c => c.no === co.no);
-      const amt = co.amount || 0;
-      items.push({
-        id: `co_${co.no}`,
-        type: "change_order_reference",
-        section: "Change Orders Referenced",
-        label: `${co.no} — ${co.description}`,
-        details: `${amt < 0 ? "Deduction" : "Addition"}: ${amt < 0 ? "-" : "+"}$${Math.abs(amt).toLocaleString("en-US", { maximumFractionDigits: 0 })} · CSI: ${co.code}`,
-        extraDetails: existingCO ? [`Reconciles with CO in system: revised budget $${(existingCO.revised_budget || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`] : [],
-        status: existingCO ? "supported" : "tentative",
-        note: !existingCO ? "Upload the signed Change Order document to unlock this line" : "Verified — CO exists in system",
-        approved: false,   // COs from invoice never auto-approve
-        canToggle: false,  // must upload CO separately
-        data: co,
-        locked: !existingCO,
-      });
-    }
-
-    // 4. Subcontractor invoices
-    for (const sub of (p.subcontractorInvoices || [])) {
-      const award = awards?.find(a => a.code === sub.code && a.vendor?.toLowerCase().includes(sub.vendor?.split(" ")[0]?.toLowerCase()));
-      items.push({
-        id: `sub_${sub.invNum}`,
-        type: "subcontractor_invoice",
-        section: "Subcontractor Invoices",
-        label: `${sub.vendor} — Invoice #${sub.invNum}`,
-        details: `Amount: $${(sub.currentBill || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })} · CSI: ${sub.code}`,
-        extraDetails: award ? [`Award ${award.id} on file — current contract $${(award.current_amount || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`] : [],
-        status: award ? "supported" : "tentative",
-        note: !award ? "No matching award found — verify subcontractor award is in system" : null,
-        approved: false,
-        canToggle: false, // informational only — subcontractor invoices are internal to Taconic
-        data: sub,
-        informational: true,
-      });
-    }
-
-    setReviewItems(items);
-  };
-
-  // ── HANDLE FILE ───────────────────────────────────────────────────────────
-  const handleFile = async (file) => {
+  const handleFile = (file) => {
     if (!file) return;
-    if (file.type !== "application/pdf") { alert("Please select a PDF file."); return; }
+    if (file.type !== "application/pdf") { setError("Please select a PDF file."); return; }
+    setError(null);
     setPendingFile(file);
-    setStage("parsing");
-    setParseError(null);
+    setStage("form");
+  };
 
+  const addLineItem = () => setInvForm(f => ({ ...f, lineItems: [...f.lineItems, { code: "", name: "", currentBill: "", completedToDate: "", pctComplete: "" }] }));
+  const removeLineItem = (i) => setInvForm(f => ({ ...f, lineItems: f.lineItems.filter((_, idx) => idx !== i) }));
+  const updateLineItem = (i, field, val) => setInvForm(f => { const li = [...f.lineItems]; li[i] = { ...li[i], [field]: val }; return { ...f, lineItems: li }; });
+
+  const taconicCalc = () => (parseFloat(invForm.jobTotal)||0) + (parseFloat(invForm.fees)||0) - (parseFloat(invForm.depositApplied)||0) - (parseFloat(invForm.retainageHeld)||0);
+  const liTotal = () => invForm.lineItems.reduce((s, li) => s + (parseFloat(li.currentBill) || 0), 0);
+  const approved = parseFloat(invForm.approved) || 0;
+  const calcDiff = Math.abs(taconicCalc() - approved);
+  const liDiff = Math.abs(liTotal() - (parseFloat(invForm.jobTotal) || 0));
+
+  const saveTaconicInvoice = async () => {
+    if (!invForm.payId || !invForm.invNum || !invForm.approved) { setError("Payment ID, Invoice #, and Approved Amount are required."); return; }
+    setSaving(true); setError(null);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("doc_type", "taconic_invoice");
-      const res = await fetch("/api/parse-document", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || "Parse failed");
-      setParsed(data.parsed);
-      buildReviewItems(data.parsed);
-      setStage("review");
-    } catch (e) {
-      setParseError(e.message);
-      setStage("upload");
-    }
-  };
-
-  // ── TOGGLE APPROVAL ───────────────────────────────────────────────────────
-  const toggle = (id) => {
-    setReviewItems(prev => prev.map(item =>
-      item.id === id && item.canToggle ? { ...item, approved: !item.approved } : item
-    ));
-  };
-
-  const approveAll = () => {
-    setReviewItems(prev => prev.map(item =>
-      item.canToggle ? { ...item, approved: true } : item
-    ));
-  };
-
-  // ── SUBMIT APPROVALS ──────────────────────────────────────────────────────
-  const submitApprovals = async () => {
-    setApproving(true);
-    try {
-      // 1. Save PDF to documents table
-      const fd = new FormData();
-      fd.append("file", pendingFile);
-      fd.append("name", pendingFile.name);
-      fd.append("type", "Invoice");
-      fd.append("vendor_key", "taconic");
-      fd.append("vendor_label", "Taconic Builders");
-      fd.append("linked_id", parsed?.header ? `#${parsed.header.invNum}` : "");
-      fd.append("note", `App #${parsed?.header?.applicationNum || ""} · Period: ${parsed?.header?.periodTo || ""}`);
-      await fetch("/api/documents", { method: "POST", body: fd });
-
-      // 2. Write approved items to DB
-      const toApprove = reviewItems.filter(i => i.approved && !i.informational);
-      const res = await fetch("/api/approve-items", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: toApprove })
+      const fmtInv = invForm.invNum.startsWith("#") ? invForm.invNum : `#${invForm.invNum}`;
+      await fetch(API + '/invoices', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: invForm.payId, reqDate: invForm.reqDate, invNum: fmtInv,
+          desc: `Period to: ${invForm.periodTo}`, jobTotal: parseFloat(invForm.jobTotal)||0,
+          fees: parseFloat(invForm.fees)||0, depositApplied: -(parseFloat(invForm.depositApplied)||0),
+          retainage: -(parseFloat(invForm.retainageHeld)||0), amtDue: parseFloat(invForm.amtDue)||0,
+          approved: parseFloat(invForm.approved)||0, paidDate: invForm.paidDate||null,
+          status: invForm.status, notes: invForm.notes||null,
+          actualPaid: parseFloat(invForm.actualPaid)||null, creditApplied: parseFloat(invForm.creditApplied)||null })
       });
-      const result = await res.json();
-      await refresh();
-      setDoneResults(result.results || []);
+      const validLi = invForm.lineItems.filter(li => li.code && li.currentBill);
+      if (validLi.length > 0) {
+        await fetch(API + '/approve-items', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: validLi.map(li => ({ type: 'line_item_billing', data: {
+            code: li.code, name: li.name, currentBill: parseFloat(li.currentBill),
+            completedToDate: parseFloat(li.completedToDate)||parseFloat(li.currentBill),
+            pctComplete: parseFloat(li.pctComplete)||0, invNum: fmtInv } })) })
+        });
+      }
+      if (pendingFile) {
+        const fd = new FormData();
+        fd.append("file", pendingFile); fd.append("name", pendingFile.name);
+        fd.append("type", "Invoice"); fd.append("vendor_key", "taconic");
+        fd.append("vendor_label", "Taconic Builders"); fd.append("linked_id", invForm.payId);
+        fd.append("note", `${fmtInv} · Period: ${invForm.periodTo}`);
+        await fetch(API + '/documents', { method: 'POST', body: fd });
+      }
+      setDoneMsg(`${invForm.payId} (${fmtInv}) saved — ${validLi.length} line item${validLi.length !== 1 ? "s" : ""} recorded.`);
       setStage("done");
-    } catch (e) {
-      setParseError(e.message);
-    }
-    setApproving(false);
+    } catch (e) { setError(e.message); }
+    setSaving(false);
+  };
+
+  const saveVendorInvoice = async () => {
+    if (!vendorForm.invNum || !vendorForm.amount) { setError("Invoice # and Amount required."); return; }
+    setSaving(true); setError(null);
+    try {
+      await fetch(API + `/vendors/${vendorForm.vendorKey}/invoices`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invNum: vendorForm.invNum, date: vendorForm.date, desc: vendorForm.desc, amount: parseFloat(vendorForm.amount)||0, status: vendorForm.status })
+      });
+      if (pendingFile) {
+        const fd = new FormData(); fd.append("file", pendingFile); fd.append("name", pendingFile.name);
+        fd.append("type", "Invoice"); fd.append("vendor_key", vendorForm.vendorKey); fd.append("linked_id", vendorForm.invNum);
+        await fetch(API + '/documents', { method: 'POST', body: fd });
+      }
+      setDoneMsg(`Invoice ${vendorForm.invNum} saved.`); setStage("done");
+    } catch (e) { setError(e.message); }
+    setSaving(false);
+  };
+
+  const storeOnly = async (type) => {
+    setSaving(true);
+    const fd = new FormData();
+    fd.append("file", pendingFile); fd.append("name", pendingFile.name);
+    fd.append("type", type); fd.append("vendor_key", ""); fd.append("linked_id", "");
+    await fetch(API + '/documents', { method: 'POST', body: fd });
+    setDoneMsg(`${pendingFile.name} stored.`); setStage("done"); setSaving(false);
   };
 
   const reset = () => {
-    setStage("upload");
-    setPendingFile(null);
-    setParsed(null);
-    setReviewItems([]);
-    setParseError(null);
-    setDoneResults(null);
+    setStage("upload"); setPendingFile(null); setError(null); setDoneMsg("");
+    setInvForm({ payId:"", invNum:"", reqDate:"", periodTo:"", jobTotal:"", fees:"", depositApplied:"", retainageHeld:"", amtDue:"", approved:"", paidDate:"", status:"Pending Payment", actualPaid:"", creditApplied:"", notes:"", lineItems:[{ code:"", name:"", currentBill:"", completedToDate:"", pctComplete:"" }] });
+    setVendorForm({ vendorKey:"ivan", invNum:"", date:"", desc:"", amount:"", status:"Pending" });
   };
 
-  // ── GROUP items by section ────────────────────────────────────────────────
-  const sections = reviewItems.reduce((acc, item) => {
-    (acc[item.section] = acc[item.section] || []).push(item);
-    return acc;
-  }, {});
+  const FileBanner = () => (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] px-5 py-4 flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <span className="text-xl">📄</span>
+        <div><p className="text-sm font-semibold text-gray-800">{pendingFile?.name}</p>
+        <p className="text-xs text-gray-400">{pendingFile ? (pendingFile.size/1024).toFixed(0)+" KB" : ""}</p></div>
+      </div>
+      <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600">Change file</button>
+    </div>
+  );
 
-  const supportedCount  = reviewItems.filter(i => i.status === "supported").length;
-  const tentativeCount  = reviewItems.filter(i => i.status === "tentative").length;
-  const conflictCount   = reviewItems.filter(i => i.status === "conflict").length;
-  const approvedCount   = reviewItems.filter(i => i.approved).length;
-
-  const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-400";
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // STAGE: UPLOAD
-  // ═══════════════════════════════════════════════════════════════════════════
   if (stage === "upload") return (
-    <div className="space-y-5">
-      <div className="bg-white border border-gray-200 rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-indigo-600 font-bold text-sm">1</div>
-          <div>
-            <p className="font-semibold text-gray-900">Smart Invoice Upload</p>
-            <p className="text-xs text-gray-400 mt-0.5">AI parses the PDF · Review changes · Approve to save</p>
-          </div>
+    <div className="space-y-5 max-w-2xl">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
+        <h2 className="text-sm font-bold text-gray-900 mb-1">Upload Document</h2>
+        <p className="text-xs text-gray-400 mb-5">Upload a PDF then enter the key figures — stored directly in your database.</p>
+        <div className="flex gap-2 mb-5">
+          {[["taconic_invoice","Taconic Invoice"],["vendor_invoice","Vendor Invoice"],["change_order","Change Order"],["award_letter","Award Letter"]].map(([id,lbl2]) => (
+            <button key={id} onClick={() => setDocType(id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" style={{ background: docType===id?"#111827":"#f3f4f6", color: docType===id?"#fff":"#6b7280" }}>{lbl2}</button>
+          ))}
         </div>
-
-        {parseError && (
-          <div className="mb-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">
-            <strong>Parse failed:</strong> {parseError}
-          </div>
-        )}
-
-        <div
-          className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${dragOver ? "border-indigo-400 bg-indigo-50" : "border-gray-200 hover:border-indigo-300"}`}
+        {error && <div className="mb-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
+        <div className="border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors"
+          style={{ borderColor: dragOver?"#6366f1":"#e5e7eb", background: dragOver?"#eef2ff":"#fafafa" }}
           onClick={() => fileRef.current?.click()}
           onDragOver={e => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
-          onDrop={e => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); }}
-        >
+          onDrop={e => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); }}>
           <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={e => handleFile(e.target.files[0])} />
-          <div className="text-4xl mb-3">📄</div>
-          <p className="text-sm font-semibold text-gray-600">Drop Taconic invoice PDF here</p>
-          <p className="text-xs text-gray-400 mt-1">or click to browse · PDF only</p>
-        </div>
-
-        <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-          {[["🤖", "AI Reads PDF", "Claude extracts all line items, COs, and amounts automatically"],
-            ["🔍", "Review Screen", "Every change is shown with ✅ Supported · ⚠️ Tentative · ❌ Conflict status"],
-            ["✋", "You Approve", "Nothing writes to the database until you approve it line by line"]
-          ].map(([icon, title, desc]) => (
-            <div key={title} className="bg-zinc-50 rounded-lg p-3">
-              <div className="text-lg mb-1">{icon}</div>
-              <p className="text-xs font-semibold text-gray-600">{title}</p>
-              <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{desc}</p>
-            </div>
-          ))}
+          <div className="text-3xl mb-3">📄</div>
+          <p className="text-sm font-semibold text-gray-700">Drop PDF here or click to browse</p>
+          <p className="text-xs text-gray-400 mt-1">PDF only · Stored in your database</p>
         </div>
       </div>
     </div>
   );
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // STAGE: PARSING
-  // ═══════════════════════════════════════════════════════════════════════════
-  if (stage === "parsing") return (
-    <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-      <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-      <p className="font-semibold text-gray-800">Parsing invoice...</p>
-      <p className="text-xs text-gray-400 mt-1">{pendingFile?.name}</p>
-      <p className="text-xs text-gray-300 mt-3">Claude is reading all line items, change orders, and amounts</p>
-    </div>
-  );
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // STAGE: REVIEW
-  // ═══════════════════════════════════════════════════════════════════════════
-  if (stage === "review") return (
-    <div className="space-y-4">
-      {/* Summary bar */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <p className="font-semibold text-gray-900">Review: {pendingFile?.name}</p>
-            <p className="text-xs text-gray-400 mt-0.5">Invoice #{parsed?.header?.invNum} · Period to {parsed?.header?.periodTo}</p>
-          </div>
-          <div className="flex gap-3 text-xs">
-            <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-medium">✅ {supportedCount} supported</span>
-            {tentativeCount > 0 && <span className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-medium">⚠️ {tentativeCount} tentative</span>}
-            {conflictCount > 0 && <span className="flex items-center gap-1.5 bg-red-50 text-red-600 px-2.5 py-1 rounded-full font-medium">❌ {conflictCount} conflict</span>}
-          </div>
+  if (stage === "form" && docType === "taconic_invoice") return (
+    <div className="space-y-5 max-w-3xl">
+      <FileBanner />
+      {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-5">Invoice Header</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className={lbl}>Payment ID <span className="text-red-400">*</span></label><input value={invForm.payId} onChange={e=>setInvForm(f=>({...f,payId:e.target.value}))} placeholder="PAY-008" className={inp}/></div>
+          <div><label className={lbl}>Invoice # <span className="text-red-400">*</span></label><input value={invForm.invNum} onChange={e=>setInvForm(f=>({...f,invNum:e.target.value}))} placeholder="1976" className={inp}/></div>
+          <div><label className={lbl}>Request Date</label><input value={invForm.reqDate} onChange={e=>setInvForm(f=>({...f,reqDate:e.target.value}))} placeholder="02/09/2026" className={inp}/></div>
+          <div><label className={lbl}>Period To</label><input value={invForm.periodTo} onChange={e=>setInvForm(f=>({...f,periodTo:e.target.value}))} placeholder="January 31, 2026" className={inp}/></div>
         </div>
-
-        {tentativeCount > 0 && (
-          <div className="mt-3 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2.5 text-xs text-indigo-700">
-            <strong>⚠️ {tentativeCount} item{tentativeCount > 1 ? "s" : ""} need supporting documents</strong> — upload the missing Change Order PDFs to unlock those lines. All other supported items can be approved now.
+      </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-5">Amounts</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className={lbl}>Job Total (Contract Works)</label><input value={invForm.jobTotal} onChange={e=>setInvForm(f=>({...f,jobTotal:e.target.value}))} placeholder="286510.66" className={inp}/></div>
+          <div><label className={lbl}>GC Fee + Insurance</label><input value={invForm.fees} onChange={e=>setInvForm(f=>({...f,fees:e.target.value}))} placeholder="48434.63" className={inp}/></div>
+          <div><label className={lbl}>Deposit Applied</label><input value={invForm.depositApplied} onChange={e=>setInvForm(f=>({...f,depositApplied:e.target.value}))} placeholder="121719.15" className={inp}/><p className="text-xs text-gray-300 mt-1">Enter positive</p></div>
+          <div><label className={lbl}>Retainage This Period</label><input value={invForm.retainageHeld} onChange={e=>setInvForm(f=>({...f,retainageHeld:e.target.value}))} placeholder="30465.49" className={inp}/></div>
+          <div><label className={lbl}>Amount Due</label><input value={invForm.amtDue} onChange={e=>setInvForm(f=>({...f,amtDue:e.target.value}))} placeholder="182760.65" className={inp}/></div>
+          <div><label className={lbl}>Approved Amount <span className="text-red-400">*</span></label><input value={invForm.approved} onChange={e=>setInvForm(f=>({...f,approved:e.target.value}))} placeholder="182760.65" className={inp}/></div>
+        </div>
+        {invForm.approved && invForm.jobTotal && (
+          <div className={`mt-4 rounded-lg px-4 py-3 text-xs font-medium border ${calcDiff<1?"bg-emerald-50 border-emerald-200 text-emerald-700":"bg-amber-50 border-amber-200 text-amber-700"}`}>
+            {calcDiff<1?"✓ Amounts balance correctly":`⚠ Calculated: ${$f(taconicCalc())} vs Approved: ${$f(approved)} — ${$f(calcDiff)} difference`}
           </div>
         )}
       </div>
-
-      {/* Review items by section */}
-      {Object.entries(sections).map(([sectionName, items]) => (
-        <div key={sectionName} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{sectionName}</span>
-            <span className="text-xs text-gray-400">{items.length} item{items.length > 1 ? "s" : ""}</span>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-5">Payment</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className={lbl}>Status</label><select value={invForm.status} onChange={e=>setInvForm(f=>({...f,status:e.target.value}))} className={inp}>{["Pending Payment","Paid"].map(s=><option key={s}>{s}</option>)}</select></div>
+          {invForm.status==="Paid"&&<div><label className={lbl}>Date Paid</label><input value={invForm.paidDate} onChange={e=>setInvForm(f=>({...f,paidDate:e.target.value}))} placeholder="MM/DD/YYYY" className={inp}/></div>}
+          <div><label className={lbl}>Actual Wire ($)</label><input value={invForm.actualPaid} onChange={e=>setInvForm(f=>({...f,actualPaid:e.target.value}))} placeholder="0 if covered by credit" className={inp}/></div>
+          <div><label className={lbl}>Credit Applied ($)</label><input value={invForm.creditApplied} onChange={e=>setInvForm(f=>({...f,creditApplied:e.target.value}))} placeholder="From overpayment" className={inp}/></div>
+          <div className="col-span-2"><label className={lbl}>Notes</label><input value={invForm.notes} onChange={e=>setInvForm(f=>({...f,notes:e.target.value}))} placeholder="Optional..." className={inp}/></div>
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div><h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Line Items Billed This Period</h3><p className="text-xs text-gray-300 mt-1">Only enter lines with non-zero current bill</p></div>
+          <button onClick={addLineItem} className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">+ Add Line</button>
+        </div>
+        <div className="space-y-3">
+          {invForm.lineItems.map((li,i)=>(
+            <div key={i} className="grid grid-cols-12 gap-2 items-end p-3 bg-gray-50 rounded-lg border border-gray-100">
+              <div className="col-span-2"><label className={lbl}>CSI Code</label><input value={li.code} onChange={e=>updateLineItem(i,"code",e.target.value)} placeholder="01-001" className={inp}/></div>
+              <div className="col-span-3"><label className={lbl}>Description</label><input value={li.name} onChange={e=>updateLineItem(i,"name",e.target.value)} placeholder="Project Staffing" className={inp}/></div>
+              <div className="col-span-2"><label className={lbl}>This Period ($)</label><input value={li.currentBill} onChange={e=>updateLineItem(i,"currentBill",e.target.value)} placeholder="22420.00" className={inp}/></div>
+              <div className="col-span-2"><label className={lbl}>Completed to Date</label><input value={li.completedToDate} onChange={e=>updateLineItem(i,"completedToDate",e.target.value)} placeholder="186786.64" className={inp}/></div>
+              <div className="col-span-2"><label className={lbl}>% Complete</label><input value={li.pctComplete} onChange={e=>updateLineItem(i,"pctComplete",e.target.value)} placeholder="13.66" className={inp}/></div>
+              <div className="col-span-1"><button onClick={()=>removeLineItem(i)} className="w-full py-2 text-xs text-gray-300 hover:text-red-400 rounded-lg border border-gray-200 hover:border-red-200">✕</button></div>
+            </div>
+          ))}
+        </div>
+        {invForm.lineItems.some(li=>li.currentBill)&&invForm.jobTotal&&(
+          <div className={`mt-3 rounded-lg px-4 py-2 text-xs font-medium border ${liDiff<1?"bg-emerald-50 border-emerald-200 text-emerald-700":"bg-gray-50 border-gray-200 text-gray-500"}`}>
+            Line items: {$f(liTotal())} vs Job total: {$f(parseFloat(invForm.jobTotal))}{liDiff>1?` — ${$f(liDiff)} diff (ok if not all lines entered yet)`:" ✓"}
           </div>
-          <div className="divide-y divide-zinc-50">
-            {items.map(item => {
-              const s = STATUS[item.status];
-              return (
-                <div key={item.id} className={`px-4 py-3 flex items-start gap-3 ${item.approved && !item.informational ? "bg-emerald-50/30" : ""}`}>
-                  {/* Checkbox — only for approvable items */}
-                  <div className="pt-0.5 shrink-0">
-                    {item.canToggle ? (
-                      <button
-                        onClick={() => toggle(item.id)}
-                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${item.approved ? "bg-emerald-500 border-emerald-500 text-white" : "border-zinc-300 hover:border-indigo-400"}`}
-                      >
-                        {item.approved && <span className="text-white text-xs font-bold">✓</span>}
-                      </button>
-                    ) : item.informational ? (
-                      <span className="text-gray-300 text-sm">ℹ️</span>
-                    ) : (
-                      <span className="w-5 h-5 flex items-center justify-center text-sm">{s.icon}</span>
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-xs font-semibold text-gray-800">{item.label}</p>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border shrink-0 ${s.bg} ${s.color}`}>{s.label}</span>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-0.5">{item.details}</p>
-                    {item.extraDetails?.map((d, i) => (
-                      <p key={i} className="text-xs text-gray-400 mt-0.5">{d}</p>
-                    ))}
-                    {item.note && (
-                      <p className={`text-xs mt-1 font-medium ${item.locked ? "text-indigo-600" : item.status === "conflict" ? "text-red-500" : "text-gray-400"}`}>
-                        {item.locked ? "🔒 " : ""}{item.note}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-
-      {/* Action bar */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between gap-4">
-        <div className="text-xs text-gray-400">
-          <strong className="text-gray-800">{approvedCount}</strong> item{approvedCount !== 1 ? "s" : ""} selected to approve
-          {tentativeCount > 0 && <span className="text-indigo-600 ml-2">· {tentativeCount} locked pending CO upload</span>}
-        </div>
-        <div className="flex gap-2">
-          <button onClick={approveAll} className="px-3 py-2 text-xs font-semibold rounded-lg border border-gray-200 text-gray-500 hover:bg-zinc-50 transition-colors">
-            Select All Supported
-          </button>
-          <button onClick={reset} className="px-3 py-2 text-xs font-semibold rounded-lg border border-gray-200 text-gray-500 hover:bg-zinc-50 transition-colors">
-            Cancel
-          </button>
-          <button
-            onClick={submitApprovals}
-            disabled={approvedCount === 0 || approving}
-            className={`px-5 py-2 text-xs font-bold rounded-lg transition-colors ${approvedCount > 0 && !approving ? "bg-gray-900 hover:bg-gray-800 text-white shadow-sm" : "bg-zinc-100 text-gray-400 cursor-not-allowed"}`}
-          >
-            {approving ? "Saving..." : `Approve ${approvedCount} Item${approvedCount !== 1 ? "s" : ""}`}
-          </button>
-        </div>
+        )}
+      </div>
+      <div className="flex gap-3">
+        <button onClick={reset} className="px-5 py-3 text-sm font-semibold rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50">Cancel</button>
+        <button onClick={saveTaconicInvoice} disabled={saving||!invForm.payId||!invForm.invNum||!invForm.approved}
+          className="flex-1 py-3 text-sm font-bold rounded-xl text-white transition-colors"
+          style={{ background: saving||!invForm.payId||!invForm.invNum||!invForm.approved?"#e5e7eb":"#111827", color: saving||!invForm.payId||!invForm.invNum||!invForm.approved?"#9ca3af":"#fff" }}>
+          {saving?"Saving...":"Save Invoice + Line Items →"}
+        </button>
       </div>
     </div>
   );
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // STAGE: DONE
-  // ═══════════════════════════════════════════════════════════════════════════
-  if (stage === "done") return (
-    <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
-      <div className="text-4xl mb-3">✅</div>
-      <p className="font-bold text-gray-900 text-lg">Invoice saved successfully</p>
-      <p className="text-xs text-gray-400 mt-1 mb-6">
-        {doneResults?.filter(r => r.ok).length || 0} items written to database · PDF stored in Documents
-        {tentativeCount > 0 && ` · ${tentativeCount} tentative items still pending CO upload`}
-      </p>
-
-      {doneResults?.some(r => !r.ok) && (
-        <div className="text-left bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 text-xs text-red-600">
-          <strong>Some items failed:</strong>
-          {doneResults.filter(r => !r.ok).map((r, i) => <div key={i}>{r.type}: {r.error}</div>)}
+  if (stage === "form" && docType === "vendor_invoice") return (
+    <div className="space-y-5 max-w-xl">
+      <FileBanner />
+      {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6 space-y-4">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Vendor Invoice</h3>
+        <div><label className={lbl}>Vendor</label><select value={vendorForm.vendorKey} onChange={e=>setVendorForm(f=>({...f,vendorKey:e.target.value}))} className={inp}><option value="ivan">Ivan Zdrahal PE</option><option value="reed">Reed Hilderbrand</option><option value="arch">Architecturefirm</option></select></div>
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className={lbl}>Invoice # <span className="text-red-400">*</span></label><input value={vendorForm.invNum} onChange={e=>setVendorForm(f=>({...f,invNum:e.target.value}))} placeholder="103443" className={inp}/></div>
+          <div><label className={lbl}>Date</label><input value={vendorForm.date} onChange={e=>setVendorForm(f=>({...f,date:e.target.value}))} placeholder="01/05/2026" className={inp}/></div>
+          <div className="col-span-2"><label className={lbl}>Description</label><input value={vendorForm.desc} onChange={e=>setVendorForm(f=>({...f,desc:e.target.value}))} placeholder="CM Phase C..." className={inp}/></div>
+          <div><label className={lbl}>Amount ($) <span className="text-red-400">*</span></label><input value={vendorForm.amount} onChange={e=>setVendorForm(f=>({...f,amount:e.target.value}))} placeholder="2655.00" className={inp}/></div>
+          <div><label className={lbl}>Status</label><select value={vendorForm.status} onChange={e=>setVendorForm(f=>({...f,status:e.target.value}))} className={inp}>{["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}</select></div>
         </div>
-      )}
+      </div>
+      <div className="flex gap-3">
+        <button onClick={reset} className="px-5 py-3 text-sm font-semibold rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50">Cancel</button>
+        <button onClick={saveVendorInvoice} disabled={saving} className="flex-1 py-3 text-sm font-bold rounded-xl text-white" style={{ background: saving?"#e5e7eb":"#111827" }}>{saving?"Saving...":"Save Vendor Invoice →"}</button>
+      </div>
+    </div>
+  );
 
-      <div className="flex gap-3 justify-center">
-        <button onClick={reset} className="px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold rounded-lg transition-colors">
-          Upload Another Document
-        </button>
+  if (stage === "form") return (
+    <div className="space-y-5 max-w-xl">
+      <FileBanner />
+      {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
+      <div className="bg-white rounded-xl border border-gray-100 p-5 text-sm text-gray-500">Ready to store as {docType==="change_order"?"Change Order":"Award Letter"} — PDF will be saved to Documents.</div>
+      <div className="flex gap-3">
+        <button onClick={reset} className="px-5 py-3 text-sm font-semibold rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50">Cancel</button>
+        <button onClick={()=>storeOnly(docType==="change_order"?"Change Order":"Award Letter")} disabled={saving} className="flex-1 py-3 text-sm font-bold rounded-xl text-white" style={{ background:"#111827" }}>{saving?"Saving...":"Store Document →"}</button>
+      </div>
+    </div>
+  );
+
+  if (stage === "done") return (
+    <div className="max-w-xl">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-8 text-center">
+        <div className="text-4xl mb-3">✅</div>
+        <p className="font-bold text-gray-900">Saved successfully</p>
+        <p className="text-sm text-gray-400 mt-1 mb-6">{doneMsg}</p>
+        <button onClick={reset} className="px-6 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-colors">Upload Another</button>
       </div>
     </div>
   );
