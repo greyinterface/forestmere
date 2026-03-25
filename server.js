@@ -320,27 +320,80 @@ async function seedIfEmpty() {
   for (const r of lineItemsRows) {
     await pool.query('INSERT INTO line_items VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING', r);
   }
+  // Extra line items needed for complete billing data
+  const extraLineItems = [
+    ['26-320','Electric Generators',12000,0,0,0],
+    ['26-500','Interior Lighting Fixtures',129229,0,0,0],
+    ['26-560','Exterior Lighting Fixtures',87250,0,0,0],
+    ['33-100','Water Service',108240,0,0,0],
+    ['33-150','Gas Services / Tank',10000,0,0,0],
+    ['33-300','Septic / Sewer Systems',132770,0,0,0],
+    ['97-000','Fee (GC 13.5%)',0,0,0,0],
+    ['98-000','Insurance (3%)',0,0,0,0],
+    ['99-200','Deposit Applied',0,0,0,0],
+  ];
+  for (const r of extraLineItems) {
+    await pool.query('INSERT INTO line_items (code,name,budget,cos,done,pct) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING', r);
+  }
 
-  // LINE ITEM BILLINGS — seeded from Excel Line Item Billing tab (PAY-001 through PAY-007)
+  // LINE ITEM BILLINGS — complete data from Excel Line Item Billing tab
+  // Covers PAY-001 (Deposit) through PAY-007 (#1956) — 67 billings
   const billings = [
-    // PAY-002 #1621
-    ['01-001','#1621',18225],['02-002','#1621',48297.32],['08-400','#1621',65102.54],
-    ['31-200','#1621',198067],['31-110','#1621',42207.55],
-    // PAY-003 #1693
-    ['01-001','#1693',33185],['02-002','#1693',9217.82],['08-330','#1693',62254.20],
-    ['31-200','#1693',241737],['31-110','#1693',45302.45],
-    // PAY-004 #1750
-    ['01-001','#1750',26170],['02-002','#1750',6264.82],['03-330','#1750',137250],
-    ['33-340','#1750',114792.44],['33-370','#1750',63730],['26-100','#1750',81161.65],
-    ['32-100','#1750',115737.16],['31-200','#1750',180000],
-    // PAY-005 #1819
-    ['01-001','#1819',40816.64],['02-002','#1819',6608.71],
-    // PAY-006 #1880
-    ['01-001','#1880',22475],['02-002','#1880',9759.30],['02-100','#1880',1733],
+    // 01-001 Project Staffing
+    ['01-001','#1621',18225],['01-001','#1693',33185],['01-001','#1750',26170],
+    ['01-001','#1819',40816.64],['01-001','#1880',22475],['01-001','#1956',23495],
+    // 02-002 Site Preparation
+    ['02-002','#1621',48297.32],['02-002','#1693',9217.82],['02-002','#1750',6264.82],
+    ['02-002','#1819',6608.71],['02-002','#1880',9759.30],['02-002','#1956',16471.77],
+    // 02-100 Debris Removal
+    ['02-100','#1880',1733],
+    // 03-330 Cast In Place Concrete
+    ['03-330','#1819',137250],
+    // 06-210 Ext Finish Carpentry Material
     ['06-210','#1880',76576.19],
-    // PAY-007 #1956
-    ['01-001','#1956',23495],['02-002','#1956',16471.77],['11-300','#1956',22755.58],
-    ['31-200','#1956',8653.28],['33-370','#1956',7500],
+    // 08-330 Garage Doors
+    ['08-330','#1693',62254.20],
+    // 08-400 Exterior Doors
+    ['08-400','#1621',65102.54],
+    // 11-300 Residential Equipment
+    ['11-300','#1956',22755.58],
+    // 26-100 Electrical Power & Switching
+    ['26-100','#1621',48356.60],['26-100','#1750',14300],
+    ['26-100','#1819',13505.05],['26-100','#1880',5000],
+    // 26-320 Electric Generators
+    ['26-320','#1621',240],
+    // 26-500 Interior Lighting Fixtures
+    ['26-500','#1621',25036],
+    // 26-560 Exterior Lighting Fixtures
+    ['26-560','#1621',3200],['26-560','#1880',2000],
+    // 31-110 Site Clearing
+    ['31-110','#1750',87510],
+    // 31-200 Excavations & Backfilling
+    ['31-200','#1693',243500],['31-200','#1750',232274.75],
+    ['31-200','#1819',123082.39],['31-200','#1880',20819.47],['31-200','#1956',8653.28],
+    // 32-100 Driveway & Curbing
+    ['32-100','#1750',90685.48],['32-100','#1819',20440.68],['32-100','#1880',4611],
+    // 33-100 Water Service
+    ['33-100','#1693',27600],['33-100','#1819',3302.11],
+    // 33-150 Gas Services
+    ['33-150','#1621',2000],
+    // 33-300 Septic / Sewer Systems
+    ['33-300','#1819',69169.10],['33-300','#1880',5720],
+    // 33-340 Foundation Drainage
+    ['33-340','#1819',86891.85],['33-340','#1880',27900.59],
+    // 33-370 Electrical Service
+    ['33-370','#1621',163231.95],['33-370','#1693',69956.55],['33-370','#1750',117000],
+    ['33-370','#1819',24552.32],['33-370','#1880',20000],['33-370','#1956',7500],
+    // 97-000 Fee (GC Fee per invoice)
+    ['97-000','#1621',50448.07],['97-000','#1693',60171.33],['97-000','#1750',77517.68],
+    ['97-000','#1819',70958.54],['97-000','#1880',26540.26],['97-000','#1956',10648.21],
+    // 98-000 Insurance
+    ['98-000','#1621',12724.12],['98-000','#1693',15176.55],['98-000','#1750',19551.68],
+    ['98-000','#1819',17897.32],['98-000','#1880',6694.04],['98-000','#1956',2685.72],
+    // 99-200 Deposit Applied (negative = credit against invoice)
+    ['99-200','C25-104-Deposit',1436830.08],
+    ['99-200','#1621',-291331.16],['99-200','#1693',-161669.51],['99-200','#1750',-70273.47],
+    ['99-200','#1819',-126944.29],['99-200','#1880',-66221.94],['99-200','#1956',-26602.41],
   ];
   for (const r of billings) {
     await pool.query('INSERT INTO line_item_billings VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', r);
@@ -724,6 +777,27 @@ app.delete('/api/vendors/invoices/:id', async (req, res) => {
 });
 
 // ─── DOCUMENTS ────────────────────────────────────────────────────────────────
+// ─── LINE ITEM BILLING UPSERT + DELETE ───────────────────────────────────────
+app.post('/api/line-item-billings', async (req, res) => {
+  try {
+    const { code, invNum, amount } = req.body;
+    await pool.query(
+      'INSERT INTO line_item_billings (line_item_code, inv_num, amount) VALUES ($1,$2,$3) ON CONFLICT (line_item_code, inv_num) DO UPDATE SET amount=$3',
+      [code, invNum, amount]
+    );
+    // Recalculate done/pct
+    const sum = await pool.query('SELECT COALESCE(SUM(amount),0) as total FROM line_item_billings WHERE line_item_code=$1 AND amount > 0', [code]);
+    const done = parseFloat(sum.rows[0].total) || 0;
+    const li = await pool.query('SELECT budget, cos FROM line_items WHERE code=$1', [code]);
+    if (li.rows.length > 0) {
+      const revised = parseFloat(li.rows[0].budget||0) + parseFloat(li.rows[0].cos||0);
+      const pct = revised > 0 ? Math.min(done/revised, 1) : 0;
+      await pool.query('UPDATE line_items SET done=$1, pct=$2 WHERE code=$3', [done, pct, code]);
+    }
+    res.json({ ok: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 // ─── LINE ITEM BILLING DELETE ─────────────────────────────────────────────────
 app.delete('/api/line-item-billings/:code/:invNum', async (req, res) => {
   try {
@@ -929,6 +1003,56 @@ app.get('/api/reconciliation', async (req, res) => {
 });
 
 // ─── DB MIGRATION: ensure all line items seeded properly ────────────────────
+app.post('/api/admin/reseed-billings', async (req, res) => {
+  try {
+    // Clear existing billings and reseed from Excel
+    await pool.query('DELETE FROM line_item_billings');
+    const billings = [
+      ['01-001','#1621',18225],['01-001','#1693',33185],['01-001','#1750',26170],
+      ['01-001','#1819',40816.64],['01-001','#1880',22475],['01-001','#1956',23495],
+      ['02-002','#1621',48297.32],['02-002','#1693',9217.82],['02-002','#1750',6264.82],
+      ['02-002','#1819',6608.71],['02-002','#1880',9759.30],['02-002','#1956',16471.77],
+      ['02-100','#1880',1733],['03-330','#1819',137250],['06-210','#1880',76576.19],
+      ['08-330','#1693',62254.20],['08-400','#1621',65102.54],['11-300','#1956',22755.58],
+      ['26-100','#1621',48356.60],['26-100','#1750',14300],['26-100','#1819',13505.05],['26-100','#1880',5000],
+      ['26-320','#1621',240],['26-500','#1621',25036],['26-560','#1621',3200],['26-560','#1880',2000],
+      ['31-110','#1750',87510],
+      ['31-200','#1693',243500],['31-200','#1750',232274.75],['31-200','#1819',123082.39],
+      ['31-200','#1880',20819.47],['31-200','#1956',8653.28],
+      ['32-100','#1750',90685.48],['32-100','#1819',20440.68],['32-100','#1880',4611],
+      ['33-100','#1693',27600],['33-100','#1819',3302.11],['33-150','#1621',2000],
+      ['33-300','#1819',69169.10],['33-300','#1880',5720],
+      ['33-340','#1819',86891.85],['33-340','#1880',27900.59],
+      ['33-370','#1621',163231.95],['33-370','#1693',69956.55],['33-370','#1750',117000],
+      ['33-370','#1819',24552.32],['33-370','#1880',20000],['33-370','#1956',7500],
+      ['97-000','#1621',50448.07],['97-000','#1693',60171.33],['97-000','#1750',77517.68],
+      ['97-000','#1819',70958.54],['97-000','#1880',26540.26],['97-000','#1956',10648.21],
+      ['98-000','#1621',12724.12],['98-000','#1693',15176.55],['98-000','#1750',19551.68],
+      ['98-000','#1819',17897.32],['98-000','#1880',6694.04],['98-000','#1956',2685.72],
+      ['99-200','C25-104-Deposit',1436830.08],
+      ['99-200','#1621',-291331.16],['99-200','#1693',-161669.51],['99-200','#1750',-70273.47],
+      ['99-200','#1819',-126944.29],['99-200','#1880',-66221.94],['99-200','#1956',-26602.41],
+    ];
+    for (const b of billings) {
+      await pool.query('INSERT INTO line_item_billings VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', b);
+    }
+    // Recalculate done/pct for all line items
+    const allCodes = await pool.query('SELECT DISTINCT line_item_code FROM line_item_billings');
+    for (const row of allCodes.rows) {
+      const code = row.line_item_code;
+      const sum = await pool.query('SELECT COALESCE(SUM(amount),0) as total FROM line_item_billings WHERE line_item_code=$1 AND amount > 0', [code]);
+      const done = parseFloat(sum.rows[0].total) || 0;
+      const li = await pool.query('SELECT budget, cos FROM line_items WHERE code=$1', [code]);
+      if (li.rows.length > 0) {
+        const revised = parseFloat(li.rows[0].budget||0) + parseFloat(li.rows[0].cos||0);
+        const pct = revised > 0 ? Math.min(done/revised, 1) : 0;
+        await pool.query('UPDATE line_items SET done=$1, pct=$2 WHERE code=$3', [done, pct, code]);
+      }
+    }
+    res.json({ ok: true, billings: billings.length });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/admin/reseed-line-items', async (req, res) => {
   try {
     // Add any missing line items that were billed but not in line_items table
