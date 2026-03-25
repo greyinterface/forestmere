@@ -1535,21 +1535,17 @@ function UploadsView() {
 
 // ─── RECONCILE VIEW ───────────────────────────────────────────────────────────
 function ReconcileView() {
-  const { refresh } = useAppData();
-  const [data, setData] = useState(null);
+  const { invoices, changeOrders, lineItems, budget, refresh } = useAppData();
+  const [recon, setRecon]   = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('issues');
 
   const load = async () => {
     setLoading(true);
-    setError(null);
     try {
       const r = await apiFetch('/reconciliation');
-      if (r.error) throw new Error(r.error);
-      setData(r);
-    } catch (e) {
-      setError(e.message);
-    }
+      setRecon(r);
+    } catch(e) {}
     setLoading(false);
   };
 
@@ -1561,146 +1557,253 @@ function ReconcileView() {
     </div>
   );
 
-  if (error) return (
-    <Card className="p-6 text-center">
-      <p className="text-red-500 text-sm font-semibold mb-2">Failed to load reconciliation</p>
-      <p className="text-xs text-zinc-400 mb-4">{error}</p>
-      <button onClick={load} className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg">Retry</button>
-    </Card>
-  );
+  const checks   = recon?.checks || [];
+  const summary  = recon?.summary || { passed: 0, failed: 0, warned: 0, total: 0 };
 
-  const { checks, summary } = data;
+  // Separate issues from passing
+  const issues  = checks.filter(c => !c.pass);
+  const passing = checks.filter(c => c.pass);
 
-  const severityConfig = {
-    info:  { icon: "ℹ", bg: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40",  text: "text-blue-600 dark:text-blue-400",  badge: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" },
-    warn:  { icon: "⚠", bg: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40", text: "text-amber-600 dark:text-amber-400", badge: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" },
-    error: { icon: "✕", bg: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40",    text: "text-red-600 dark:text-red-400",    badge: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"   },
+  // What invoices are missing line item data?
+  const invoicesWithNoLineItems = invoices.filter(inv => {
+    if (inv.inv_num === 'C25-104-Deposit') return false;
+    const hasData = lineItems.some(li => li.inv && li.inv[inv.inv_num]);
+    return !hasData;
+  });
+
+  // Plain-English action map per check ID
+  const actionMap = {
+    co_total: {
+      plain: "Your Change Orders in the app don't add up to the same total as the line items. This usually means a CO was uploaded that isn't reflected in the budget lines, or vice versa.",
+      fix: "Review the Change Orders tab — make sure every CO has a matching line item code, and that the amounts match exactly.",
+      tab: 'cos',
+      btnLabel: 'Go to Change Orders →',
+    },
+    contract_amount: {
+      plain: "The sum of your Control Budget lines does not exactly match Taconic's original contract value of $13,093,419.47.",
+      fix: "This is usually a rounding difference. Check the Control Budget tab for any lines that may have been entered incorrectly.",
+      tab: 'budget',
+      btnLabel: 'Review Control Budget →',
+    },
+    revised_contract: {
+      plain: "Original contract + all approved COs does not equal Taconic's certified revised contract amount.",
+      fix: "Check that all Change Orders are entered with the correct amounts including fees.",
+      tab: 'cos',
+      btnLabel: 'Go to Change Orders →',
+    },
+    retainage_total: {
+      plain: "The running retainage total across all invoices does not match the certified retainage amount.",
+      fix: "This is likely because PAY-008 or PAY-009 have not been fully entered yet. Upload those invoices via the Documents tab.",
+      tab: 'uploads',
+      btnLabel: 'Upload Invoices →',
+    },
+    completed_to_date: {
+      plain: "The sum of line items completed does not match Taconic's certified Completed to Date figure. This is expected until all invoices are uploaded.",
+      fix: "Upload PAY-008 (#1976) and PAY-009 (#2039) through the Documents tab. Once approved, the line items will update automatically.",
+      tab: 'uploads',
+      btnLabel: 'Upload Invoices →',
+    },
+    paid_total: {
+      plain: null, // informational only
+    },
   };
 
-  const passConfig = { icon: "✓", bg: "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/40", text: "text-emerald-600 dark:text-emerald-400", badge: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" };
-
-  const invoiceChecks = checks.filter(c => c.id.startsWith("inv_"));
-  const systemChecks  = checks.filter(c => !c.id.startsWith("inv_"));
+  const [navigateTo, setNavigateTo] = useState(null);
 
   return (
     <div className="space-y-5">
-      {/* Summary bar */}
-      <div className="grid grid-cols-4 gap-3">
-        <Stat label="Total Checks" value={String(summary.total)} sub="All reconciliation rules" />
-        <Stat label="Passing" value={String(summary.passed)} sub="Balanced ✓" accent={false} onClick={load} />
-        <Stat label="Warnings" value={String(summary.warned)} sub="Minor discrepancies" accent={summary.warned > 0} />
-        <Stat label="Errors" value={String(summary.failed)} sub="Needs attention" accent={summary.failed > 0} onClick={load} />
+
+      {/* Header scorecard */}
+      <div className={`rounded-xl p-5 border ${issues.length === 0 ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/40' : 'bg-white dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600'}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className={`text-2xl font-bold ${issues.length === 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`}>
+                {issues.length === 0 ? '✓ Books Balanced' : `${issues.length} Item${issues.length > 1 ? 's' : ''} Need Attention`}
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400 mt-1">
+              {passing.length} of {checks.length} checks passing
+              {invoicesWithNoLineItems.length > 0 && ` · ${invoicesWithNoLineItems.length} invoice${invoicesWithNoLineItems.length > 1 ? 's' : ''} missing line item detail`}
+            </p>
+          </div>
+          <button onClick={load} className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-zinc-600 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">
+            ↻ Refresh
+          </button>
+        </div>
+
+        {/* Mini progress bar */}
+        <div className="mt-3 flex gap-1 h-1.5">
+          {checks.map((c, i) => (
+            <div key={i} className={`flex-1 rounded-full ${c.pass ? 'bg-emerald-400' : c.severity === 'error' ? 'bg-red-400' : c.severity === 'warn' ? 'bg-amber-400' : 'bg-blue-400'}`} />
+          ))}
+        </div>
       </div>
 
-      {summary.failed > 0 && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-xl px-4 py-3 text-xs text-red-700 dark:text-red-400">
-          <strong>⚠ {summary.failed} reconciliation error{summary.failed > 1 ? "s" : ""} detected.</strong> Review the items below — these indicate the app data does not match Taconic&apos;s certified amounts.
-        </div>
-      )}
+      {/* Tab switcher */}
+      <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-600">
+        {[
+          { id: 'issues',   label: `Issues${issues.length > 0 ? ` (${issues.length})` : ''}` },
+          { id: 'missing',  label: `Missing Data${invoicesWithNoLineItems.length > 0 ? ` (${invoicesWithNoLineItems.length})` : ''}` },
+          { id: 'passing',  label: `All Checks (${checks.length})` },
+        ].map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            className={`px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all ${activeTab === t.id ? 'border-amber-500 text-amber-600 dark:text-amber-400' : 'border-transparent text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-      {summary.passed === summary.total && (
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-3 text-xs text-emerald-700 dark:text-emerald-400 font-semibold">
-          ✓ All checks passing — books are balanced.
-        </div>
-      )}
-
-      {/* System-level checks */}
-      <Card className="overflow-hidden">
-        <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-600">
-          <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Contract & Budget Checks</span>
-        </div>
-        <div className="divide-y divide-zinc-50 dark:divide-zinc-600/50">
-          {systemChecks.map(c => {
-            const cfg = c.pass ? passConfig : severityConfig[c.severity] || severityConfig.warn;
+      {/* ISSUES TAB */}
+      {activeTab === 'issues' && (
+        <div className="space-y-3">
+          {issues.length === 0 ? (
+            <Card className="p-8 text-center">
+              <div className="text-3xl mb-2">✓</div>
+              <p className="font-semibold text-emerald-600 dark:text-emerald-400">No issues found</p>
+              <p className="text-xs text-zinc-400 mt-1">All reconciliation checks are passing</p>
+            </Card>
+          ) : issues.filter(c => c.severity !== 'info').map(c => {
+            const action = actionMap[c.id];
+            if (!action || !action.plain) return null;
             return (
-              <div key={c.id} className={`px-4 py-3.5 border-l-4 ${c.pass ? "border-l-emerald-400" : c.severity === "error" ? "border-l-red-400" : c.severity === "warn" ? "border-l-amber-400" : "border-l-blue-400"}`}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className={`text-sm font-bold ${cfg.text}`}>{cfg.icon}</span>
-                      <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{c.label}</p>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.badge}`}>
-                        {c.pass ? "Pass" : c.severity === "info" ? "Info" : c.severity === "warn" ? "Warning" : "Error"}
+              <Card key={c.id} className="overflow-hidden">
+                <div className={`px-4 py-3 border-b ${c.severity === 'error' ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-900/30' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-bold ${c.severity === 'error' ? 'text-red-500' : 'text-amber-500'}`}>{c.severity === 'error' ? '✕' : '⚠'}</span>
+                      <span className={`text-xs font-bold ${c.severity === 'error' ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'}`}>{c.label}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs text-zinc-400">Gap: </span>
+                      <span className={`text-xs font-bold font-mono ${c.severity === 'error' ? 'text-red-500' : 'text-amber-500'}`}>
+                        {c.diff != null ? ((c.diff >= 0 ? '+' : '') + $f(c.diff)) : '—'}
                       </span>
                     </div>
-                    <p className="text-xs text-zinc-400 dark:text-zinc-500">{c.description}</p>
-                    {c.note && <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">{c.note}</p>}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-xs text-zinc-400 mb-0.5">Expected</div>
-                    <div className="font-mono text-xs font-bold text-zinc-700 dark:text-zinc-300">{c.expected != null ? $f(c.expected) : "—"}</div>
-                    {!c.pass && c.actual != null && (
-                      <>
-                        <div className="text-xs text-zinc-400 mt-1 mb-0.5">Actual</div>
-                        <div className={`font-mono text-xs font-bold ${c.severity === "error" ? "text-red-500 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>{$f(c.actual)}</div>
-                        <div className={`font-mono text-xs mt-0.5 ${c.diff < 0 ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                          {c.diff >= 0 ? "+" : ""}{$f(c.diff)}
-                        </div>
-                      </>
-                    )}
-                    {c.pass && c.actual != null && (
-                      <div className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-1">{$f(c.actual)}</div>
-                    )}
                   </div>
                 </div>
-              </div>
+                <div className="p-4 space-y-3">
+                  {/* What it means */}
+                  <div>
+                    <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1">What this means</p>
+                    <p className="text-sm text-zinc-700 dark:text-zinc-300">{action.plain}</p>
+                  </div>
+                  {/* Numbers */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg px-3 py-2">
+                      <p className="text-xs text-zinc-400 mb-0.5">Expected</p>
+                      <p className="text-sm font-bold font-mono text-zinc-700 dark:text-zinc-300">{c.expected != null ? $f(c.expected) : '—'}</p>
+                    </div>
+                    <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg px-3 py-2">
+                      <p className="text-xs text-zinc-400 mb-0.5">In App</p>
+                      <p className={`text-sm font-bold font-mono ${c.severity === 'error' ? 'text-red-500' : 'text-amber-500'}`}>{c.actual != null ? $f(c.actual) : '—'}</p>
+                    </div>
+                    <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg px-3 py-2">
+                      <p className="text-xs text-zinc-400 mb-0.5">Difference</p>
+                      <p className={`text-sm font-bold font-mono ${c.severity === 'error' ? 'text-red-500' : 'text-amber-500'}`}>{c.diff != null ? ((c.diff >= 0 ? '+' : '') + $f(c.diff)) : '—'}</p>
+                    </div>
+                  </div>
+                  {/* How to fix */}
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-lg px-3 py-2.5">
+                    <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-0.5">How to fix this</p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300">{action.fix}</p>
+                  </div>
+                  {action.tab && (
+                    <button
+                      onClick={() => setActiveTab('_nav_' + action.tab)}
+                      className="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition-colors"
+                    >
+                      {action.btnLabel}
+                    </button>
+                  )}
+                </div>
+              </Card>
             );
           })}
         </div>
-      </Card>
+      )}
 
-      {/* Per-invoice checks */}
-      {invoiceChecks.length > 0 && (
+      {/* MISSING DATA TAB */}
+      {activeTab === 'missing' && (
+        <div className="space-y-3">
+          <Card className="p-4">
+            <SectionTitle>Invoices Without Line Item Detail</SectionTitle>
+            <p className="text-xs text-zinc-400 mb-4">
+              These invoices are in the system but have no line items uploaded yet.
+              Without line items, the Completed to Date and per-invoice reconciliation checks can't run.
+            </p>
+            {invoicesWithNoLineItems.length === 0 ? (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">✓ All invoices have line item detail</p>
+            ) : (
+              <div className="space-y-2">
+                {invoicesWithNoLineItems.map(inv => (
+                  <div key={inv.id} className="flex items-center justify-between bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-lg px-3 py-2.5">
+                    <div>
+                      <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{inv.id} — {inv.inv_num}</span>
+                      <p className="text-xs text-zinc-400 mt-0.5">{inv.description} · Approved {$f(inv.approved)}</p>
+                    </div>
+                    <Tag text="Upload PDF to add" color="amber" />
+                  </div>
+                ))}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 rounded-lg px-3 py-2.5 mt-2">
+                  <p className="text-xs text-blue-700 dark:text-blue-300 font-semibold">To fix: Go to Documents tab → upload the Taconic invoice PDF → approve the line items</p>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-4">
+            <SectionTitle>Change Orders Without Supporting Documents</SectionTitle>
+            <p className="text-xs text-zinc-400 mb-3">COs in the system that don't yet have a signed CO PDF attached.</p>
+            <div className="space-y-2">
+              {changeOrders.filter(co => !co.has_document).map(co => (
+                <div key={co.no} className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-lg px-3 py-2.5">
+                  <div>
+                    <span className="text-xs font-bold font-mono text-amber-600 dark:text-amber-400">{co.no}</span>
+                    <span className="text-xs text-zinc-600 dark:text-zinc-400 ml-2">{co.div}</span>
+                  </div>
+                  <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{$f(co.approved_co)}</span>
+                </div>
+              ))}
+              {changeOrders.filter(co => !co.has_document).length === 0 && (
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">✓ All COs have documents attached</p>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ALL CHECKS TAB */}
+      {activeTab === 'passing' && (
         <Card className="overflow-hidden">
-          <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-600 flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Invoice Line Items vs Job Totals</span>
-            <span className="text-xs text-zinc-400">{invoiceChecks.filter(c => c.pass).length}/{invoiceChecks.length} balanced</span>
-          </div>
           <table className="w-full">
-            <thead>
-              <tr>
-                <TH>Invoice</TH>
-                <TH right>Expected Job Total</TH>
-                <TH right>Line Items Sum</TH>
-                <TH right>Difference</TH>
-                <TH>Status</TH>
-              </tr>
-            </thead>
+            <thead><tr><TH>Check</TH><TH right>Expected</TH><TH right>In App</TH><TH right>Diff</TH><TH>Status</TH></tr></thead>
             <tbody>
-              {invoiceChecks.map(c => (
+              {checks.map(c => (
                 <TR key={c.id}>
-                  <TD mono className="text-amber-600 dark:text-amber-400">{c.id.replace("inv_PAY-0", "#")}</TD>
-                  <TD right muted>{$f(c.expected)}</TD>
-                  <TD right bold className={c.pass ? "text-zinc-900 dark:text-white" : "text-red-500 dark:text-red-400"}>{$f(c.actual)}</TD>
-                  <TD right className={Math.abs(c.diff) < 1 ? "text-emerald-600 dark:text-emerald-400" : Math.abs(c.diff) < 100 ? "text-amber-600 dark:text-amber-400" : "text-red-500 dark:text-red-400 font-semibold"}>
-                    {Math.abs(c.diff) < 0.01 ? "—" : (c.diff >= 0 ? "+" : "") + $f(c.diff)}
+                  <TD bold className="text-zinc-800 dark:text-zinc-200 max-w-xs">
+                    <div>{c.label}</div>
+                    <div className="text-zinc-400 font-normal text-xs mt-0.5">{c.description}</div>
+                  </TD>
+                  <TD right muted>{c.expected != null ? $f(c.expected) : '—'}</TD>
+                  <TD right bold className={c.pass ? 'text-emerald-600 dark:text-emerald-400' : c.severity === 'error' ? 'text-red-500' : 'text-amber-500'}>
+                    {c.actual != null ? $f(c.actual) : '—'}
+                  </TD>
+                  <TD right className={Math.abs(c.diff||0) < 1 ? 'text-zinc-300 dark:text-zinc-700' : c.diff > 0 ? 'text-amber-500' : 'text-red-500'}>
+                    {c.diff != null && Math.abs(c.diff) > 0.01 ? ((c.diff >= 0 ? '+' : '') + $f(c.diff)) : '—'}
                   </TD>
                   <TD>
-                    {c.pass
-                      ? <Tag text="✓ Balanced" color="green" />
-                      : Math.abs(c.diff) < 100
-                        ? <Tag text="⚠ Minor diff" color="amber" />
-                        : <Tag text="✕ Mismatch" color="red" />
-                    }
+                    {c.pass ? <Tag text="✓ Pass" color="green" /> :
+                     c.severity === 'info' ? <Tag text="Info" color="muted" /> :
+                     c.severity === 'error' ? <Tag text="✕ Error" color="red" /> :
+                     <Tag text="⚠ Warning" color="amber" />}
                   </TD>
                 </TR>
               ))}
             </tbody>
           </table>
-          <div className="px-4 py-3 border-t border-zinc-100 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/30">
-            <p className="text-xs text-zinc-400">
-              ℹ Differences appear when a Taconic invoice includes fees, deposits, or retainage adjustments not captured in individual line item billings.
-              Invoices with no line item detail uploaded will not appear here.
-            </p>
-          </div>
         </Card>
       )}
-
-      <div className="flex justify-end">
-        <button onClick={load} className="px-4 py-2 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-zinc-600 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">
-          ↻ Refresh Checks
-        </button>
-      </div>
     </div>
   );
 }
