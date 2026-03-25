@@ -685,17 +685,33 @@ function AwardsView() {
 
 // ─── CHANGE ORDERS ────────────────────────────────────────────────────────────
 // ─── CO FILE UPLOAD (reusable, same as Documents tab) ────────────────────────
-function COFileUpload({ coNo, onUploaded }) {
+function COFileUpload({ coNo, onUploaded, onParsed }) {
   const { refresh } = useAppData();
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [parsing, setParsing] = useState(false);
   const [done, setDone] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef();
 
-  const handleFile = (f) => {
+  const handleFile = async (f) => {
     if (!f || f.type !== "application/pdf") return;
     setFile(f); setDone(false);
+    // Auto-parse the CO PDF immediately on file select
+    if (onParsed) {
+      setParsing(true);
+      try {
+        const fd = new FormData();
+        fd.append("file", f);
+        fd.append("doc_type", "change_order");
+        const res = await fetch("/api/parse-document", { method: "POST", body: fd });
+        const data = await res.json();
+        if (data.ok && data.parsed) {
+          onParsed(data.parsed);
+        }
+      } catch(e) {}
+      setParsing(false);
+    }
   };
 
   const upload = async () => {
@@ -727,8 +743,8 @@ function COFileUpload({ coNo, onUploaded }) {
       {file ? (
         <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
           <span className="text-sm">📄</span>
-          <span className="text-xs text-gray-700 flex-1 truncate">{file.name}</span>
-          <button onClick={upload} disabled={uploading}
+          <span className="text-xs text-gray-700 flex-1 truncate">{file.name}{parsing ? " — parsing..." : ""}</span>
+          <button onClick={upload} disabled={uploading || parsing}
             className="px-3 py-1 text-xs font-bold rounded-lg text-white"
             style={{ background: uploading ? "#9ca3af" : "#111827" }}>
             {uploading ? "Saving..." : "Save →"}
@@ -868,7 +884,16 @@ function COsView() {
           {/* PDF Upload — same as Documents tab */}
           <div>
             <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">Attach / Replace PDF</label>
-            <COFileUpload coNo={editModal.no} onUploaded={() => {}} />
+            <COFileUpload coNo={editModal.no} onUploaded={() => {}} onParsed={(p) => {
+                  setEditForm(f => ({
+                    ...f,
+                    code: p.csiCode || f.code,
+                    div: p.division || f.div,
+                    origBudget: p.originalBudget ? String(p.originalBudget) : f.origBudget,
+                    approvedCO: p.coAmount ? String(p.coAmount) : f.approvedCO,
+                    notes: p.description || f.notes,
+                  }));
+                }} />
           </div>
           <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-400">
             Fees will auto-calculate: 13.5% GC fee + 3% insurance on CO amount.
@@ -891,7 +916,18 @@ function COsView() {
           {/* PDF Upload — same as Documents tab */}
           <div>
             <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">Attach PDF (optional)</label>
-            <COFileUpload coNo={addForm.no} onUploaded={() => {}} />
+            <COFileUpload coNo={addForm.no} onUploaded={() => {}} onParsed={(p) => {
+                  setAddForm(f => ({
+                    ...f,
+                    no: p.coNumber || f.no,
+                    date: p.date || f.date,
+                    code: p.csiCode || f.code,
+                    div: p.division || f.div,
+                    origBudget: p.originalBudget ? String(p.originalBudget) : f.origBudget,
+                    approvedCO: p.coAmount ? String(p.coAmount) : f.approvedCO,
+                    notes: p.description || f.notes,
+                  }));
+                }} />
           </div>
           <button onClick={saveAdd} disabled={saving||!addForm.no||!addForm.approvedCO} className="w-full py-2.5 text-sm font-bold rounded-lg text-white" style={{background:saving||!addForm.no||!addForm.approvedCO?"#e5e7eb":"#111827",color:saving||!addForm.no||!addForm.approvedCO?"#9ca3af":"#fff"}}>{saving?"Saving...":"Add Change Order"}</button>
         </Modal>
