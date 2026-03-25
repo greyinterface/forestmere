@@ -1080,76 +1080,163 @@ app.post('/api/admin/reseed-line-items', async (req, res) => {
 // ─── DOCUMENT PARSING (AI) ────────────────────────────────────────────────────
 app.post('/api/parse-document', upload.single('file'), async (req, res) => {
   try {
-    if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
-    const base64 = req.file.buffer.toString('base64');
     const docType = req.body.doc_type || 'taconic_invoice';
+    const pdfBuffer = req.file.buffer;
 
-    // Vendor invoice prompt
+    // Use pdf-parse to extract text - no API key needed, works offline
+    let pdfParse;
+    try { pdfParse = require('pdf-parse'); } catch(e) {
+      return res.status(500).json({ error: 'pdf-parse not installed. Run: npm install pdf-parse' });
+    }
+
+    const pdfData = await pdfParse(pdfBuffer);
+    const text = pdfData.text;
+
+    if (docType === 'taconic_invoice') {
+      const parsed = parseTaconicInvoice(text);
+      return res.json({ ok: true, parsed });
+    }
+
+    if (docType === 'change_order') {
+      const parsed = parseChangeOrder(text);
+      return res.json({ ok: true, parsed });
+    }
+
     if (docType === 'vendor_invoice') {
-      const prompt = `Parse this vendor invoice PDF and return ONLY valid JSON (no markdown, no backticks):
-{"invNum":"string","date":"MM/DD/YYYY","vendorName":"string","description":"string","amount":0,"subtotal":0,"tax":0,"total":0}
-Extract the invoice number, date, vendor/company name, description of services, and total amount due. Return raw JSON only.`;
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: prompt }] }] })
-      });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error.message);
-      const parsed = JSON.parse(data.content[0].text.replace(/```json|```/g, '').trim());
-      return res.json({ ok: true, parsed, docType: 'vendor_invoice' });
+      const parsed = parseVendorInvoice(text);
+      return res.json({ ok: true, parsed });
     }
 
-    // Award letter prompt
-    if (docType === 'award_letter') {
-      const prompt = `Parse this construction award letter / contract PDF and return ONLY valid JSON (no markdown, no backticks):
-{"vendor":"string","contractNumber":"string","awardDate":"MM/DD/YYYY","csiCode":"string","division":"string","description":"string","awardAmount":0,"notes":"string"}
-Extract vendor/contractor name, contract number, award date, CSI code if present, division/scope description, and total award amount. Return raw JSON only.`;
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: prompt }] }] })
-      });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error.message);
-      const parsed = JSON.parse(data.content[0].text.replace(/```json|```/g, '').trim());
-      return res.json({ ok: true, parsed, docType: 'award_letter' });
-    }
-    const prompt = `You are parsing a Taconic Builders Application for Payment PDF for Camp Forestmere project C25-104.
+    // Award letter - basic extraction
+    const amountMatch = text.match(/\$([\d,]+(?:\.\d{2})?)/);
+    return res.json({ ok: true, parsed: {
+      vendor: text.split('\n').find(l => l.trim().length > 3 && l.trim().length < 50) || '',
+      awardAmount: amountMatch ? parseFloat(amountMatch[1].replace(/,/g,'')) : 0,
+      description: text.slice(0, 200)
+    }});
 
-The PDF has multiple pages. Page 1 is the summary. Page 2+ is the "Continuation Sheet" or "Schedule of Values" which lists every line item. You MUST extract ALL line items from the continuation sheet.
-
-Return ONLY a valid JSON object, no markdown, no explanation:
-{"documentType":"taconic_invoice","header":{"invNum":"string","invoiceDate":"MM/DD/YYYY","periodTo":"string","originalContract":0,"approvedChanges":0,"revisedContract":0,"completedToDate":0,"totalRetainage":0,"previousRequests":0,"currentAmountDue":0,"balanceToFinish":0},"lineItemsBilled":[{"code":"string","name":"string","scheduledValue":0,"previousBilled":0,"currentBill":0,"completedToDate":0,"pctComplete":0,"approvedCOs":0}],"fees":{"gcFee":0,"insurance":0,"depositApplied":0,"retainageThisPeriod":0}}
-
-CRITICAL RULES:
-1. Extract EVERY row from the continuation sheet where "Work Completed This Period" (column G or "Current") is greater than 0
-2. The item code is in the leftmost column (e.g. 01-001, 02-002, 33-370)
-3. The description is the next column
-4. currentBill = the amount billed THIS period only (not cumulative)
-5. completedToDate = total billed to date including this period
-6. Include ALL such rows - there may be 4-15 line items
-7. Return raw JSON only, no other text`;
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 8000, messages: [{ role: 'user', content: [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: prompt }] }] })
-    });
-    const data = await response.json();
-    if (data.error) throw new Error(data.error.message);
-    const text = data.content[0].text;
-    const clean = text.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
-    res.json({ ok: true, parsed });
   } catch (err) {
     console.error('Parse error:', err);
-    // Return 200 with empty parsed so frontend shows blank form (not crash)
-    if (err.message && err.message.includes('503')) {
-      return res.json({ ok: false, error: 'Anthropic API unavailable — please fill form manually', parsed: null });
-    }
     res.status(500).json({ error: err.message });
   }
 });
+
+// ─── TACONIC AIA G702/G703 PARSER ─────────────────────────────────────────────
+function parseTaconicInvoice(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Helper: find number after label
+  const findNum = (pattern) => {
+    const m = text.match(pattern);
+    return m ? parseFloat(m[1].replace(/[,$]/g,'')) : 0;
+  };
+  const findStr = (pattern) => {
+    const m = text.match(pattern);
+    return m ? m[1].trim() : '';
+  };
+
+  // Header fields
+  const invNum = findStr(/Invoice\s*(?:No\.?|Number|#)[:\s]*([\d]+)/i) ||
+                 findStr(/Application\s*(?:No\.?|Number|#)[:\s]*([\d]+)/i);
+  const invoiceDate = findStr(/(?:Invoice\s*Date|Date)[:\s]*([\d]{1,2}\/[\d]{1,2}\/[\d]{2,4})/i);
+  const periodTo = findStr(/Period\s*(?:To|Ending)[:\s]*([^\n]+)/i);
+
+  const originalContract = findNum(/Original\s*Contract\s*(?:Amount)?[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
+  const approvedChanges   = findNum(/(?:Approved\s*Changes?|Net\s*Change)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
+  const revisedContract   = findNum(/(?:Revised\s*Contract|Contract\s*to\s*Date)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
+  const completedToDate   = findNum(/(?:Total\s*Completed|Contract\s*Completed)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
+  const totalRetainage    = findNum(/(?:Total\s*Retainage|Less\s*Retainage)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
+  const previousRequests  = findNum(/(?:Previous\s*(?:Certificates?|Requests?)|Less\s*Previous)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
+  const currentAmountDue  = findNum(/(?:Current\s*(?:Payment|Amount)\s*Due|Amount\s*Due)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
+  const balanceToFinish   = findNum(/Balance\s*(?:to\s*Finish|Remaining)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
+
+  // Parse Schedule of Values / Continuation Sheet
+  // Format: CODE  DESCRIPTION  SCHEDULED_VALUE  PREV_BILLED  THIS_PERIOD  ...
+  const lineItemsBilled = [];
+  
+  // Look for lines matching CSI code pattern (XX-XXX or similar)
+  const csiPattern = /^(\d{2}-\d{3}[a-z]?|\d{2}-\d{4}|\d{2}-\d{2}|\d{5,6})\s+(.+?)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/;
+  
+  for (const line of lines) {
+    const m = line.match(csiPattern);
+    if (m) {
+      const thisperiod = parseFloat(m[5].replace(/,/g,''));
+      if (thisperiod > 0) {
+        lineItemsBilled.push({
+          code: m[1],
+          name: m[2].trim(),
+          previousBilled: parseFloat(m[4].replace(/,/g,'')),
+          currentBill: thisperiod,
+          completedToDate: parseFloat(m[3].replace(/,/g,'')),
+          pctComplete: 0
+        });
+      }
+    }
+  }
+
+  // Also try tab/space delimited table rows
+  if (lineItemsBilled.length === 0) {
+    // Alternative: look for dollar amounts after known codes
+    const altPattern = /([0-9]{2}-[0-9]{3})\b(.{5,40})\b([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/;
+    for (const line of lines) {
+      const m = line.match(altPattern);
+      if (m) {
+        const thisperiod = parseFloat(m[5].replace(/,/g,''));
+        if (thisperiod > 0) {
+          lineItemsBilled.push({
+            code: m[1], name: m[2].trim(),
+            currentBill: thisperiod,
+            previousBilled: parseFloat(m[4].replace(/,/g,'')),
+            completedToDate: parseFloat(m[3].replace(/,/g,'')),
+          });
+        }
+      }
+    }
+  }
+
+  // Parse fees section
+  const gcFee = findNum(/(?:GC\s*Fee|General\s*Conditions\s*Fee|Contractor.*Fee)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
+  const insurance = findNum(/(?:Insurance|Builders?\s*Risk)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
+  const depositApplied = findNum(/(?:Deposit\s*Applied|Less\s*Deposit)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
+  const retainageThisPeriod = findNum(/(?:Retainage\s*(?:This\s*Period|Withheld)|Current\s*Retainage)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i);
+
+  return {
+    header: { invNum, invoiceDate, periodTo, originalContract, approvedChanges,
+              revisedContract, completedToDate, totalRetainage, previousRequests,
+              currentAmountDue, balanceToFinish },
+    lineItemsBilled,
+    fees: { gcFee, insurance, depositApplied, retainageThisPeriod }
+  };
+}
+
+function parseChangeOrder(text) {
+  const findStr = (p) => { const m = text.match(p); return m ? m[1].trim() : ''; };
+  const findNum = (p) => { const m = text.match(p); return m ? parseFloat(m[1].replace(/[,$]/g,'')) : 0; };
+  return {
+    coNumber:       findStr(/(?:Change\s*Order|CO)\s*(?:No\.?|#)[:\s]*([\w-]+)/i),
+    date:           findStr(/Date[:\s]*([\d]{1,2}\/[\d]{1,2}\/[\d]{2,4})/i),
+    csiCode:        findStr(/(?:CSI|Division|Code)[:\s]*([\d-]+)/i),
+    division:       findStr(/(?:Division|Scope|Work)[:\s]*([^\n]{5,60})/i),
+    originalBudget: findNum(/(?:Original|Current)\s*(?:Contract|Budget)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i),
+    coAmount:       findNum(/(?:Amount\s*of\s*(?:this\s*)?Change|Change\s*Order\s*Amount)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i),
+    description:    findStr(/(?:Description|Scope)[:\s]*([^\n]{10,200})/i),
+  };
+}
+
+function parseVendorInvoice(text) {
+  const findStr = (p) => { const m = text.match(p); return m ? m[1].trim() : ''; };
+  const findNum = (p) => { const m = text.match(p); return m ? parseFloat(m[1].replace(/[,$]/g,'')) : 0; };
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+  return {
+    invNum:   findStr(/(?:Invoice|Inv)\s*(?:No\.?|Number|#)[:\s]*([\w-]+)/i),
+    date:     findStr(/(?:Invoice\s*Date|Date)[:\s]*([\d]{1,2}\/[\d]{1,2}\/[\d]{2,4})/i),
+    vendorName: lines[0] || '',
+    description: lines.slice(1,3).join(' '),
+    amount:   findNum(/(?:Total|Amount\s*Due|Balance\s*Due)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i),
+    total:    findNum(/(?:Total|Amount\s*Due|Balance\s*Due)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i),
+  };
+}
+
 
 app.post('/api/approve-items', async (req, res) => {
   try {
