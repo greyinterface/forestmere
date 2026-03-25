@@ -914,13 +914,25 @@ function COsView() {
           <div>
             <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">Attach PDF (optional)</label>
             <COFileUpload coNo={addForm.no} onUploaded={() => {}} onParsed={(p) => {
+                  // If multiple line items matched, show the first one and note the rest
+                  const items = p.lineItems || [];
+                  const firstItem = items[0];
+                  const extraNote = items.length > 1
+                    ? items.map(i => `${i.csiCode} ${i.description} $${i.amount}`).join(' | ')
+                    : p.description || '';
                   setAddForm(f => ({
                     ...f,
                     no: p.coNumber || f.no,
                     date: p.date || f.date,
-                    approvedCO: p.reimbursable ? String(p.reimbursable) : p.coAmount ? String(p.coAmount) : f.approvedCO,
-                    notes: p.description || f.notes,
+                    code: firstItem?.csiCode || f.code,
+                    div: firstItem?.division || f.div,
+                    approvedCO: firstItem ? String(firstItem.amount) : (p.reimbursable ? String(p.reimbursable) : f.approvedCO),
+                    notes: extraNote,
                   }));
+                  // If multiple items, alert user to add them separately
+                  if (items.length > 1) {
+                    alert(`CO has ${items.length} line items. Form filled with first item (${firstItem?.csiCode}). Add the remaining items as separate COs:\n\n${items.slice(1).map(i => `• ${i.csiCode} — ${i.description}: $${i.amount}`).join('\n')}`);
+                  }
                 }} />
           </div>
           <button onClick={saveAdd} disabled={saving||!addForm.no||!addForm.approvedCO} className="w-full py-2.5 text-sm font-bold rounded-lg text-white" style={{background:saving||!addForm.no||!addForm.approvedCO?"#e5e7eb":"#111827",color:saving||!addForm.no||!addForm.approvedCO?"#9ca3af":"#fff"}}>{saving?"Saving...":"Add Change Order"}</button>
