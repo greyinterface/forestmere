@@ -154,6 +154,15 @@ async function createSchema() {
       month VARCHAR(10) PRIMARY KEY,
       value NUMERIC(14,2)
     );
+    CREATE TABLE IF NOT EXISTS pending_document_items (
+      id SERIAL PRIMARY KEY,
+      doc_id INTEGER,
+      item_type VARCHAR(50),
+      item_data JSONB,
+      status VARCHAR(30) DEFAULT 'pending',
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
   `);
 }
 
@@ -655,9 +664,60 @@ app.delete('/api/documents/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+
+// ─── DOCUMENT PARSING (AI) ────────────────────────────────────────────────────
+app.post('/api/parse-document', upload.single('file'), async (req, res) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
+    const base64 = req.file.buffer.toString('base64');
+    const prompt = `You are parsing a Taconic Builders construction invoice PDF for Camp Forestmere project C25-104. Extract ALL data and return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
+{"documentType":"taconic_invoice","header":{"invNum":"string","invoiceDate":"MM/DD/YYYY","periodTo":"string","applicationNum":0,"originalContract":0,"approvedChanges":0,"revisedContract":0,"completedToDate":0,"totalRetainage":0,"previousRequests":0,"currentAmountDue":0,"balanceToFinish":0},"lineItemsBilled":[{"code":"string","name":"string","previousBilled":0,"currentBill":0,"completedToDate":0,"pctComplete":0,"approvedCOs":0}],"changeOrdersReferenced":[{"no":"string","code":"string","description":"string","amount":0}],"subcontractorInvoices":[{"invNum":"string","vendor":"string","code":"string","currentBill":0}],"fees":{"gcFee":0,"insurance":0,"depositApplied":0,"retainageThisPeriod":0}}
+Rules: only include lineItemsBilled where currentBill > 0. Include ALL COs from CO log. Return raw JSON only.`;
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4000, messages: [{ role: 'user', content: [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: prompt }] }] })
+    });
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    const text = data.content[0].text;
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    res.json({ ok: true, parsed });
+  } catch (err) { console.error('Parse error:', err); res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/approve-items', async (req, res) => {
+  try {
+    const { items } = req.body;
+    const results = [];
+    for (const item of items) {
+      try {
+        if (item.type === 'invoice_header') {
+          const d = item.data;
+          await pool.query(`INSERT INTO invoices (id,req_date,inv_num,description,job_total,fees,deposit_applied,retainage,amt_due,approved,paid_date,status,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT (id) DO NOTHING`,
+            [d.id, d.reqDate, d.invNum, d.description, d.jobTotal, d.fees, d.depositApplied, d.retainage, d.amtDue, d.amtDue, null, 'Pending Payment', null]);
+          results.push({ type: item.type, ok: true });
+        } else if (item.type === 'line_item_billing') {
+          const d = item.data;
+          const ex = await pool.query('SELECT code FROM line_items WHERE code=$1', [d.code]);
+          if (ex.rows.length > 0) {
+            await pool.query('UPDATE line_items SET done=$1, pct=$2 WHERE code=$3', [d.completedToDate, d.pctComplete / 100, d.code]);
+          } else {
+            await pool.query('INSERT INTO line_items (code,name,budget,cos,done,pct) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING', [d.code, d.name, d.completedToDate, 0, d.completedToDate, d.pctComplete / 100]);
+          }
+          await pool.query('INSERT INTO line_item_billings (line_item_code,inv_num,amount) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [d.code, d.invNum, d.currentBill]);
+          results.push({ type: item.type, code: d.code, ok: true });
+        }
+      } catch (ie) { results.push({ type: item.type, ok: false, error: ie.message }); }
+    }
+    res.json({ ok: true, results });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ─── SERVE FRONTEND (production) ──────────────────────────────────────────────
 if (!IS_DEV) {
-  const distPath = path.join(__dirname, 'dist');
+  const distPath = path.join(__dirname, '../dist');
   app.use(express.static(distPath));
   app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
 }
