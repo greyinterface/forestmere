@@ -305,24 +305,45 @@ function Dashboard({ setTab }) {
         </Card>
       </div>
 
-      <Card className="p-5">
-        <SectionTitle>Project Details</SectionTitle>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {[
-            ["Project", "Camp Forestmere"], ["Owner", "JXM / Camp Forestmere Corp."],
-            ["Location", "Paul Smiths, NY 12970"], ["General Contractor", "Taconic Builders Inc."],
-            ["GC Contract Start", "Jun 23, 2025"], ["GC Duration", "22 months"],
-            ["Est. GC Completion", "April 2027"], ["PM", "Joseph Hamilton"],
-            ["Architect", "Architecturefirm"], ["Landscape Arch.", "Reed Hilderbrand"],
-            ["Civil Engineer", "Ivan Zdrahal PE"],
-          ].map(([k, v]) => (
-            <div key={k} className="bg-[#f5f6f8] rounded-lg px-3 py-2.5">
-              <div className="text-xs text-gray-400 mb-0.5">{k}</div>
-              <div className="text-xs font-semibold text-gray-800">{v}</div>
-            </div>
-          ))}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Project Details</span>
         </div>
-      </Card>
+        <div className="grid grid-cols-2 divide-x divide-gray-50">
+          {/* Left column */}
+          <div className="divide-y divide-gray-50">
+            {[
+              ["Project",            "Camp Forestmere"],
+              ["Owner",              "JXM / Camp Forestmere Corp."],
+              ["Location",           "Paul Smiths, NY 12970"],
+              ["General Contractor", "Taconic Builders Inc."],
+              ["Contract Start",     "Jun 23, 2025"],
+              ["Contract Duration",  "22 months"],
+            ].map(([k, v]) => (
+              <div key={k} className="flex items-center justify-between px-5 py-3">
+                <span className="text-xs text-gray-400">{k}</span>
+                <span className="text-xs font-semibold text-gray-800 text-right ml-4">{v}</span>
+              </div>
+            ))}
+          </div>
+          {/* Right column */}
+          <div className="divide-y divide-gray-50">
+            {[
+              ["Est. Completion",    "April 2027"],
+              ["Project Manager",    "Joseph Hamilton"],
+              ["Architect",          "Architecturefirm"],
+              ["Landscape Arch.",    "Reed Hilderbrand"],
+              ["Civil Engineer",     "Ivan Zdrahal PE"],
+              ["Project #",          "C25-104"],
+            ].map(([k, v]) => (
+              <div key={k} className="flex items-center justify-between px-5 py-3">
+                <span className="text-xs text-gray-400">{k}</span>
+                <span className="text-xs font-semibold text-gray-800 text-right ml-4">{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {modal === "spend" && (
         <Modal title="Total Project Spend" subtitle="All vendors · prior phases excluded (coming soon)" onClose={() => setModal(null)}>
