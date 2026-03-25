@@ -58,6 +58,7 @@ export function SmartUploadView() {
           invNum: h.invNum ? String(h.invNum) : f.invNum,
           reqDate: h.invoiceDate || f.reqDate,
           periodTo: h.periodTo || f.periodTo,
+          jobTotal: h.completedToDate ? String(h.completedToDate) : f.jobTotal,
           fees: p.fees ? String(((p.fees.gcFee||0)+(p.fees.insurance||0)).toFixed(2)) : f.fees,
           deposit: p.fees?.depositApplied ? String(Math.abs(p.fees.depositApplied)) : f.deposit,
           retainage: p.fees?.retainageThisPeriod ? String(Math.abs(p.fees.retainageThisPeriod)) : f.retainage,
@@ -224,10 +225,34 @@ export function SmartUploadView() {
         <div className={card}>
           <p className={sectionTitle}>Invoice Header</p>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className={lbl}>Payment ID <span className="text-red-400">*</span></label><input value={inv.payId} onChange={si("payId")} placeholder="PAY-008" className={inp}/></div>
-            <div><label className={lbl}>Invoice #<span className="text-red-400">*</span></label><input value={inv.invNum} onChange={si("invNum")} placeholder="1976" className={inp}/></div>
-            <div><label className={lbl}>Request Date</label><input value={inv.reqDate} onChange={si("reqDate")} placeholder="02/09/2026" className={inp}/></div>
-            <div><label className={lbl}>Period To</label><input value={inv.periodTo} onChange={si("periodTo")} placeholder="January 31, 2026" className={inp}/></div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className={lbl}>Payment ID <span className="text-red-400">*</span></label>
+                {!inv.payId && <button type="button" tabIndex={-1} onClick={()=>setInv(f=>({...f,payId:"PAY-008"}))} className="text-xs text-indigo-400 hover:text-indigo-600">↵ PAY-008</button>}
+              </div>
+              <input value={inv.payId} onChange={si("payId")} placeholder="PAY-008" className={inp}/>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className={lbl}>Invoice # <span className="text-red-400">*</span></label>
+                {!inv.invNum && <button type="button" tabIndex={-1} onClick={()=>setInv(f=>({...f,invNum:"1976"}))} className="text-xs text-indigo-400 hover:text-indigo-600">↵ 1976</button>}
+              </div>
+              <input value={inv.invNum} onChange={si("invNum")} placeholder="1976" className={inp}/>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className={lbl}>Request Date</label>
+                {!inv.reqDate && <button type="button" tabIndex={-1} onClick={()=>setInv(f=>({...f,reqDate:"02/09/2026"}))} className="text-xs text-indigo-400 hover:text-indigo-600">↵ 02/09/2026</button>}
+              </div>
+              <input value={inv.reqDate} onChange={si("reqDate")} placeholder="02/09/2026" className={inp}/>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className={lbl}>Period To</label>
+                {!inv.periodTo && <button type="button" tabIndex={-1} onClick={()=>setInv(f=>({...f,periodTo:"January 31, 2026"}))} className="text-xs text-indigo-400 hover:text-indigo-600">↵ Jan 31, 2026</button>}
+              </div>
+              <input value={inv.periodTo} onChange={si("periodTo")} placeholder="January 31, 2026" className={inp}/>
+            </div>
           </div>
         </div>
 
@@ -235,12 +260,23 @@ export function SmartUploadView() {
         <div className={card}>
           <p className={sectionTitle}>Amounts</p>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className={lbl}>Job Total</label><input value={inv.jobTotal} onChange={si("jobTotal")} placeholder="286510.66" className={inp}/></div>
-            <div><label className={lbl}>GC Fee + Insurance</label><input value={inv.fees} onChange={si("fees")} placeholder="48434.63" className={inp}/></div>
-            <div><label className={lbl}>Deposit Applied</label><input value={inv.deposit} onChange={si("deposit")} placeholder="121719.15" className={inp}/><p className="text-xs text-gray-300 mt-1">Enter positive</p></div>
-            <div><label className={lbl}>Retainage This Period</label><input value={inv.retainage} onChange={si("retainage")} placeholder="30465.49" className={inp}/></div>
-            <div><label className={lbl}>Amount Due</label><input value={inv.amtDue} onChange={si("amtDue")} placeholder="182760.65" className={inp}/></div>
-            <div><label className={lbl}>Approved Amount <span className="text-red-400">*</span></label><input value={inv.approved} onChange={si("approved")} placeholder="182770.65" className={inp}/></div>
+            {[
+              {label:"Job Total", k:"jobTotal", s:"286510.66"},
+              {label:"GC Fee + Insurance", k:"fees", s:"48434.63"},
+              {label:"Deposit Applied", k:"deposit", s:"121719.15", hint:"Enter positive"},
+              {label:"Retainage This Period", k:"retainage", s:"30465.49"},
+              {label:"Amount Due", k:"amtDue", s:"182760.65"},
+              {label:"Approved Amount", k:"approved", s:"182770.65", req:true},
+            ].map(({label,k,s,hint,req})=>(
+              <div key={k}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className={lbl}>{label}{req && <span className="text-red-400 ml-0.5">*</span>}</label>
+                  {!inv[k] && <button type="button" tabIndex={-1} onClick={()=>setInv(f=>({...f,[k]:s}))} className="text-xs text-indigo-400 hover:text-indigo-600">↵ {s}</button>}
+                </div>
+                <input value={inv[k]} onChange={si(k)} placeholder={s} className={inp}/>
+                {hint && <p className="text-xs text-gray-300 mt-1">{hint}</p>}
+              </div>
+            ))}
           </div>
           {inv.approved && inv.jobTotal && (
             <div className={`mt-4 rounded-lg px-4 py-2.5 text-xs font-medium border ${diff<1?"bg-emerald-50 border-emerald-200 text-emerald-700":diff>=9.5&&diff<=10.5?"bg-emerald-50 border-emerald-200 text-emerald-700":"bg-amber-50 border-amber-200 text-amber-700"}`}>
