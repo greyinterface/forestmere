@@ -184,7 +184,7 @@ export function SmartUploadView() {
       const res = await fetch(API + '/parse-document', { method:"POST", body:fd });
       if (!res.ok) {
         setParsing(false);
-        setParseMsg("API unavailable — fill in the fields manually using the PDF on the right.");
+        setParseMsg("Could not parse PDF automatically — enter the fields manually from the PDF on the right.");
         return;
       }
       const data = await res.json();
@@ -411,16 +411,16 @@ export function SmartUploadView() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className={lbl}>Payment ID <span className="text-red-400">*</span></label>
-                {!inv.payId && <button type="button" tabIndex={-1} onClick={()=>setInv(f=>({...f,payId:"PAY-008"}))} className="text-xs text-indigo-400 hover:text-indigo-600">↵ PAY-008</button>}
+
               </div>
-              <input value={inv.payId} onChange={si("payId")} placeholder="PAY-008" className={inp}/>
+              <input value={inv.payId} onChange={si("payId")} placeholder="e.g. PAY-009" className={inp}/>
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className={lbl}>Invoice # <span className="text-red-400">*</span></label>
 
               </div>
-              <input value={inv.invNum} onChange={si("invNum")} placeholder="1976" className={inp}/>
+              <input value={inv.invNum} onChange={si("invNum")} placeholder="Invoice number" className={inp}/>
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
