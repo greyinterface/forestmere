@@ -1648,20 +1648,16 @@ function VendorsView() {
 
 // ─── DOCUMENTS VIEW ───────────────────────────────────────────────────────────
 function DocumentsView() {
-  const { refresh } = useAppData();
-  const [docs, setDocs] = useState([]);
-  const [lineBillings, setLineBillings] = useState([]);
-  const [view, setView] = useState("upload"); // "upload" | "history"
+  const { documents, refresh } = useAppData();
+  const [view, setView] = useState("upload");
   const [deleting, setDeleting] = useState(null);
 
-  const loadDocs = async () => {
-    try {
-      const d = await apiFetch('/documents');
-      if (Array.isArray(d)) setDocs(d);
-    } catch(e) {}
-  };
+  // Use documents already loaded by DataProvider - no separate fetch needed
+  const docs = documents || [];
 
-  useEffect(() => { loadDocs(); }, []); // load on mount always
+  const loadDocs = async () => { await refresh(); };
+
+  useEffect(() => {}, []);
 
   const deleteDoc = async (id) => {
     if (!confirm("Delete this document? This cannot be undone.")) return;
@@ -1737,7 +1733,7 @@ function DocumentsView() {
                       <TD muted>{doc.linked_id || "—"}</TD>
                       <TD muted>{doc.vendor_label || doc.vendor_key || "—"}</TD>
                       <TD muted className="max-w-[160px] truncate">{doc.note || "—"}</TD>
-                      <TD muted>{doc.created_at ? new Date(doc.created_at).toLocaleDateString("en-US") : "—"}</TD>
+                      <TD muted>{doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString("en-US") : "—"}</TD>
                       <TD>
                         <div className="flex gap-1">
                           <a href={`/api/documents/${doc.id}/file`} target="_blank" rel="noreferrer"
