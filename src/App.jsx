@@ -218,28 +218,22 @@ function Dashboard({ setTab }) {
   return (
     <div className="space-y-5">
       {reconSummary?.failed > 0 && (
-        <button onClick={() => setTab("reconcile")} className="w-full text-left flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 hover:bg-red-100 transition-colors">
-          <span className="text-red-500 mt-0.5">✕</span>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-red-700">Reconciliation Errors Detected</p>
-            <p className="text-xs text-red-600/70 mt-0.5">{reconSummary.failed} check{reconSummary.failed > 1 ? "s" : ""} failing — click to review in Reconcile tab</p>
-          </div>
-          <span className="text-red-400 text-sm mt-0.5">→</span>
+        <button onClick={() => setTab("reconcile")} className="w-full text-left flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 hover:bg-red-100 transition-colors">
+          <span className="text-red-500 text-xs">✕</span>
+          <p className="text-xs font-semibold text-red-700 flex-1">Reconciliation Errors Detected — {reconSummary.failed} check{reconSummary.failed > 1 ? "s" : ""} failing · click to review</p>
+          <span className="text-red-400 text-xs">→</span>
         </button>
       )}
       {/* Prior phases notice */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
-        <span className="text-amber-500 text-sm">*</span>
-        <p className="text-xs text-amber-700 font-medium">* Prior Phases (Demolition + Road Construction) not yet included in totals — will be added in a future update.</p>
+      <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 flex items-center gap-2">
+        <span className="text-amber-500 text-xs">*</span>
+        <p className="text-xs text-amber-700">Prior Phases (Demolition + Road Construction) not yet included in totals — will be added in a future update.</p>
       </div>
       {reconSummary?.failed === 0 && reconSummary?.total > 0 && (
-        <button onClick={() => setTab("reconcile")} className="w-full text-left flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 hover:bg-emerald-100 transition-colors">
-          <span className="text-emerald-500 mt-0.5">✓</span>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-emerald-700">All {reconSummary.total} Reconciliation Checks Passing</p>
-            <p className="text-xs text-emerald-600/70 mt-0.5">Books are balanced — click to view details</p>
-          </div>
-          <span className="text-emerald-400 text-sm mt-0.5">→</span>
+        <button onClick={() => setTab("reconcile")} className="w-full text-left flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 hover:bg-emerald-100 transition-colors">
+          <span className="text-emerald-500 text-xs">✓</span>
+          <p className="text-xs font-semibold text-emerald-700 flex-1">All {reconSummary.total} reconciliation checks passing — books balanced</p>
+          <span className="text-emerald-400 text-xs">→</span>
         </button>
       )}
       {pendingInvs.length > 0 && (
@@ -1020,9 +1014,16 @@ function InvoicesView() {
               <p className="text-xs text-gray-600">{modal.notes}</p>
             </div>
           )}
-          {modal.status !== "Paid" && (
-            <button onClick={() => openMarkPaid(modal)} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors">Mark as Paid</button>
-          )}
+          <div className="flex gap-2">
+            {modal.status !== "Paid" && (
+              <button onClick={() => openMarkPaid(modal)} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors">Mark as Paid</button>
+            )}
+            <button onClick={() => { setMarkPaidModal(modal); setPayForm({ actualPaid: String(modal.actual_paid||modal.approved), creditApplied: String(modal.credit_applied||0), paidDate: modal.paid_date||new Date().toLocaleDateString("en-US") }); setModal(null); }}
+              className="flex-1 py-2.5 border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-semibold rounded-lg transition-colors">
+              {modal.status === "Paid" ? "Edit Payment Info" : "Edit Payment"}
+            </button>
+            <button onClick={() => setModal(null)} className="px-4 py-2.5 border border-gray-200 text-gray-400 hover:bg-gray-50 text-xs font-semibold rounded-lg transition-colors">Close</button>
+          </div>
         </Modal>
       )}
 
