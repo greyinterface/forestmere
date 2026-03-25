@@ -230,7 +230,7 @@ function Dashboard({ setTab }) {
       {/* Prior phases notice */}
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
         <span className="text-amber-500 text-sm">*</span>
-        <p className="text-xs text-amber-700 font-medium">Prior Phases (Demolition $335K + Road Construction $457K) not yet included in totals. These will be added in a future update.</p>
+        <p className="text-xs text-amber-700 font-medium">* Prior Phases (Demolition + Road Construction) not yet included in totals — will be added in a future update.</p>
       </div>
       {reconSummary?.failed === 0 && reconSummary?.total > 0 && (
         <button onClick={() => setTab("reconcile")} className="w-full text-left flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 hover:bg-emerald-100 transition-colors">
@@ -612,6 +612,74 @@ function AwardsView() {
 }
 
 // ─── CHANGE ORDERS ────────────────────────────────────────────────────────────
+// ─── CO FILE UPLOAD (reusable, same as Documents tab) ────────────────────────
+function COFileUpload({ coNo, onUploaded }) {
+  const { refresh } = useAppData();
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [done, setDone] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef();
+
+  const handleFile = (f) => {
+    if (!f || f.type !== "application/pdf") return;
+    setFile(f); setDone(false);
+  };
+
+  const upload = async () => {
+    if (!file || uploading) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("name", file.name);
+    fd.append("type", "Change Order");
+    fd.append("vendor_key", "taconic");
+    fd.append("vendor_label", "Taconic Builders");
+    fd.append("linked_id", coNo || "");
+    fd.append("note", coNo ? `Supporting document for ${coNo}` : "");
+    await fetch("/api/documents", { method: "POST", body: fd });
+    await refresh();
+    setDone(true); setFile(null); setUploading(false);
+    onUploaded && onUploaded();
+  };
+
+  if (done) return (
+    <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700 font-semibold flex items-center justify-between">
+      ✓ PDF saved to Documents
+      <button onClick={() => setDone(false)} className="text-emerald-400 hover:text-emerald-600 ml-2">Upload another</button>
+    </div>
+  );
+
+  return (
+    <div>
+      {file ? (
+        <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
+          <span className="text-sm">📄</span>
+          <span className="text-xs text-gray-700 flex-1 truncate">{file.name}</span>
+          <button onClick={upload} disabled={uploading}
+            className="px-3 py-1 text-xs font-bold rounded-lg text-white"
+            style={{ background: uploading ? "#9ca3af" : "#111827" }}>
+            {uploading ? "Saving..." : "Save →"}
+          </button>
+          <button onClick={() => setFile(null)} className="text-gray-300 hover:text-gray-500 text-xs">✕</button>
+        </div>
+      ) : (
+        <div
+          className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors"
+          style={{ borderColor: dragOver ? "#6366f1" : "#e5e7eb", background: dragOver ? "#eef2ff" : "#fafafa" }}
+          onClick={() => fileRef.current?.click()}
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); }}>
+          <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={e => handleFile(e.target.files[0])} />
+          <p className="text-xs text-gray-400">Drop CO PDF here or click to browse</p>
+          <p className="text-xs text-gray-300 mt-0.5">Saved to Documents tab automatically</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function COsView() {
   const { changeOrders, refresh } = useAppData();
   const [modal, setModal] = useState(null);
@@ -716,7 +784,7 @@ function COsView() {
 
       {/* Edit modal */}
       {editModal && (
-        <Modal title={`Edit ${editModal.no}`} onClose={() => setEditModal(null)}>
+        <Modal title={`Edit ${editModal.no}`} onClose={() => setEditModal(null)} wide>
           <div className="grid grid-cols-2 gap-3">
             {[["CO #","no"],["Date","date"],["CSI Code","code"],["Division","div"],["Original Budget","origBudget"],["CO Amount","approvedCO"],["Notes","notes"]].map(([lbl,key]) => (
               <div key={key} className={key==="div"||key==="notes"?"col-span-2":""}>
@@ -724,6 +792,11 @@ function COsView() {
                 <input value={editForm[key]||""} onChange={e=>setEditForm(f=>({...f,[key]:e.target.value}))} className={inp} />
               </div>
             ))}
+          </div>
+          {/* PDF Upload — same as Documents tab */}
+          <div>
+            <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">Attach / Replace PDF</label>
+            <COFileUpload coNo={editModal.no} onUploaded={() => {}} />
           </div>
           <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-400">
             Fees will auto-calculate: 13.5% GC fee + 3% insurance on CO amount.
@@ -734,7 +807,7 @@ function COsView() {
 
       {/* Add modal */}
       {addModal && (
-        <Modal title="Add Change Order" onClose={() => setAddModal(false)}>
+        <Modal title="Add Change Order" onClose={() => setAddModal(false)} wide>
           <div className="grid grid-cols-2 gap-3">
             {[["CO #","no"],["Date","date"],["CSI Code","code"],["Division","div"],["Original Budget","origBudget"],["CO Amount","approvedCO"],["Notes","notes"]].map(([lbl,key]) => (
               <div key={key} className={key==="div"||key==="notes"?"col-span-2":""}>
@@ -742,6 +815,11 @@ function COsView() {
                 <input value={addForm[key]||""} onChange={e=>setAddForm(f=>({...f,[key]:e.target.value}))} className={inp} />
               </div>
             ))}
+          </div>
+          {/* PDF Upload — same as Documents tab */}
+          <div>
+            <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">Attach PDF (optional)</label>
+            <COFileUpload coNo={addForm.no} onUploaded={() => {}} />
           </div>
           <button onClick={saveAdd} disabled={saving||!addForm.no||!addForm.approvedCO} className="w-full py-2.5 text-sm font-bold rounded-lg text-white" style={{background:saving||!addForm.no||!addForm.approvedCO?"#e5e7eb":"#111827",color:saving||!addForm.no||!addForm.approvedCO?"#9ca3af":"#fff"}}>{saving?"Saving...":"Add Change Order"}</button>
         </Modal>
@@ -1496,6 +1574,19 @@ function ReconcileView({ setTab }) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('issues');
 
+  const [reseeding, setReseeding] = useState(false);
+  const [reseedDone, setReseedDone] = useState(false);
+
+  const runReseed = async () => {
+    setReseeding(true);
+    try {
+      await apiFetch('/admin/reseed-line-items', { method: 'POST' });
+      setReseedDone(true);
+      await load();
+    } catch(e) {}
+    setReseeding(false);
+  };
+
   const load = async () => {
     setLoading(true);
     try {
@@ -1687,6 +1778,23 @@ function ReconcileView({ setTab }) {
       {/* MISSING DATA TAB */}
       {activeTab === 'missing' && (
         <div className="space-y-3">
+          {/* One-time data fix */}
+          {!reseedDone && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-blue-700">Run One-Time Data Fix</p>
+                <p className="text-xs text-blue-500 mt-0.5">Seeds 3 missing line items (Water Service, Gas Services, Septic) that were in the original budget but not stored in the database.</p>
+              </div>
+              <button onClick={runReseed} disabled={reseeding}
+                className="ml-4 px-4 py-2 text-xs font-bold rounded-lg text-white shrink-0"
+                style={{ background: reseeding ? "#93c5fd" : "#1d4ed8" }}>
+                {reseeding ? "Running..." : "Fix Now →"}
+              </button>
+            </div>
+          )}
+          {reseedDone && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-xs text-emerald-700 font-semibold">✓ Data fix applied — line items updated.</div>
+          )}
           <Card className="p-4">
             <SectionTitle>Invoices Without Line Item Detail</SectionTitle>
             <p className="text-xs text-gray-400 mb-4">
