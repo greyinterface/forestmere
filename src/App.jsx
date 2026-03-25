@@ -145,8 +145,8 @@ const Card = ({ children, className = "" }) => (
 const TH = ({ children, right, className = "" }) => (
   <th className={cx("px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-400 bg-[#f5f6f8] whitespace-nowrap", right ? "text-right" : "text-left", className)}>{children}</th>
 );
-const TD = ({ children, right, mono, muted, bold, colSpan, className = "" }) => (
-  <td colSpan={colSpan} className={cx("px-4 py-3 text-xs", right && "text-right tabular-nums", mono && "font-mono", muted && "text-gray-400", bold && "font-semibold", className)}>{children}</td>
+const TD = ({ children, right, muted, bold, colSpan, className = "" }) => (
+  <td colSpan={colSpan} className={cx("px-4 py-3 text-xs", right && "text-right tabular-nums", muted && "text-gray-400", bold && "font-semibold", className)}>{children}</td>
 );
 const TR = ({ children, onClick, subtle }) => (
   <tr onClick={onClick} className={cx("border-b border-gray-100 transition-colors", onClick && "cursor-pointer hover:bg-indigo-50", subtle && "bg-[#f5f6f8]/50")}>{children}</tr>
@@ -1079,7 +1079,7 @@ function LineItemView() {
         <span className="text-xs text-gray-400 font-medium">Filter by invoice:</span>
         {["All", ...INV_NUMS].map(n => (
           <button key={n} onClick={() => setSel(n)}
-            className={cx("px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all",
+            className={cx("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
               sel === n ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-400 hover:text-gray-800")}>
             {n}
           </button>
@@ -1329,7 +1329,7 @@ function PriorPhasesView() {
               <SectionTitle>Change Orders</SectionTitle>
               {modal.cos.map(co => (
                 <div key={co.no} className="flex justify-between items-center bg-[#f5f6f8] rounded-lg px-3 py-2.5 mb-1.5 text-xs">
-                  <span className="font-mono text-indigo-600 mr-3">{co.no}</span>
+                  <span className="text-indigo-600 mr-3 font-semibold">{co.no}</span>
                   <span className="text-gray-400 flex-1">{co.description}</span>
                   <span className={cx("tabular-nums font-bold ml-4", co.amount < 0 ? "text-emerald-600" : "text-indigo-600")}>
                     {co.amount < 0 ? `-${$f(-co.amount)}` : `+${$f(co.amount)}`}
@@ -1427,7 +1427,7 @@ function VendorsView() {
                 <div className="w-2 h-2 rounded-full shrink-0" style={{ background: vendors[v.key].color }} />
                 <span className={cx("text-xs font-semibold leading-tight", vendorKey===v.key ? "text-gray-900" : "text-gray-500")}>{v.label}</span>
               </div>
-              <p className="text-xs font-mono font-bold tabular-nums text-gray-400 pl-4">{$f(v.total)}</p>
+              <p className="text-xs font-bold tabular-nums text-gray-400 pl-4">{$f(v.total)}</p>
             </button>
           ))}
         </div>
@@ -1806,7 +1806,7 @@ function ReconcileView({ setTab }) {
                     </div>
                     <div className="text-right">
                       <span className="text-xs text-gray-400">Gap: </span>
-                      <span className={`text-xs font-bold font-mono ${c.severity === 'error' ? 'text-red-500' : 'text-indigo-500'}`}>
+                      <span className={`text-xs font-bold ${c.severity === 'error' ? 'text-red-500' : 'text-indigo-500'}`}>
                         {c.diff != null ? ((c.diff >= 0 ? '+' : '') + $f(c.diff)) : '—'}
                       </span>
                     </div>
@@ -1822,15 +1822,15 @@ function ReconcileView({ setTab }) {
                   <div className="grid grid-cols-3 gap-2">
                     <div className="bg-[#f5f6f8] rounded-lg px-3 py-2">
                       <p className="text-xs text-gray-400 mb-0.5">Expected</p>
-                      <p className="text-sm font-bold font-mono text-gray-600">{c.expected != null ? $f(c.expected) : '—'}</p>
+                      <p className="text-sm font-bold text-gray-600">{c.expected != null ? $f(c.expected) : '—'}</p>
                     </div>
                     <div className="bg-[#f5f6f8] rounded-lg px-3 py-2">
                       <p className="text-xs text-gray-400 mb-0.5">In App</p>
-                      <p className={`text-sm font-bold font-mono ${c.severity === 'error' ? 'text-red-500' : 'text-indigo-500'}`}>{c.actual != null ? $f(c.actual) : '—'}</p>
+                      <p className={`text-sm font-bold ${c.severity === 'error' ? 'text-red-500' : 'text-indigo-500'}`}>{c.actual != null ? $f(c.actual) : '—'}</p>
                     </div>
                     <div className="bg-[#f5f6f8] rounded-lg px-3 py-2">
                       <p className="text-xs text-gray-400 mb-0.5">Difference</p>
-                      <p className={`text-sm font-bold font-mono ${c.severity === 'error' ? 'text-red-500' : 'text-indigo-500'}`}>{c.diff != null ? ((c.diff >= 0 ? '+' : '') + $f(c.diff)) : '—'}</p>
+                      <p className={`text-sm font-bold ${c.severity === 'error' ? 'text-red-500' : 'text-indigo-500'}`}>{c.diff != null ? ((c.diff >= 0 ? '+' : '') + $f(c.diff)) : '—'}</p>
                     </div>
                   </div>
                   {/* How to fix */}
@@ -1906,7 +1906,7 @@ function ReconcileView({ setTab }) {
               {changeOrders.filter(co => !co.has_document).map(co => (
                 <div key={co.no} className="flex items-center justify-between bg-[#f5f6f8] rounded-lg px-3 py-2.5">
                   <div>
-                    <span className="text-xs font-bold font-mono text-indigo-600">{co.no}</span>
+                    <span className="text-xs font-bold text-indigo-600">{co.no}</span>
                     <span className="text-xs text-gray-500 ml-2">{co.div}</span>
                   </div>
                   <span className="text-xs font-bold text-gray-800">{$f(co.approved_co)}</span>
