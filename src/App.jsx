@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, createContext, useContext } from "react";
+import { SmartUploadView } from "./SmartUpload.jsx";
 
 // ─── API HELPERS ──────────────────────────────────────────────────────────────
 const API = '/api';
@@ -73,6 +74,9 @@ function DataProvider({ children }) {
     izPaid, rhPaid, afPaid, priorPaid, grandTotalPaid, INV_NUMS,
     refresh,
   };
+
+  // Expose data globally for SmartUploadView
+  window.__appData = value;
 
   return <DataCtx.Provider value={value}>{children}</DataCtx.Provider>;
 }
@@ -1477,7 +1481,7 @@ function AppShell() {
         {tab === "cashflow"  && <CashFlowView />}
         {tab === "prior"     && <PriorPhasesView />}
         {tab === "vendors"   && <VendorsView />}
-        {tab === "uploads"   && <UploadsView />}
+        {tab === "uploads"   && <SmartUploadView />}
       </main>
     </div>
   );
