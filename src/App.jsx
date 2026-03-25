@@ -1844,7 +1844,19 @@ const PAGE_TITLES = {
 
 function AppShell() {
   const { documents } = useAppData();
-  const [tab, setTab] = useState("dashboard");
+  
+  // Persist active tab in URL hash so refresh keeps you on the same page
+  const getInitialTab = () => {
+    const hash = window.location.hash.replace("#", "");
+    const validTabs = ["dashboard","budget","awards","cos","vendors","invoices","lineitem","cashflow","prior","uploads","reconcile"];
+    return validTabs.includes(hash) ? hash : "dashboard";
+  };
+  const [tab, setTabState] = useState(getInitialTab);
+  
+  const setTab = (t) => {
+    setTabState(t);
+    window.location.hash = t;
+  };
 
   const page = PAGE_TITLES[tab] || { title: tab, sub: "" };
 
