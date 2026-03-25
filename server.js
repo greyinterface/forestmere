@@ -657,7 +657,7 @@ app.delete('/api/documents/:id', async (req, res) => {
 
 // ─── SERVE FRONTEND (production) ──────────────────────────────────────────────
 if (!IS_DEV) {
-  const distPath = path.join(__dirname, '../dist');
+  const distPath = path.join(__dirname, 'dist');
   app.use(express.static(distPath));
   app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
 }
