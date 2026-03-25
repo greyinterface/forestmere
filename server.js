@@ -686,7 +686,7 @@ app.put('/api/invoices/:id', async (req, res) => {
     const { status, paidDate, notes, actualPaid, creditApplied } = req.body;
     const { rows } = await pool.query(
       'UPDATE invoices SET status=$1, paid_date=$2, notes=$3, actual_paid=$4, credit_applied=$5 WHERE id=$6 RETURNING *',
-      [status, paidDate || null, notes || null, actualPaid ?? null, creditApplied ?? null, req.params.id]
+      [status, paidDate || null, notes || null, (actualPaid !== undefined && actualPaid !== null) ? actualPaid : null, (creditApplied !== undefined && creditApplied !== null) ? creditApplied : null, req.params.id]
     );
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
