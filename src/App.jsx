@@ -919,9 +919,19 @@ function InvoicesView() {
   };
 
   const submitMarkPaid = async () => {
+    const wire = parseFloat(payForm.actualPaid)||0;
+    const credit = parseFloat(payForm.creditApplied)||0;
+    const approved = parseFloat(markPaidModal.approved)||0;
+    const isFullyPaid = (wire + credit) >= approved - 1;
     await apiFetch(`/invoices/${markPaidModal.id}`, {
       method:'PUT', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ status:'Paid', paidDate:payForm.paidDate, notes:markPaidModal.notes, actualPaid:parseFloat(payForm.actualPaid)||null, creditApplied:parseFloat(payForm.creditApplied)||null })
+      body: JSON.stringify({
+        status: isFullyPaid ? 'Paid' : 'Pending Payment',
+        paidDate: isFullyPaid ? payForm.paidDate : null,
+        notes: markPaidModal.notes,
+        actualPaid: wire || null,
+        creditApplied: credit || null
+      })
     });
     await refresh(); setMarkPaidModal(null);
   };
@@ -1037,11 +1047,22 @@ function InvoicesView() {
               <div className="col-span-2"><label className="block text-xs text-gray-400 uppercase tracking-widest mb-1">Payment Date</label><input value={payForm.paidDate} onChange={e=>setPayForm(f=>({...f,paidDate:e.target.value}))} className={inp} /></div>
             </div>
             {(() => {
-              const wire = parseFloat(payForm.actualPaid)||0; const credit = parseFloat(payForm.creditApplied)||0;
-              const total = wire + credit; const approved = parseFloat(markPaidModal.approved)||0; const diff = total - approved;
-              return <div className={`rounded-lg px-3 py-2 text-xs font-medium border ${Math.abs(diff)<1?"bg-emerald-50 border-emerald-200 text-emerald-700":"bg-amber-50 border-amber-200 text-amber-700"}`}>
-                Wire + Credit = {$f(total)} vs Approved {$f(approved)} → {Math.abs(diff)<1?"✓ Balanced":diff>0?`+${$f(diff)} overpayment`:`${$f(diff)} shortfall`}
-              </div>;
+              const wire = parseFloat(payForm.actualPaid)||0;
+              const credit = parseFloat(payForm.creditApplied)||0;
+              const total = wire + credit;
+              const approved = parseFloat(markPaidModal.approved)||0;
+              const diff = total - approved;
+              const outstanding = approved - total;
+              const isBalanced = Math.abs(diff) < 1;
+              const isPartial = outstanding > 1;
+              const isOver = diff > 1;
+              return (
+                <div className={`rounded-lg px-3 py-2 text-xs font-medium border ${isBalanced?"bg-emerald-50 border-emerald-200 text-emerald-700":isOver?"bg-red-50 border-red-200 text-red-600":"bg-blue-50 border-blue-200 text-blue-700"}`}>
+                  {isBalanced && "✓ Fully paid — balanced"}
+                  {isPartial && `↩ Partial payment — ${$f(outstanding)} will remain outstanding`}
+                  {isOver && `⚠ Wire + Credit exceeds approved by ${$f(diff)}`}
+                </div>
+              );
             })()}
             <button onClick={submitMarkPaid} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg">Confirm Payment</button>
           </div>
