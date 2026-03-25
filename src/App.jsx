@@ -58,7 +58,7 @@ function DataProvider({ children }) {
   const totalAwarded  = awards.reduce((s, a) => s + parseFloat(a.current_amount), 0);
   const totalCOs      = changeOrders.reduce((s, c) => s + parseFloat(c.approved_co), 0);
   const taconicPaid   = invoices.filter(i => i.status === 'Paid').reduce((s, i) => s + parseFloat(i.approved), 0);
-  const taconicPending = invoices.filter(i => i.status !== 'Paid').reduce((s, i) => s + parseFloat(i.amt_due), 0);
+  const taconicPending = invoices.filter(i => i.status !== 'Paid').reduce((s, i) => s + parseFloat(i.approved) - parseFloat(i.credit_applied||0), 0);
 
   const izPaid  = vendors.ivan?.phases.reduce((s, p) => s + (p.invoiced || 0), 0) || 0;
   const rhPaid  = vendors.reed?.phases.reduce((s, p) => s + (p.invoiced || 0), 0) || 0;
