@@ -1054,6 +1054,29 @@ app.post('/api/admin/reseed-billings', async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+
+app.post('/api/admin/reseed-cos', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM change_orders');
+    const cos = [
+      ['CO-003','33-370','Electrical Service',788495,1710,282.15,1992.15,790487.15,'Electrical service upgrade','Jan 20, 2026'],
+      ['CO-007','03-330','Cast In Place Concrete',401900,148000,24725,172725,574625,'Cast in place concrete','Jan 20, 2026'],
+      ['CO-009','31-640','Sheet Pile Retaining Wall & Caissons',416472,57677.70,9516.82,67194.52,483666.52,'Sheet pile retaining wall','Jan 20, 2026'],
+      ['CO-013','23-100','HVAC',398900,50787,8379.86,59166.86,458066.86,'HVAC system addition','Jan 20, 2026'],
+      ['CO-015','26-100','Electrical Power & Switching',244183,-41620.49,-6867.38,-48487.87,195695.13,'Electrical power credit','Jan 20, 2026'],
+      ['CO-016a','23-100','HVAC',398900,38425,6340.13,44765.13,443665.13,'HVAC scope addition','Jan 20, 2026'],
+      ['CO-016b','26-320','Electrical Generators',12000,12250,2021.25,14271.25,26271.25,'Electrical generators','Jan 20, 2026'],
+      ['CO-017a','06-470','Interior Wood Trims - Material',125167,11396.84,1880.48,13277.32,138444.32,'Revised wall panel spec','Feb 3, 2026'],
+      ['CO-017b','09-640','Wood Flooring',36670,5282.92,871.68,6154.60,42824.60,'Revised wood floor spec','Feb 3, 2026'],
+      ['CO-018','13-200','Special Purpose Rooms',100125,4785,789.53,5574.53,105699.53,'Special purpose rooms','Jan 20, 2026'],
+    ];
+    for (const r of cos) {
+      await pool.query('INSERT INTO change_orders (no,code,div,orig_budget,approved_co,fees,total,revised_budget,notes,co_date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (no) DO UPDATE SET code=$2,div=$3,orig_budget=$4,approved_co=$5,fees=$6,total=$7,revised_budget=$8,notes=$9,co_date=$10', r);
+    }
+    res.json({ ok: true, count: cos.length });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/admin/reseed-line-items', async (req, res) => {
   try {
     // Add any missing line items that were billed but not in line_items table
@@ -1237,6 +1260,41 @@ function parseChangeOrder(text) {
   }
 
   return { coNumber, date: dateStr, description, coAmount, reimbursable, grandTotal, deltas };
+}
+
+
+function matchCOToLineItems(parsed, lineItems, rawText) {
+  const lineMatches = [];
+  const deltaRe = /([A-Za-z][^\n.]{5,60}?)(?:\s+initial PO|\s+per this proposal)[^\n]*?Delta\s*=\s*\$?([\d,]+\.\d{2})/gi;
+  let dm;
+  while ((dm = deltaRe.exec(rawText)) !== null) {
+    lineMatches.push({ description: dm[1].trim(), amount: parseFloat(dm[2].replace(/,/g,'')) });
+  }
+  if (lineMatches.length === 0) {
+    const tableRe = /^([A-Za-z][^\n]{5,50})\s+[A-Za-z][^\n]{3,30}\s+([\d,]+\.\d{2})$/gm;
+    while ((dm = tableRe.exec(rawText)) !== null) {
+      const amt = parseFloat(dm[2].replace(/,/g,''));
+      if (amt > 0 && amt < 1000000) lineMatches.push({ description: dm[1].trim(), amount: amt });
+    }
+  }
+  const fuzzyMatch = (desc, items) => {
+    desc = desc.toLowerCase();
+    let best = null, bestScore = 0;
+    for (const item of items) {
+      const name = (item.name || '').toLowerCase();
+      const descWords = desc.split(/\s+/).filter(w => w.length > 3);
+      const nameWords = name.split(/\s+/).filter(w => w.length > 3);
+      const overlap = descWords.filter(w => nameWords.some(n => n.includes(w) || w.includes(n))).length;
+      const score = overlap / Math.max(descWords.length, 1);
+      if (score > bestScore && score > 0.3) { bestScore = score; best = item; }
+    }
+    return best;
+  };
+  const matchedLines = lineMatches.map(lm => {
+    const match = fuzzyMatch(lm.description, lineItems);
+    return { description: lm.description, amount: lm.amount, csiCode: match ? match.code : '', division: match ? match.name : '' };
+  });
+  return { ...parsed, lineItems: matchedLines, csiCode: matchedLines.length===1?matchedLines[0].csiCode:'', division: matchedLines.length===1?matchedLines[0].division:'' };
 }
 
 function parseVendorInvoice(text) {
