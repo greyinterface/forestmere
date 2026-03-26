@@ -5,7 +5,6 @@ import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
-import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 
 const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -63,13 +62,8 @@ async function createSchema() {
       approved NUMERIC(14,2),
       paid_date VARCHAR(20),
       status VARCHAR(30),
-      notes TEXT,
-      actual_paid NUMERIC(14,2),
-      credit_applied NUMERIC(14,2)
+      notes TEXT
     );
-    -- Add columns if they don't exist yet (safe migration)
-    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS actual_paid NUMERIC(14,2);
-    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS credit_applied NUMERIC(14,2);
     CREATE TABLE IF NOT EXISTS line_items (
       code VARCHAR(20) PRIMARY KEY,
       name TEXT,
@@ -159,15 +153,6 @@ async function createSchema() {
     CREATE TABLE IF NOT EXISTS cash_flow_monthly (
       month VARCHAR(10) PRIMARY KEY,
       value NUMERIC(14,2)
-    );
-    CREATE TABLE IF NOT EXISTS pending_document_items (
-      id SERIAL PRIMARY KEY,
-      doc_id INTEGER,
-      item_type VARCHAR(50),
-      item_data JSONB,
-      status VARCHAR(30) DEFAULT 'pending',
-      notes TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
     );
   `);
 }
@@ -266,15 +251,11 @@ async function seedIfEmpty() {
 
   // CHANGE ORDERS
   const cosRows = [
-    ['CO-003','33-370','Electrical Service',788495,1710,282.15,1992.15,790205,'Savings from buyout applied.','Jan 20, 2026'],
-    ['CO-007','03-330','Cast In Place Concrete',401900,148000,16725,164725,549900,'Includes waived fee of $7,695. Waived fee of $7,695 applied.','Jan 20, 2026'],
+    ['CO-007','03-330','Cast In Place Concrete',401900,148000,16725,164725,549900,'Includes waived fee of $7,695.','Jan 20, 2026'],
     ['CO-009','31-640','Sheet Pile / Caissons',416472,57677.7,9516.82,67194.52,474149.7,null,'Jan 20, 2026'],
+    ['CO-003','33-370','Electrical Service',788495,1710,282.15,1992.15,790205,'Savings from buyout applied.','Jan 20, 2026'],
     ['CO-013','23-100','HVAC',398900,50787,8379.86,59166.86,449687,null,'Jan 20, 2026'],
-    ['CO-015','26-100','Electrical Power & Switching - Deduction per Schaefer Engineering',244183,-41620.49,-6867.38,-48487.87,202562.51,'Credit/deduction per revised scope.','Jan 20, 2026'],
     ['CO-016','23-100','HVAC (Additional)',449687,38425,5187.38,43612.38,488112,'Additional HVAC scope.','Jan 20, 2026'],
-    ['CO-017a','06-470','Interior Wood Trims - Material',125167,11396.84,1880.48,13277.32,136563.84,null,'Jan 20, 2026'],
-    ['CO-017b','09-640','Wood Flooring',36670,5282.92,871.68,6154.60,41952.92,null,'Jan 20, 2026'],
-    ['CO-018','13-200','Special Purpose Rooms',100125,4785,789.53,5574.53,104910,'IR Installation scope addition.','Jan 20, 2026'],
   ];
   for (const r of cosRows) {
     await pool.query('INSERT INTO change_orders VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT DO NOTHING', r);
@@ -287,19 +268,12 @@ async function seedIfEmpty() {
     ['PAY-003','09/16/2025','#1693','Period to: August 31, 2025',445713.57,75347.88,-161669.51,-47865.87,311526.07,311536.07,'09/18/2025','Paid',null],
     ['PAY-004','10/17/2025','#1750','Period to: September 30, 2025',574205.05,97069.36,-70273.47,-63883.97,537116.97,537116.97,'11/07/2025','Paid',null],
     ['PAY-005','11/19/2025','#1819','Period to: October 31, 2025',525618.85,88855.86,-126944.29,-56704.94,430825.48,430845.48,'12/30/2025','Paid',null],
-    ['PAY-006','12/22/2025','#1880','Period to: November 30, 2025',196594.55,33234.30,-66221.94,-11728.54,151878.37,151878.37,'12/22/2025','Paid','Payment applied against credit on account. Excess balance applied to subsequent invoices.'],
-    ['PAY-007','01/23/2026','#1956','Period to: December 31, 2025',78875.63,13333.93,-26602.41,-2948.72,62658.43,62658.43,'01/23/2026','Paid','Settled via credit on account. No wire required.'],
+    ['PAY-006','12/22/2025','#1880','Period to: November 30, 2025',196594.55,33234.30,-66221.94,-11728.54,151878.37,151878.37,null,'Pending Payment','$430,845.48 paid twice in error. Balance to be applied against next invoice.'],
+    ['PAY-007','01/23/2026','#1956','Period to: December 31, 2025',78875.63,13333.93,-26602.41,-2948.72,62658.43,62658.43,null,'Pending Payment',null],
   ];
   for (const r of invoicesRows) {
-    await pool.query('INSERT INTO invoices (id,req_date,inv_num,description,job_total,fees,deposit_applied,retainage,amt_due,approved,paid_date,status,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT DO NOTHING', r);
+    await pool.query('INSERT INTO invoices VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT DO NOTHING', r);
   }
-  // Set actual_paid and credit_applied for overpayment invoices
-  await pool.query("UPDATE invoices SET actual_paid=430845.48, credit_applied=0 WHERE id='PAY-006' AND (actual_paid IS NULL)");
-  await pool.query("UPDATE invoices SET actual_paid=0, credit_applied=62658.43, paid_date='01/23/2026', status='Paid' WHERE id='PAY-007' AND status='Pending Payment'");
-  await pool.query("UPDATE invoices SET paid_date='12/22/2025', status='Paid' WHERE id='PAY-006' AND status='Pending Payment'");
-  // Update notes to clean language
-  await pool.query("UPDATE invoices SET notes='Payment applied against credit on account. Excess balance applied to subsequent invoices.' WHERE id='PAY-006'");
-  await pool.query("UPDATE invoices SET notes='Settled via credit on account. No wire required.' WHERE id='PAY-007' AND notes IS NULL");
 
   // LINE ITEMS
   const lineItemsRows = [
@@ -321,80 +295,23 @@ async function seedIfEmpty() {
   for (const r of lineItemsRows) {
     await pool.query('INSERT INTO line_items VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING', r);
   }
-  // Extra line items needed for complete billing data
-  const extraLineItems = [
-    ['26-320','Electric Generators',12000,0,0,0],
-    ['26-500','Interior Lighting Fixtures',129229,0,0,0],
-    ['26-560','Exterior Lighting Fixtures',87250,0,0,0],
-    ['33-100','Water Service',108240,0,0,0],
-    ['33-150','Gas Services / Tank',10000,0,0,0],
-    ['33-300','Septic / Sewer Systems',132770,0,0,0],
-    ['97-000','Fee (GC 13.5%)',0,0,0,0],
-    ['98-000','Insurance (3%)',0,0,0,0],
-    ['99-200','Deposit Applied',0,0,0,0],
-  ];
-  for (const r of extraLineItems) {
-    await pool.query('INSERT INTO line_items (code,name,budget,cos,done,pct) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING', r);
-  }
 
-  // LINE ITEM BILLINGS — complete data from Excel Line Item Billing tab
-  // Covers PAY-001 (Deposit) through PAY-007 (#1956) — 67 billings
+  // LINE ITEM BILLINGS
   const billings = [
-    // 01-001 Project Staffing
-    ['01-001','#1621',18225],['01-001','#1693',33185],['01-001','#1750',26170],
-    ['01-001','#1819',40816.64],['01-001','#1880',22475],['01-001','#1956',23495],
-    // 02-002 Site Preparation
-    ['02-002','#1621',48297.32],['02-002','#1693',9217.82],['02-002','#1750',6264.82],
-    ['02-002','#1819',6608.71],['02-002','#1880',9759.30],['02-002','#1956',16471.77],
-    // 02-100 Debris Removal
+    ['01-001','#1621',18225],['01-001','#1693',33185],['01-001','#1750',26170],['01-001','#1819',40816.64],['01-001','#1880',22475],['01-001','#1956',23495],
+    ['02-002','#1621',48297.32],['02-002','#1693',9217.82],['02-002','#1750',6264.82],['02-002','#1819',6608.71],['02-002','#1880',9759.30],['02-002','#1956',16471.77],
     ['02-100','#1880',1733],
-    // 03-330 Cast In Place Concrete
     ['03-330','#1819',137250],
-    // 06-210 Ext Finish Carpentry Material
     ['06-210','#1880',76576.19],
-    // 08-330 Garage Doors
     ['08-330','#1693',62254.20],
-    // 08-400 Exterior Doors
     ['08-400','#1621',65102.54],
-    // 11-300 Residential Equipment
     ['11-300','#1956',22755.58],
-    // 26-100 Electrical Power & Switching
-    ['26-100','#1621',48356.60],['26-100','#1750',14300],
-    ['26-100','#1819',13505.05],['26-100','#1880',5000],
-    // 26-320 Electric Generators
-    ['26-320','#1621',240],
-    // 26-500 Interior Lighting Fixtures
-    ['26-500','#1621',25036],
-    // 26-560 Exterior Lighting Fixtures
-    ['26-560','#1621',3200],['26-560','#1880',2000],
-    // 31-110 Site Clearing
-    ['31-110','#1750',87510],
-    // 31-200 Excavations & Backfilling
-    ['31-200','#1693',243500],['31-200','#1750',232274.75],
-    ['31-200','#1819',123082.39],['31-200','#1880',20819.47],['31-200','#1956',8653.28],
-    // 32-100 Driveway & Curbing
-    ['32-100','#1750',90685.48],['32-100','#1819',20440.68],['32-100','#1880',4611],
-    // 33-100 Water Service
-    ['33-100','#1693',27600],['33-100','#1819',3302.11],
-    // 33-150 Gas Services
-    ['33-150','#1621',2000],
-    // 33-300 Septic / Sewer Systems
-    ['33-300','#1819',69169.10],['33-300','#1880',5720],
-    // 33-340 Foundation Drainage
-    ['33-340','#1819',86891.85],['33-340','#1880',27900.59],
-    // 33-370 Electrical Service
-    ['33-370','#1621',163231.95],['33-370','#1693',69956.55],['33-370','#1750',117000],
-    ['33-370','#1819',24552.32],['33-370','#1880',20000],['33-370','#1956',7500],
-    // 97-000 Fee (GC Fee per invoice)
-    ['97-000','#1621',50448.07],['97-000','#1693',60171.33],['97-000','#1750',77517.68],
-    ['97-000','#1819',70958.54],['97-000','#1880',26540.26],['97-000','#1956',10648.21],
-    // 98-000 Insurance
-    ['98-000','#1621',12724.12],['98-000','#1693',15176.55],['98-000','#1750',19551.68],
-    ['98-000','#1819',17897.32],['98-000','#1880',6694.04],['98-000','#1956',2685.72],
-    // 99-200 Deposit Applied (negative = credit against invoice)
-    ['99-200','C25-104-Deposit',1436830.08],
-    ['99-200','#1621',-291331.16],['99-200','#1693',-161669.51],['99-200','#1750',-70273.47],
-    ['99-200','#1819',-126944.29],['99-200','#1880',-66221.94],['99-200','#1956',-26602.41],
+    ['31-200','#1621',198067],['31-200','#1693',241737],['31-200','#1750',180000],['31-200','#1956',8653.28],
+    ['31-110','#1621',42207.55],['31-110','#1693',45302.45],
+    ['33-340','#1750',114792.44],
+    ['33-370','#1750',63730],['33-370','#1956',7500],
+    ['26-100','#1750',81161.65],
+    ['32-100','#1750',115737.16],
   ];
   for (const r of billings) {
     await pool.query('INSERT INTO line_item_billings VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', r);
@@ -652,67 +569,14 @@ app.post('/api/invoices', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.delete('/api/invoices/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM invoices WHERE id=$1', [req.params.id]);
-    res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.delete('/api/line-item-billings/rollback/:invNum', async (req, res) => {
-  try {
-    const invNum = decodeURIComponent(req.params.invNum);
-    // Get all line items billed on this invoice
-    const billed = await pool.query('SELECT line_item_code, amount FROM line_item_billings WHERE inv_num=$1', [invNum]);
-    // Delete the billings
-    await pool.query('DELETE FROM line_item_billings WHERE inv_num=$1', [invNum]);
-    // Recalculate done/pct for each affected line item
-    for (const row of billed.rows) {
-      const billedSum = await pool.query('SELECT COALESCE(SUM(amount),0) as total FROM line_item_billings WHERE line_item_code=$1', [row.line_item_code]);
-      const completedToDate = parseFloat(billedSum.rows[0].total) || 0;
-      const liRow = await pool.query('SELECT budget, cos FROM line_items WHERE code=$1', [row.line_item_code]);
-      if (liRow.rows.length > 0) {
-        const revised = parseFloat(liRow.rows[0].budget||0) + parseFloat(liRow.rows[0].cos||0);
-        const pct = revised > 0 ? completedToDate / revised : 0;
-        await pool.query('UPDATE line_items SET done=$1, pct=$2 WHERE code=$3', [completedToDate, pct, row.line_item_code]);
-      }
-    }
-    res.json({ ok: true, affected: billed.rows.length });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
 app.put('/api/invoices/:id', async (req, res) => {
   try {
-    const { status, paidDate, notes, actualPaid, creditApplied } = req.body;
+    const { status, paidDate, notes } = req.body;
     const { rows } = await pool.query(
-      'UPDATE invoices SET status=$1, paid_date=$2, notes=$3, actual_paid=$4, credit_applied=$5 WHERE id=$6 RETURNING *',
-      [status, paidDate || null, notes || null, (actualPaid !== undefined && actualPaid !== null) ? actualPaid : null, (creditApplied !== undefined && creditApplied !== null) ? creditApplied : null, req.params.id]
+      'UPDATE invoices SET status=$1, paid_date=$2, notes=$3 WHERE id=$4 RETURNING *',
+      [status, paidDate || null, notes || null, req.params.id]
     );
     res.json(rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── CREDIT BALANCE ───────────────────────────────────────────────────────────
-app.get('/api/credit-balance', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT id, inv_num, approved, actual_paid, credit_applied, status FROM invoices ORDER BY id');
-    let creditBalance = 0;
-    const ledger = [];
-    for (const inv of rows) {
-      const approved = parseFloat(inv.approved || 0);
-      const actualPaid = parseFloat(inv.actual_paid || 0);
-      const creditUsed = parseFloat(inv.credit_applied || 0);
-      // If actual_paid > approved, that's an overpayment adding to credit
-      if (actualPaid > 0 && actualPaid > approved) {
-        const overpayment = actualPaid - approved;
-        creditBalance += overpayment;
-        ledger.push({ id: inv.id, inv: inv.inv_num, event: 'Overpayment', amount: overpayment, balance: creditBalance });
-      } else if (creditUsed > 0) {
-        creditBalance -= creditUsed;
-        ledger.push({ id: inv.id, inv: inv.inv_num, event: 'Credit Applied', amount: -creditUsed, balance: creditBalance });
-      }
-    }
-    res.json({ creditBalance, ledger });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -726,24 +590,6 @@ app.post('/api/change-orders', async (req, res) => {
       [d.no, d.code, d.div, d.origBudget, d.approvedCO, d.fees, d.total, d.revisedBudget, d.notes || null, d.date]
     );
     res.json(rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.put('/api/change-orders/:no', async (req, res) => {
-  try {
-    const { code, div, origBudget, approvedCO, fees, total, revisedBudget, notes, date } = req.body;
-    const { rows } = await pool.query(
-      'UPDATE change_orders SET code=$1, div=$2, orig_budget=$3, approved_co=$4, fees=$5, total=$6, revised_budget=$7, notes=$8, co_date=$9 WHERE no=$10 RETURNING *',
-      [code, div, origBudget, approvedCO, fees, total, revisedBudget, notes||null, date, req.params.no]
-    );
-    res.json(rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.delete('/api/change-orders/:no', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM change_orders WHERE no=$1', [req.params.no]);
-    res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -778,52 +624,6 @@ app.delete('/api/vendors/invoices/:id', async (req, res) => {
 });
 
 // ─── DOCUMENTS ────────────────────────────────────────────────────────────────
-// ─── LINE ITEM BILLING UPSERT + DELETE ───────────────────────────────────────
-app.post('/api/line-item-billings', async (req, res) => {
-  try {
-    const { code, invNum, amount } = req.body;
-    await pool.query(
-      'INSERT INTO line_item_billings (line_item_code, inv_num, amount) VALUES ($1,$2,$3) ON CONFLICT (line_item_code, inv_num) DO UPDATE SET amount=$3',
-      [code, invNum, amount]
-    );
-    // Recalculate done/pct
-    const sum = await pool.query('SELECT COALESCE(SUM(amount),0) as total FROM line_item_billings WHERE line_item_code=$1 AND amount > 0', [code]);
-    const done = parseFloat(sum.rows[0].total) || 0;
-    const li = await pool.query('SELECT budget, cos FROM line_items WHERE code=$1', [code]);
-    if (li.rows.length > 0) {
-      const revised = parseFloat(li.rows[0].budget||0) + parseFloat(li.rows[0].cos||0);
-      const pct = revised > 0 ? Math.min(done/revised, 1) : 0;
-      await pool.query('UPDATE line_items SET done=$1, pct=$2 WHERE code=$3', [done, pct, code]);
-    }
-    res.json({ ok: true });
-  } catch(err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── LINE ITEM BILLING DELETE ─────────────────────────────────────────────────
-app.delete('/api/line-item-billings/:code/:invNum', async (req, res) => {
-  try {
-    const { code, invNum } = req.params;
-    await pool.query('DELETE FROM line_item_billings WHERE line_item_code=$1 AND inv_num=$2', [code, invNum]);
-    // Recalculate done/pct for this line item
-    const billedSum = await pool.query('SELECT COALESCE(SUM(amount),0) as total FROM line_item_billings WHERE line_item_code=$1', [code]);
-    const completedToDate = parseFloat(billedSum.rows[0].total) || 0;
-    const liRow = await pool.query('SELECT budget, cos FROM line_items WHERE code=$1', [code]);
-    if (liRow.rows.length > 0) {
-      const revised = parseFloat(liRow.rows[0].budget||0) + parseFloat(liRow.rows[0].cos||0);
-      const pct = revised > 0 ? completedToDate / revised : 0;
-      await pool.query('UPDATE line_items SET done=$1, pct=$2 WHERE code=$3', [completedToDate, pct, code]);
-    }
-    res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.get('/api/documents', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT id, name, type, vendor_key, vendor_label, linked_id, note, uploaded_at FROM documents ORDER BY uploaded_at DESC');
-    res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
 app.post('/api/documents', upload.single('file'), async (req, res) => {
   try {
     const { name, type, vendor_key, vendor_label, linked_id, note } = req.body;
@@ -856,157 +656,96 @@ app.delete('/api/documents/:id', async (req, res) => {
 });
 
 
+// ─── ADDITIONAL ROUTES ────────────────────────────────────────────────────────
 
-// ─── RECONCILIATION ENGINE ────────────────────────────────────────────────────
-app.get('/api/reconciliation', async (req, res) => {
+app.delete('/api/invoices/:id', async (req, res) => {
   try {
-    const [budgetR, cosR, invoicesR, lineItemsR, billingsR] = await Promise.all([
-      pool.query('SELECT * FROM budget'),
-      pool.query('SELECT * FROM change_orders'),
-      pool.query('SELECT * FROM invoices ORDER BY id'),
-      pool.query('SELECT * FROM line_items'),
-      pool.query('SELECT * FROM line_item_billings'),
-    ]);
-
-    const checks = [];
-
-    // ── CHECK 1: Original contract amount ──────────────────────────────────
-    const budgetTotal = budgetR.rows.reduce((s, b) => s + parseFloat(b.budget), 0);
-    const TACONIC_CONTRACT = 13093419.47;
-    const contractDiff = Math.abs(budgetTotal - TACONIC_CONTRACT);
-    checks.push({
-      id: 'contract_amount',
-      label: 'Original Contract Amount',
-      description: 'Control budget total matches Taconic contract value',
-      expected: TACONIC_CONTRACT,
-      actual: budgetTotal,
-      diff: budgetTotal - TACONIC_CONTRACT,
-      pass: contractDiff < 5,
-      severity: contractDiff > 100 ? 'error' : 'warn',
-    });
-
-    // ── CHECK 2: Approved COs — Change Orders sheet vs Line Item Billing ───
-    const coTotal = cosR.rows.reduce((s, c) => s + parseFloat(c.approved_co), 0);
-    const liCoTotal = lineItemsR.rows.reduce((s, l) => s + parseFloat(l.cos || 0), 0);
-    const coDiff = Math.abs(coTotal - liCoTotal);
-    checks.push({
-      id: 'co_total',
-      label: 'Change Orders vs Line Item Billing COs',
-      description: 'Sum of approved COs matches CO column in Line Item Billing',
-      expected: coTotal,
-      actual: liCoTotal,
-      diff: liCoTotal - coTotal,
-      pass: coDiff < 5,
-      severity: 'error',
-    });
-
-    // ── CHECK 3: Each invoice — line items sum vs invoice job total ─────────
-    const invNums = invoicesR.rows.map(i => i.inv_num);
-    for (const inv of invoicesR.rows) {
-      const billedRows = billingsR.rows.filter(b => b.inv_num === inv.inv_num);
-      const liSum = billedRows.reduce((s, b) => s + parseFloat(b.amount), 0);
-      const jobTotal = parseFloat(inv.job_total);
-      // Only check if we have line item data for this invoice
-      if (billedRows.length > 0) {
-        const diff = Math.abs(liSum - jobTotal);
-        checks.push({
-          id: `inv_${inv.id}`,
-          label: `${inv.inv_num} — Line Items vs Job Total`,
-          description: `Sum of line items billed should equal invoice job total`,
-          expected: jobTotal,
-          actual: liSum,
-          diff: liSum - jobTotal,
-          pass: diff < 1,
-          severity: diff > 100 ? 'error' : 'warn',
-          invoiceId: inv.id,
-        });
-      }
-    }
-
-    // ── CHECK 4: Total paid vs sum of approved invoices ────────────────────
-    const paidInvs = invoicesR.rows.filter(i => i.status === 'Paid');
-    const totalPaid = paidInvs.reduce((s, i) => s + parseFloat(i.approved), 0);
-    const totalApproved = invoicesR.rows.reduce((s, i) => s + parseFloat(i.approved), 0);
-    checks.push({
-      id: 'paid_total',
-      label: 'Total Paid Invoices',
-      description: `${paidInvs.length} of ${invoicesR.rows.length} invoices paid`,
-      expected: totalApproved,
-      actual: totalPaid,
-      diff: totalPaid - totalApproved,
-      pass: true, // informational only
-      severity: 'info',
-      note: `$${(totalApproved - totalPaid).toLocaleString('en-US', {maximumFractionDigits:0})} outstanding`,
-    });
-
-    // ── CHECK 5: Revised contract = original + COs ────────────────────────
-    const revisedExpected = TACONIC_CONTRACT + coTotal;
-    const TACONIC_REVISED = 13397251.74;
-    const revisedDiff = Math.abs(revisedExpected - TACONIC_REVISED);
-    checks.push({
-      id: 'revised_contract',
-      label: 'Revised Contract Amount',
-      description: 'Original contract + approved COs = revised contract',
-      expected: TACONIC_REVISED,
-      actual: revisedExpected,
-      diff: revisedExpected - TACONIC_REVISED,
-      pass: revisedDiff < 5,
-      severity: 'error',
-    });
-
-    // ── CHECK 6: Retainage — cumulative running total ─────────────────────
-    let retainageRunning = 0;
-    const retainageChecks = [];
-    for (const inv of invoicesR.rows) {
-      retainageRunning += Math.abs(parseFloat(inv.retainage || 0));
-      retainageChecks.push({ inv: inv.inv_num, cumulative: retainageRunning });
-    }
-    const EXPECTED_RETAINAGE = 247807.87; // from invoice #1976
-    const lastRetainage = retainageRunning;
-    const retainageDiff = Math.abs(lastRetainage - EXPECTED_RETAINAGE);
-    checks.push({
-      id: 'retainage_total',
-      label: 'Cumulative Retainage Held',
-      description: 'Running retainage matches Taconic certified total',
-      expected: EXPECTED_RETAINAGE,
-      actual: lastRetainage,
-      diff: lastRetainage - EXPECTED_RETAINAGE,
-      pass: retainageDiff < 5,
-      severity: 'error',
-      detail: retainageChecks,
-    });
-
-    // ── CHECK 7: Completed to date — line items vs invoice statement ───────
-    const liCompletedTotal = lineItemsR.rows.reduce((s, l) => s + parseFloat(l.done || 0), 0);
-    const TACONIC_COMPLETED = 3472724.02; // from invoice #1976 page 2
-    const completedDiff = Math.abs(liCompletedTotal - TACONIC_COMPLETED);
-    checks.push({
-      id: 'completed_to_date',
-      label: 'Completed to Date',
-      description: 'Sum of line items completed matches Taconic statement',
-      expected: TACONIC_COMPLETED,
-      actual: liCompletedTotal,
-      diff: liCompletedTotal - TACONIC_COMPLETED,
-      pass: completedDiff < 100,
-      severity: completedDiff > 1000 ? 'error' : 'warn',
-      note: completedDiff > 100 ? 'May reflect line items not yet entered for latest invoice' : null,
-    });
-
-    const passed = checks.filter(c => c.pass).length;
-    const failed = checks.filter(c => !c.pass && c.severity === 'error').length;
-    const warned = checks.filter(c => !c.pass && c.severity === 'warn').length;
-
-    res.json({ checks, summary: { total: checks.length, passed, failed, warned } });
-  } catch (err) {
-    console.error('Reconciliation error:', err);
-    res.status(500).json({ error: err.message });
-  }
+    await pool.query('DELETE FROM invoices WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ─── DB MIGRATION: ensure all line items seeded properly ────────────────────
+app.get('/api/documents', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id, name, type, vendor_key, vendor_label, linked_id, note, uploaded_at FROM documents ORDER BY uploaded_at DESC');
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/change-orders/:no', async (req, res) => {
+  try {
+    const { code, div, origBudget, approvedCO, fees, total, revisedBudget, notes, date } = req.body;
+    await pool.query(
+      'UPDATE change_orders SET code=$1,div=$2,orig_budget=$3,approved_co=$4,fees=$5,total=$6,revised_budget=$7,notes=$8,co_date=$9 WHERE no=$10',
+      [code, div, origBudget, approvedCO, fees, total, revisedBudget, notes, date, req.params.no]
+    );
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/change-orders/:no', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM change_orders WHERE no=$1', [req.params.no]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/line-item-billings', async (req, res) => {
+  try {
+    const { code, invNum, amount } = req.body;
+    await pool.query(
+      'INSERT INTO line_item_billings (line_item_code, inv_num, amount) VALUES ($1,$2,$3) ON CONFLICT (line_item_code, inv_num) DO UPDATE SET amount=$3',
+      [code, invNum, amount]
+    );
+    const sum = await pool.query('SELECT COALESCE(SUM(amount),0) as total FROM line_item_billings WHERE line_item_code=$1 AND amount > 0', [code]);
+    const done = parseFloat(sum.rows[0].total) || 0;
+    const li = await pool.query('SELECT budget, cos FROM line_items WHERE code=$1', [code]);
+    if (li.rows.length > 0) {
+      const revised = parseFloat(li.rows[0].budget||0) + parseFloat(li.rows[0].cos||0);
+      const pct = revised > 0 ? Math.min(done/revised, 1) : 0;
+      await pool.query('UPDATE line_items SET done=$1, pct=$2 WHERE code=$3', [done, pct, code]);
+    }
+    res.json({ ok: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/line-item-billings/:code/:invNum', async (req, res) => {
+  try {
+    const { code, invNum } = req.params;
+    await pool.query('DELETE FROM line_item_billings WHERE line_item_code=$1 AND inv_num=$2', [code, invNum]);
+    const sum = await pool.query('SELECT COALESCE(SUM(amount),0) as total FROM line_item_billings WHERE line_item_code=$1 AND amount > 0', [code]);
+    const done = parseFloat(sum.rows[0].total) || 0;
+    const li = await pool.query('SELECT budget, cos FROM line_items WHERE code=$1', [code]);
+    if (li.rows.length > 0) {
+      const revised = parseFloat(li.rows[0].budget||0) + parseFloat(li.rows[0].cos||0);
+      const pct = revised > 0 ? Math.min(done/revised, 1) : 0;
+      await pool.query('UPDATE line_items SET done=$1, pct=$2 WHERE code=$3', [done, pct, code]);
+    }
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/line-item-billings/rollback/:invNum', async (req, res) => {
+  try {
+    const invNum = decodeURIComponent(req.params.invNum);
+    const billed = await pool.query('SELECT line_item_code, amount FROM line_item_billings WHERE inv_num=$1', [invNum]);
+    await pool.query('DELETE FROM line_item_billings WHERE inv_num=$1', [invNum]);
+    for (const row of billed.rows) {
+      const sum = await pool.query('SELECT COALESCE(SUM(amount),0) as total FROM line_item_billings WHERE line_item_code=$1 AND amount > 0', [row.line_item_code]);
+      const done = parseFloat(sum.rows[0].total) || 0;
+      const li = await pool.query('SELECT budget, cos FROM line_items WHERE code=$1', [row.line_item_code]);
+      if (li.rows.length > 0) {
+        const revised = parseFloat(li.rows[0].budget||0) + parseFloat(li.rows[0].cos||0);
+        const pct = revised > 0 ? Math.min(done/revised, 1) : 0;
+        await pool.query('UPDATE line_items SET done=$1, pct=$2 WHERE code=$3', [done, pct, row.line_item_code]);
+      }
+    }
+    res.json({ ok: true, affected: billed.rows.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/admin/reseed-billings', async (req, res) => {
   try {
-    // Clear existing billings and reseed from Excel
     await pool.query('DELETE FROM line_item_billings');
     const billings = [
       ['01-001','#1621',18225],['01-001','#1693',33185],['01-001','#1750',26170],
@@ -1037,7 +776,6 @@ app.post('/api/admin/reseed-billings', async (req, res) => {
     for (const b of billings) {
       await pool.query('INSERT INTO line_item_billings VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', b);
     }
-    // Recalculate done/pct for all line items
     const allCodes = await pool.query('SELECT DISTINCT line_item_code FROM line_item_billings');
     for (const row of allCodes.rows) {
       const code = row.line_item_code;
@@ -1054,101 +792,100 @@ app.post('/api/admin/reseed-billings', async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/admin/reseed-line-items', async (req, res) => {
+app.post('/api/admin/reseed-cos', async (req, res) => {
   try {
-    // Add any missing line items that were billed but not in line_items table
-    const missingItems = [
-      ['33-100','Water Service',108240,0,30902.11,0.2855],
-      ['33-150','Gas Services / Tank',10000,0,2000,0.2000],
-      ['33-300','Septic / Sewer Systems',132770,0,74889.10,0.5641],
+    await pool.query('DELETE FROM change_orders');
+    const cos = [
+      ['CO-003','33-370','Electrical Service',788495,1710,282.15,1992.15,790487.15,'Electrical service upgrade','Jan 20, 2026'],
+      ['CO-007','03-330','Cast In Place Concrete',401900,148000,24725,172725,574625,'Cast in place concrete','Jan 20, 2026'],
+      ['CO-009','31-640','Sheet Pile Retaining Wall & Caissons',416472,57677.70,9516.82,67194.52,483666.52,'Sheet pile retaining wall','Jan 20, 2026'],
+      ['CO-013','23-100','HVAC',398900,50787,8379.86,59166.86,458066.86,'HVAC system addition','Jan 20, 2026'],
+      ['CO-015','26-100','Electrical Power & Switching',244183,-41620.49,-6867.38,-48487.87,195695.13,'Electrical power credit','Jan 20, 2026'],
+      ['CO-016a','23-100','HVAC',398900,38425,6340.13,44765.13,443665.13,'HVAC scope addition','Jan 20, 2026'],
+      ['CO-016b','26-320','Electrical Generators',12000,12250,2021.25,14271.25,26271.25,'Electrical generators','Jan 20, 2026'],
+      ['CO-017a','06-470','Interior Wood Trims - Material',125167,11396.84,1880.48,13277.32,138444.32,'Revised wall panel spec','Feb 3, 2026'],
+      ['CO-017b','09-640','Wood Flooring',36670,5282.92,871.68,6154.60,42824.60,'Revised wood floor spec','Feb 3, 2026'],
+      ['CO-018','13-200','Special Purpose Rooms',100125,4785,789.53,5574.53,105699.53,'Special purpose rooms','Jan 20, 2026'],
     ];
-    for (const r of missingItems) {
-      await pool.query('INSERT INTO line_items (code,name,budget,cos,done,pct) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING', r);
+    for (const r of cos) {
+      await pool.query('INSERT INTO change_orders (no,code,div,orig_budget,approved_co,fees,total,revised_budget,notes,co_date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (no) DO UPDATE SET code=$2,div=$3,orig_budget=$4,approved_co=$5,fees=$6,total=$7,revised_budget=$8,notes=$9,co_date=$10', r);
     }
-    // Add billings for these items
-    const extraBillings = [
-      ['33-100','#1621',5412],['33-100','#1693',5412],['33-100','#1750',11684.22],['33-100','#1956',8393.89],
-      ['33-150','#1621',500],['33-150','#1956',1500],
-      ['33-300','#1750',63250.60],['33-300','#1956',11638.50],
-    ];
-    for (const r of extraBillings) {
-      await pool.query('INSERT INTO line_item_billings VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', r);
-    }
-    res.json({ ok: true, message: 'Missing line items seeded' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    res.json({ ok: true, count: cos.length });
+  } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-// ─── DOCUMENT PARSING (AI) ────────────────────────────────────────────────────
+app.post('/api/admin/reseed-line-items', async (req, res) => {
+  try {
+    const extras = [
+      ['26-320','Electric Generators',12000,0,0,0],
+      ['26-500','Interior Lighting Fixtures',129229,0,0,0],
+      ['26-560','Exterior Lighting Fixtures',87250,0,0,0],
+      ['33-100','Water Service',108240,0,0,0],
+      ['33-150','Gas Services',10000,0,0,0],
+      ['33-300','Septic / Sewer Systems',132770,0,0,0],
+      ['97-000','Fee (GC 13.5%)',0,0,0,0],
+      ['98-000','Insurance (3%)',0,0,0,0],
+      ['99-200','Deposit Applied',0,0,0,0],
+    ];
+    for (const r of extras) {
+      await pool.query('INSERT INTO line_items (code,name,budget,cos,done,pct) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING', r);
+    }
+    res.json({ ok: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/debug-pdf', upload.single('file'), async (req, res) => {
   try {
+    const pdfParse = (await import('pdf-parse/lib/pdf-parse.js')).default;
     const pdfData = await pdfParse(req.file.buffer);
-    res.json({ text: pdfData.text, lines: pdfData.text.split('\n').filter(l=>l.trim()).slice(0, 100) });
+    res.json({ text: pdfData.text, lines: pdfData.text.split('\n').filter(l=>l.trim()).slice(0,100) });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/parse-document', upload.single('file'), async (req, res) => {
   try {
     const docType = req.body.doc_type || 'taconic_invoice';
-    const pdfBuffer = req.file.buffer;
-
-    // Use pdf-parse to extract text - no API key needed, works offline
-    const pdfData = await pdfParse(pdfBuffer);
+    const pdfParse = (await import('pdf-parse/lib/pdf-parse.js')).default;
+    const pdfData = await pdfParse(req.file.buffer);
     const text = pdfData.text;
     if (!text || !text.trim()) throw new Error('Could not extract text from PDF');
 
     if (docType === 'taconic_invoice') {
-      const parsed = parseTaconicInvoice(text);
-      return res.json({ ok: true, parsed });
+      return res.json({ ok: true, parsed: parseTaconicInvoice(text) });
     }
-
     if (docType === 'change_order') {
       const parsed = parseChangeOrder(text);
-      return res.json({ ok: true, parsed });
+      const lineItems = await pool.query('SELECT code, name FROM line_items ORDER BY code');
+      const matched = matchCOToLineItems(parsed, lineItems.rows, text);
+      return res.json({ ok: true, parsed: matched });
     }
-
     if (docType === 'vendor_invoice') {
-      const parsed = parseVendorInvoice(text);
-      return res.json({ ok: true, parsed });
+      return res.json({ ok: true, parsed: parseVendorInvoice(text) });
     }
-
-    // Award letter - basic extraction
-    const amountMatch = text.match(/\$([\d,]+(?:\.\d{2})?)/);
-    return res.json({ ok: true, parsed: {
+    const amountMatch = text.match(/\$(\d[\d,]+(?:\.\d{2})?)/);
+    res.json({ ok: true, parsed: {
       vendor: text.split('\n').find(l => l.trim().length > 3 && l.trim().length < 50) || '',
       awardAmount: amountMatch ? parseFloat(amountMatch[1].replace(/,/g,'')) : 0,
-      description: text.slice(0, 200)
     }});
-
   } catch (err) {
     console.error('Parse error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ─── TACONIC AIA G702/G703 PARSER ─────────────────────────────────────────────
-// Based on actual PDF text format from Taconic Builders invoices
 function parseTaconicInvoice(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const parseAmt = (s) => parseFloat((s||'').replace(/[$,()\\s]/g,'')) || 0;
 
-  const parseAmt = (s) => parseFloat((s||'').replace(/[$,()\s]/g,'')) || 0;
-
-  // ── Invoice number: appears alone on a line as a 4-digit number ──
-  // Text format: "3/13/2026\n2039\n  To:Camp Forestmere..."
   let invNum = '';
   for (let i = 0; i < lines.length; i++) {
     if (/^\d{3,5}$/.test(lines[i]) && i > 0) { invNum = lines[i]; break; }
   }
 
-  // ── Invoice date: MM/DD/YYYY near top ──
   const invoiceDate = (text.match(/^(\d{1,2}\/\d{1,2}\/\d{4})/m)||[])[1] || '';
-
-  // ── Period To: "Date: February 28, 2026" or "Period To: ..." ──
   const periodTo = (text.match(/Date:\s*([A-Za-z]+ \d+,\s*\d{4})/)||
                     text.match(/Period\s*To[:\s]+([A-Za-z]+ \d+,\s*\d{4})/i)||[])[1] || '';
 
-  // ── Current Amount Due: "Total Amount Due$159,592.64" ──
-  // The actual amount EXCLUDING $10 wire fee is shown just before
-  // Prefer the pre-wire amount
   let currentAmountDue = 0;
   const wireMatch = text.match(/\$([\d,]+\.\d{2})\s*\nWire Fee/);
   if (wireMatch) {
@@ -1158,85 +895,88 @@ function parseTaconicInvoice(text) {
     if (amtMatch) currentAmountDue = parseAmt(amtMatch[1]);
   }
 
-  // ── Line items: XX-XXX Description $orig $cos $scheduled $prev $current $completed % ──
-  // Actual format: "01-001Project Staffing$1,367,556.67 $0.00 $1,367,556.67 $186,786.64 $26,545.00 $213,331.64 15.60%"
   const lineItemsBilled = [];
-  // Match: code + description + 6+ dollar amounts
-  const lineRe = /(\d{2}-\d{3}[a-z]?)([^$]+)\$([\d,]+\.\d{2})\s+\$?([\d,().\-]+)\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})/g;
+  const lineRe = /(\d{2}-\d{3}[a-z]?)([^$]+)\$([\d,]+\.\d{2})\s+\$?([\d,().\\-]+)\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})/g;
   let m;
   while ((m = lineRe.exec(text)) !== null) {
-    const code = m[1];
-    const name = m[2].trim().replace(/\s+/g,' ');
-    // Columns: origBudget(3) | approvedCOs(4) | scheduledVal(5) | prevBilled(6) | currentBill(7) | completedToDate(8)
     const currentBill = parseAmt(m[7]);
-    const prevBilled  = parseAmt(m[6]);
-    const completedToDate = parseAmt(m[8]);
     if (currentBill > 0) {
-      lineItemsBilled.push({ code, name, previousBilled: prevBilled, currentBill, completedToDate });
+      lineItemsBilled.push({
+        code: m[1], name: m[2].trim().replace(/\s+/g,' '),
+        previousBilled: parseAmt(m[6]), currentBill,
+        completedToDate: parseAmt(m[8]),
+      });
     }
   }
 
-  // ── Fees: find 97-000 and 98-000 rows ──
-  let gcFee = 0, insurance = 0;
-  const feeRow = lineItemsBilled.find(l => l.code === '97-000');
+  const gcFeeRow = lineItemsBilled.find(l => l.code === '97-000');
   const insRow = lineItemsBilled.find(l => l.code === '98-000');
-  if (feeRow) gcFee = feeRow.currentBill;
-  if (insRow) insurance = insRow.currentBill;
-
-  // ── Job total = sum of all non-fee/insurance/deposit current bills ──
+  const gcFee = gcFeeRow ? gcFeeRow.currentBill : 0;
+  const insurance = insRow ? insRow.currentBill : 0;
   const jobTotal = lineItemsBilled
     .filter(l => !['97-000','97-001','98-000','99-200'].includes(l.code))
     .reduce((s,l) => s + l.currentBill, 0);
-
-  // ── Deposit row (99-200) ──
   const depositRow = lineItemsBilled.find(l => l.code === '99-200');
   const depositApplied = depositRow ? Math.abs(depositRow.currentBill) : 0;
-
-  // ── Retainage: derive from summary totals ──
-  // retainage = jobTotal + gcFee + insurance - depositApplied - currentAmountDue
-  const retainageThisPeriod = Math.round(
-    Math.max(0, (jobTotal + gcFee + insurance) - depositApplied - currentAmountDue) * 100
-  ) / 100;
+  const retainageThisPeriod = Math.round(Math.max(0, (jobTotal + gcFee + insurance) - depositApplied - currentAmountDue) * 100) / 100;
 
   return {
     header: { invNum, invoiceDate, periodTo, currentAmountDue },
     lineItemsBilled,
-    fees: { gcFee, insurance, depositApplied, retainageThisPeriod,
-            jobTotal: Math.round(jobTotal * 100) / 100 }
+    fees: { gcFee, insurance, depositApplied, retainageThisPeriod, jobTotal: Math.round(jobTotal * 100) / 100 }
   };
 }
 
 function parseChangeOrder(text) {
-  // Format: "Number:CO-017", "Date:Feb 3,    2026", Grand total at bottom
   const findStr = (p) => { const m = text.match(p); return m ? m[1].trim() : ''; };
   const findNum = (p) => { const m = text.match(p); return m ? parseFloat(m[1].replace(/[,$]/g,'')) : 0; };
-
-  // CO Number: "Number:CO-017" or "Number: CO-017"
   const coNumber = findStr(/Number[:\s]+([A-Z]{1,3}-?\d{3}[a-z]?)/i);
-
-  // Date: "Date:Feb 3,    2026" or "Date:01/15/2026"
   const dateStr = findStr(/Date[:\s]+([A-Za-z]+ \d+[,\s]+\d{4})/i) ||
-                  findStr(/Date[:\s]+([\d]{1,2}\/[\d]{1,2}\/[\d]{2,4})/i);
-
-  // Description: line after "Description" or "Revised..." first meaningful line
-  const description = findStr(/Description\s*\n([^\n]{5,100})/i) ||
-                       findStr(/(?:Revised|Change to|Addition of)([^\n]{5,100})/i);
-
-  // CO Amount: "Grand total" line, or "Reimbursable Costs" = net before fees
-  const grandTotal    = findNum(/Grand\s*total[\s\n]+([\d,]+\.\d{2})/i);
-  const reimbursable  = findNum(/Reimbursable\s*Costs[\s\n]+([\d,]+\.\d{2})/i);
-  // Net CO amount = reimbursable (before fee/insurance), or grand total if no breakdown
-  const coAmount = reimbursable || grandTotal;
-
-  // Delta lines: "Delta = $11,396.84" — collect all deltas for line items
+                  findStr(/Date[:\s]+(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  const description = findStr(/Description\s*\n([^\n]{5,100})/i);
+  const grandTotal = findNum(/Grand\s*total[\s\n]+([\d,]+\.\d{2})/i);
+  const reimbursable = findNum(/Reimbursable\s*Costs[\s\n]+([\d,]+\.\d{2})/i);
   const deltas = [];
   const deltaRe = /Delta\s*=\s*\$?([\d,]+\.\d{2})/gi;
   let dm;
   while ((dm = deltaRe.exec(text)) !== null) {
     deltas.push(parseFloat(dm[1].replace(/,/g,'')));
   }
+  return { coNumber, date: dateStr, description, coAmount: reimbursable || grandTotal, reimbursable, grandTotal, deltas };
+}
 
-  return { coNumber, date: dateStr, description, coAmount, reimbursable, grandTotal, deltas };
+function matchCOToLineItems(parsed, lineItems, rawText) {
+  const lineMatches = [];
+  const deltaRe = /([A-Za-z][^\n.]{5,60}?)(?:\s+initial PO|\s+per this proposal)[^\n]*?Delta\s*=\s*\$?([\d,]+\.\d{2})/gi;
+  let dm;
+  while ((dm = deltaRe.exec(rawText)) !== null) {
+    lineMatches.push({ description: dm[1].trim(), amount: parseFloat(dm[2].replace(/,/g,'')) });
+  }
+  if (lineMatches.length === 0) {
+    const tableRe = /^([A-Za-z][^\n]{5,50})\s+[A-Za-z][^\n]{3,30}\s+([\d,]+\.\d{2})$/gm;
+    while ((dm = tableRe.exec(rawText)) !== null) {
+      const amt = parseFloat(dm[2].replace(/,/g,''));
+      if (amt > 0 && amt < 1000000) lineMatches.push({ description: dm[1].trim(), amount: amt });
+    }
+  }
+  const fuzzyMatch = (desc, items) => {
+    desc = desc.toLowerCase();
+    let best = null, bestScore = 0;
+    for (const item of items) {
+      const name = (item.name || '').toLowerCase();
+      const descWords = desc.split(/\s+/).filter(w => w.length > 3);
+      const nameWords = name.split(/\s+/).filter(w => w.length > 3);
+      const overlap = descWords.filter(w => nameWords.some(n => n.includes(w) || w.includes(n))).length;
+      const score = overlap / Math.max(descWords.length, 1);
+      if (score > bestScore && score > 0.3) { bestScore = score; best = item; }
+    }
+    return best;
+  };
+  const matchedLines = lineMatches.map(lm => {
+    const match = fuzzyMatch(lm.description, lineItems);
+    return { description: lm.description, amount: lm.amount, csiCode: match ? match.code : '', division: match ? match.name : '' };
+  });
+  return { ...parsed, lineItems: matchedLines, csiCode: matchedLines.length === 1 ? matchedLines[0].csiCode : '', division: matchedLines.length === 1 ? matchedLines[0].division : '' };
 }
 
 function parseVendorInvoice(text) {
@@ -1244,61 +984,95 @@ function parseVendorInvoice(text) {
   const findNum = (p) => { const m = text.match(p); return m ? parseFloat(m[1].replace(/[,$]/g,'')) : 0; };
   const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
   return {
-    invNum:   findStr(/(?:Invoice|Inv)\s*(?:No\.?|Number|#)[:\s]*([\w-]+)/i),
-    date:     findStr(/(?:Invoice\s*Date|Date)[:\s]*([\d]{1,2}\/[\d]{1,2}\/[\d]{2,4})/i),
+    invNum: findStr(/(?:Invoice|Inv)\s*(?:No\.?|Number|#)[:\s]+([\w-]+)/i),
+    date: findStr(/(?:Invoice\s*Date|Date)[:\s]+(\d{1,2}\/\d{1,2}\/\d{2,4})/i),
     vendorName: lines[0] || '',
     description: lines.slice(1,3).join(' '),
-    amount:   findNum(/(?:Total|Amount\s*Due|Balance\s*Due)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i),
-    total:    findNum(/(?:Total|Amount\s*Due|Balance\s*Due)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i),
+    amount: findNum(/(?:Total|Amount\s*Due|Balance\s*Due)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i),
+    total: findNum(/(?:Total|Amount\s*Due|Balance\s*Due)[:\s]*\$?([\d,]+(?:\.\d{2})?)/i),
   };
 }
 
-
-app.post('/api/approve-items', async (req, res) => {
+// ─── CREDIT BALANCE ───────────────────────────────────────────────────────────
+app.get('/api/credit-balance', async (req, res) => {
   try {
-    const { items } = req.body;
-    const results = [];
-    for (const item of items) {
-      try {
-        if (item.type === 'invoice_header') {
-          const d = item.data;
-          await pool.query(`INSERT INTO invoices (id,req_date,inv_num,description,job_total,fees,deposit_applied,retainage,amt_due,approved,paid_date,status,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT (id) DO NOTHING`,
-            [d.id, d.reqDate, d.invNum, d.description, d.jobTotal, d.fees, d.depositApplied, d.retainage, d.amtDue, d.amtDue, null, 'Pending Payment', null]);
-          results.push({ type: item.type, ok: true });
-        } else if (item.type === 'line_item_billing') {
-          const d = item.data;
-          const currentBill = parseFloat(d.currentBill) || 0;
+    const { rows } = await pool.query('SELECT id, inv_num, approved, actual_paid, credit_applied, status FROM invoices ORDER BY id');
+    let creditBalance = 0;
+    const ledger = rows.map(inv => {
+      const approved = parseFloat(inv.approved) || 0;
+      const wire = parseFloat(inv.actual_paid) || 0;
+      const credit = parseFloat(inv.credit_applied) || 0;
+      const paid = wire + credit;
+      const overpayment = paid > approved ? paid - approved : 0;
+      if (inv.status === 'Paid' && wire > approved) creditBalance += wire - approved;
+      if (credit > 0) creditBalance -= credit;
+      return { ...inv, wire, credit, overpayment, creditUsed: credit };
+    });
+    res.json({ creditBalance: Math.round(creditBalance * 100) / 100, ledger });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
 
-          // Insert the billing record first
-          await pool.query('INSERT INTO line_item_billings (line_item_code,inv_num,amount) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [d.code, d.invNum, currentBill]);
+// ─── RECONCILIATION ───────────────────────────────────────────────────────────
+app.get('/api/reconciliation', async (req, res) => {
+  try {
+    const [budgetR, cosR, invoicesR, lineItemsR, billingsR] = await Promise.all([
+      pool.query('SELECT * FROM line_items ORDER BY code'),
+      pool.query('SELECT * FROM change_orders ORDER BY no'),
+      pool.query('SELECT * FROM invoices ORDER BY id'),
+      pool.query('SELECT * FROM line_items ORDER BY code'),
+      pool.query('SELECT * FROM line_item_billings'),
+    ]);
+    const checks = [];
 
-          // Auto-calculate completed to date = sum of ALL billings for this line item
-          const billedSum = await pool.query('SELECT COALESCE(SUM(amount),0) as total FROM line_item_billings WHERE line_item_code=$1', [d.code]);
-          const completedToDate = parseFloat(billedSum.rows[0].total) || 0;
+    // Check 1: Contract amount
+    const tradesBudget = budgetR.rows.filter(b => b.code !== '01-000').reduce((s, b) => s + parseFloat(b.budget), 0);
+    const gcBudget = budgetR.rows.find(b => b.code === '01-000');
+    const generalConditions = gcBudget ? parseFloat(gcBudget.budget) : 1823957;
+    const constructionSubtotal = tradesBudget + generalConditions;
+    const gcFee = constructionSubtotal * 0.135;
+    const insurance = constructionSubtotal * 0.03;
+    const computedContract = constructionSubtotal + gcFee + insurance;
+    const TACONIC_CONTRACT = 13093419.47;
+    checks.push({
+      id: 'contract_amount', label: 'Original Contract Amount',
+      description: 'Trades + GC + Fee (13.5%) + Insurance (3%) = Original Contract',
+      expected: TACONIC_CONTRACT, actual: Math.round(computedContract * 100) / 100,
+      diff: Math.round((computedContract - TACONIC_CONTRACT) * 100) / 100,
+      pass: Math.abs(computedContract - TACONIC_CONTRACT) < 500,
+      severity: Math.abs(computedContract - TACONIC_CONTRACT) > 5000 ? 'error' : 'warn',
+    });
 
-          // Check if line item exists
-          const ex = await pool.query('SELECT code, budget, cos FROM line_items WHERE code=$1', [d.code]);
-          if (ex.rows.length > 0) {
-            // Auto-calculate pct = completedToDate / (budget + cos)
-            const revised = parseFloat(ex.rows[0].budget || 0) + parseFloat(ex.rows[0].cos || 0);
-            const pct = revised > 0 ? completedToDate / revised : 0;
-            await pool.query('UPDATE line_items SET done=$1, pct=$2 WHERE code=$3', [completedToDate, pct, d.code]);
-          } else {
-            // Create new line item - use completedToDate as budget placeholder
-            await pool.query('INSERT INTO line_items (code,name,budget,cos,done,pct) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING',
-              [d.code, d.name || d.code, completedToDate, 0, completedToDate, 1.0]);
-          }
-          results.push({ type: item.type, code: d.code, ok: true });
-        }
-      } catch (ie) { results.push({ type: item.type, ok: false, error: ie.message }); }
-    }
-    res.json({ ok: true, results });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    // Check 2: Billing matches invoices
+    const totalBilled = billingsR.rows.filter(b => parseFloat(b.amount) > 0 && b.inv_num !== 'C25-104-Deposit').reduce((s, b) => s + parseFloat(b.amount), 0);
+    const totalInvoiced = invoicesR.rows.reduce((s, i) => s + parseFloat(i.job_total||0) + parseFloat(i.fees||0), 0);
+    checks.push({
+      id: 'billing_vs_invoices', label: 'Line Item Billing vs Invoice Totals',
+      description: 'Sum of all line item billings should match invoice job totals + fees',
+      expected: totalInvoiced, actual: totalBilled,
+      diff: totalBilled - totalInvoiced,
+      pass: Math.abs(totalBilled - totalInvoiced) < 100,
+      severity: Math.abs(totalBilled - totalInvoiced) > 1000 ? 'error' : 'warn',
+    });
+
+    // Check 3: CO totals
+    const coBudgetSum = cosR.rows.reduce((s, c) => s + parseFloat(c.approved_co||0), 0);
+    const APPROVED_COS = 288693.97;
+    checks.push({
+      id: 'co_totals', label: 'Change Order Net Amount',
+      description: 'Sum of all approved CO net amounts',
+      expected: APPROVED_COS, actual: Math.round(coBudgetSum * 100) / 100,
+      diff: Math.round((coBudgetSum - APPROVED_COS) * 100) / 100,
+      pass: Math.abs(coBudgetSum - APPROVED_COS) < 10,
+      severity: 'warn',
+    });
+
+    res.json({ checks, passed: checks.filter(c => c.pass).length, total: checks.length });
+  } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
 // ─── SERVE FRONTEND (production) ──────────────────────────────────────────────
 if (!IS_DEV) {
-  const distPath = path.join(process.cwd(), 'dist');
+  const distPath = path.join(__dirname, '../dist');
   app.use(express.static(distPath));
   app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
 }
