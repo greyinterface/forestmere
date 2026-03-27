@@ -825,7 +825,10 @@ function COsView() {
         <table className="w-full">
           <thead><tr><TH>CO #</TH><TH>Date</TH><TH>CSI Code</TH><TH>Division</TH><TH right>Orig. Budget</TH><TH right>CO Amount</TH><TH right>Fees</TH><TH right>Total w/ Fees</TH><TH right>Revised Budget</TH><TH>Actions</TH></tr></thead>
           <tbody>
-            {changeOrders.map(co => (
+            {[...changeOrders].sort((a, b) => {
+              const n = s => { const m = s.match(/(\d+)([a-z]?)/i); return m ? parseInt(m[1]) * 100 + (m[2] ? m[2].charCodeAt(0) : 0) : 0; };
+              return n(a.no) - n(b.no);
+            }).map(co => (
               <TR key={co.no} onClick={() => setModal(co)}>
                 <TD mono className="text-indigo-600 font-bold">{co.no}</TD>
                 <TD muted>{co.co_date}</TD>
