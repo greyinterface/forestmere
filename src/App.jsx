@@ -2292,17 +2292,7 @@ function AppShell() {
                 {page.sub}
               </p>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{
-                display: "inline-flex", alignItems: "center", gap: 5,
-                background: "#f0fdf4", border: "1px solid #bbf7d0",
-                color: "#15803d", borderRadius: 20, padding: "4px 12px",
-                fontSize: 12, fontWeight: 600,
-              }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} />
-                Phase 1.1 Active
-              </span>
-            </div>
+
           </div>
         </div>
 
