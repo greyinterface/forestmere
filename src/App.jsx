@@ -1539,7 +1539,7 @@ function PriorPhasesView() {
 function VendorsView() {
   const { vendors, refresh } = useAppData();
   const [vendorKey, setVendorKey] = useState("ivan");
-  const [subTab, setSubTab] = useState("overview");
+  const [subTab, setSubTab] = useState("invoices");
   const [modal, setModal] = useState(null);
   const [phaseView, setPhaseView] = useState("table");
   const [addingInv, setAddingInv] = useState(false);
@@ -1738,7 +1738,8 @@ function VendorsView() {
         )}
 
         {/* INVOICES */}
-        {subTab==="invoices" && (
+        {subTab==="invoices" && <InvoiceWorkflow vendorKey={vendorKey} />}
+      {subTab==="invoices_old" && (
           <div className="space-y-3">
             <div className="flex justify-end">
               <button onClick={() => { setAddingInv(v=>!v); setEditingId(null); }}
@@ -2994,6 +2995,522 @@ function DesignEngShell() {
   );
 }
 
+
+// ─── STATUS HELPERS ───────────────────────────────────────────────────────────
+const INV_STATUS_COLORS = {
+  "Submitted":    { bg: "#f0f9ff", text: "#0369a1", dot: "#0ea5e9" },
+  "Under Review": { bg: "#fffbeb", text: "#92400e", dot: "#f59e0b" },
+  "Approved":     { bg: "#f0fdf4", text: "#166534", dot: "#22c55e" },
+  "Zoho Matched": { bg: "#eff6ff", text: "#1e40af", dot: "#3b82f6" },
+  "Paid":         { bg: "#f9fafb", text: "#374151", dot: "#9ca3af" },
+};
+
+function InvStatusTag({ status }) {
+  const c = INV_STATUS_COLORS[status] || { bg:"#f3f4f6", text:"#6b7280", dot:"#9ca3af" };
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: c.bg, color: c.text }}>
+      <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: c.dot }} />
+      {status}
+    </span>
+  );
+}
+
+// ─── INVOICE WORKFLOW COMPONENT ───────────────────────────────────────────────
+function InvoiceWorkflow({ vendorKey }) {
+  const { vendors } = useAppData();
+  const vendor = vendors[vendorKey];
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState("list"); // "list" | "new" | "detail"
+  const [selected, setSelected] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [modal, setModal] = useState(null);
+
+  // New invoice form state
+  const [form, setForm] = useState({
+    invoice_num: "", invoice_date: "", period_start: "", period_end: "",
+    total_amount: "", notes: "",
+  });
+  const [lines, setLines] = useState([]);
+
+  const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-400";
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await apiFetch(`/submitted-invoices?vendor_key=${vendorKey}`);
+      setInvoices(Array.isArray(data) ? data : []);
+    } catch(e) { setInvoices([]); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [vendorKey]);
+
+  const addLine = () => setLines(l => [...l, { line_description:"", hours:"", rate:"", amount:"", vendor_phase_id:"", vendor_phase_name:"", notes:"" }]);
+  const updateLine = (i, field, val) => setLines(l => l.map((row,idx) => idx===i ? {...row,[field]:val} : row));
+  const removeLine = (i) => setLines(l => l.filter((_,idx) => idx!==i));
+
+  // Auto-compute amount from hours × rate
+  const handleLineChange = (i, field, val) => {
+    updateLine(i, field, val);
+    const line = lines[i];
+    if (field === "hours" || field === "rate") {
+      const h = parseFloat(field==="hours" ? val : line.hours) || 0;
+      const r = parseFloat(field==="rate" ? val : line.rate) || 0;
+      if (h > 0 && r > 0) updateLine(i, "amount", String((h*r).toFixed(2)));
+    }
+  };
+
+  const linesTotal = lines.reduce((s,l) => s+parseFloat(l.amount||0), 0);
+
+  const saveInvoice = async () => {
+    if (!form.invoice_num || !form.invoice_date || lines.length === 0 || saving) return;
+    setSaving(true);
+    try {
+      await apiFetch("/submitted-invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendor_key: vendorKey,
+          invoice_num: form.invoice_num,
+          invoice_date: form.invoice_date,
+          period_start: form.period_start || null,
+          period_end: form.period_end || null,
+          total_amount: linesTotal,
+          notes: form.notes || null,
+          lines: lines.map((l,i) => ({
+            line_description: l.line_description,
+            hours: parseFloat(l.hours)||null,
+            rate: parseFloat(l.rate)||null,
+            amount: parseFloat(l.amount)||0,
+            vendor_phase_id: l.vendor_phase_id ? parseInt(l.vendor_phase_id) : null,
+            vendor_phase_name: l.vendor_phase_name || null,
+            notes: l.notes || null,
+            sort_order: i,
+          })),
+        }),
+      });
+      setForm({ invoice_num:"", invoice_date:"", period_start:"", period_end:"", total_amount:"", notes:"" });
+      setLines([]);
+      setView("list");
+      await load();
+    } catch(e) { alert("Error saving invoice: " + e.message); }
+    setSaving(false);
+  };
+
+  const approve = async (id) => {
+    await apiFetch(`/submitted-invoices/${id}/approve`, { method:"POST" });
+    await load();
+    if (selected?.id === id) setSelected(invoices.find(i=>i.id===id));
+  };
+
+  const unapprove = async (id) => {
+    await apiFetch(`/submitted-invoices/${id}/unapprove`, { method:"POST" });
+    await load();
+  };
+
+  const markZohoMatch = async (inv) => {
+    const billId = prompt("Enter Zoho Bill ID:");
+    if (!billId) return;
+    await apiFetch(`/submitted-invoices/${inv.id}/zoho-match`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ zoho_bill_id: billId, zoho_match_amount: inv.total_amount }),
+    });
+    await load();
+  };
+
+  const markPaid = async (inv) => {
+    const amt = prompt("Enter paid amount:", String(inv.total_amount));
+    if (!amt) return;
+    await apiFetch(`/submitted-invoices/${inv.id}/pay`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ paid_amount: parseFloat(amt), paid_at: new Date().toISOString() }),
+    });
+    await load();
+  };
+
+  const deleteInv = async (id) => {
+    if (!confirm("Delete this invoice?")) return;
+    await apiFetch(`/submitted-invoices/${id}`, { method:"DELETE" });
+    if (selected?.id === id) { setSelected(null); setView("list"); }
+    await load();
+  };
+
+  const updatePhaseMapping = async (lineId, phaseId, phaseName) => {
+    await apiFetch(`/submitted-invoice-lines/${lineId}`, {
+      method:"PUT", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ vendor_phase_id: parseInt(phaseId), vendor_phase_name: phaseName }),
+    });
+    await load();
+    // Refresh selected invoice lines
+    if (selected) {
+      const updated = await apiFetch(`/submitted-invoices?vendor_key=${vendorKey}`);
+      const updatedInv = updated.find(i => i.id === selected.id);
+      if (updatedInv) setSelected(updatedInv);
+    }
+  };
+
+  if (!vendor) return null;
+
+  // ── LIST VIEW ─────────────────────────────────────────────────────────────
+  if (view === "list") return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-gray-400">Upload and review invoices · map to budget phases · approve · reconcile to Zoho</p>
+        </div>
+        <button onClick={() => { setView("new"); setLines([]); }}
+          className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold rounded-lg transition-colors">
+          + New Invoice
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" /></div>
+      ) : invoices.length === 0 ? (
+        <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
+          No invoices yet — click "+ New Invoice" to add one
+        </div>
+      ) : (
+        <Card className="overflow-hidden">
+          <table className="w-full">
+            <thead><tr><TH>Invoice #</TH><TH>Date</TH><TH>Period</TH><TH>Lines</TH><TH right>Total</TH><TH>Status</TH><TH>Actions</TH></tr></thead>
+            <tbody>
+              {invoices.map(inv => (
+                <TR key={inv.id} onClick={() => { setSelected(inv); setView("detail"); }}>
+                  <TD mono bold className="text-indigo-600">{inv.invoice_num}</TD>
+                  <TD muted>{inv.invoice_date}</TD>
+                  <TD muted className="text-xs">{inv.period_start && inv.period_end ? `${inv.period_start} – ${inv.period_end}` : inv.period_start || "—"}</TD>
+                  <TD muted>{inv.lines?.length || 0} line{inv.lines?.length !== 1 ? "s" : ""}</TD>
+                  <TD right bold className="text-gray-900">{$f(inv.total_amount)}</TD>
+                  <TD><InvStatusTag status={inv.status} /></TD>
+                  <TD onClick={e=>e.stopPropagation()}>
+                    <div className="flex gap-1 flex-wrap">
+                      {inv.status === "Submitted" && (
+                        <button onClick={() => { setSelected(inv); setView("detail"); }} className="text-xs px-2 py-1 border border-gray-200 rounded text-gray-500 hover:border-indigo-300 hover:text-indigo-600">Review</button>
+                      )}
+                      {inv.status === "Under Review" && (
+                        <button onClick={() => approve(inv.id)} className="text-xs px-2 py-1 bg-emerald-500 hover:bg-emerald-400 text-white rounded font-semibold">Approve</button>
+                      )}
+                      {inv.status === "Approved" && (
+                        <button onClick={() => markZohoMatch(inv)} className="text-xs px-2 py-1 bg-blue-500 hover:bg-blue-400 text-white rounded font-semibold">Match Zoho</button>
+                      )}
+                      {inv.status === "Zoho Matched" && (
+                        <button onClick={() => markPaid(inv)} className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded font-semibold">Mark Paid</button>
+                      )}
+                      <button onClick={() => deleteInv(inv.id)} className="text-xs px-2 py-1 text-gray-300 hover:text-red-500 transition-colors">✕</button>
+                    </div>
+                  </TD>
+                </TR>
+              ))}
+            </tbody>
+            <tfoot>
+              <TR subtle>
+                <TD bold colSpan={4} muted>Total</TD>
+                <TD right bold className="text-gray-900">{$f(invoices.reduce((s,i)=>s+i.total_amount,0))}</TD>
+                <TD colSpan={2} />
+              </TR>
+            </tfoot>
+          </table>
+        </Card>
+      )}
+
+      {/* Summary by status */}
+      {invoices.length > 0 && (
+        <div className="grid grid-cols-4 gap-3">
+          {["Submitted","Under Review","Approved","Paid"].map(s => {
+            const count = invoices.filter(i=>i.status===s||i.status==="Zoho Matched"&&s==="Approved").length;
+            const total = invoices.filter(i=>i.status===s||(i.status==="Zoho Matched"&&s==="Approved")).reduce((sum,i)=>sum+i.total_amount,0);
+            const c = INV_STATUS_COLORS[s];
+            return (
+              <div key={s} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-2 h-2 rounded-full" style={{background:c.dot}} />
+                  <span className="text-xs font-semibold" style={{color:c.text}}>{s}</span>
+                </div>
+                <div className="text-sm font-bold text-gray-900">{$f(total)}</div>
+                <div className="text-xs text-gray-400">{count} invoice{count!==1?"s":""}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  // ── NEW INVOICE FORM ──────────────────────────────────────────────────────
+  if (view === "new") return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={() => setView("list")} className="text-xs text-gray-400 hover:text-gray-700">← Back</button>
+        <span className="text-sm font-bold text-gray-900">New Invoice — {vendor.full_name}</span>
+      </div>
+
+      <Card className="p-5 space-y-4">
+        <SectionTitle>Invoice Details</SectionTitle>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div><label className="block text-xs text-gray-400 mb-1">Invoice #*</label>
+            <input value={form.invoice_num} onChange={e=>setForm(f=>({...f,invoice_num:e.target.value}))} placeholder="e.g. CFA-44" className={inp}/></div>
+          <div><label className="block text-xs text-gray-400 mb-1">Invoice Date*</label>
+            <input type="date" value={form.invoice_date} onChange={e=>setForm(f=>({...f,invoice_date:e.target.value}))} className={inp}/></div>
+          <div><label className="block text-xs text-gray-400 mb-1">Period Start</label>
+            <input type="date" value={form.period_start} onChange={e=>setForm(f=>({...f,period_start:e.target.value}))} className={inp}/></div>
+          <div><label className="block text-xs text-gray-400 mb-1">Period End</label>
+            <input type="date" value={form.period_end} onChange={e=>setForm(f=>({...f,period_end:e.target.value}))} className={inp}/></div>
+          <div className="md:col-span-2"><label className="block text-xs text-gray-400 mb-1">Notes</label>
+            <input value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="e.g. Guest cabin CD's, OAC meetings…" className={inp}/></div>
+        </div>
+      </Card>
+
+      <Card className="p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <SectionTitle>Line Items</SectionTitle>
+          <button onClick={addLine} className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded-lg font-semibold">+ Add Line</button>
+        </div>
+        {lines.length === 0 && (
+          <div className="text-center py-6 text-gray-400 text-xs border-2 border-dashed border-gray-200 rounded-xl">
+            Add line items from the invoice — one row per service/phase
+          </div>
+        )}
+        {lines.map((line, i) => {
+          const phase = vendor.phases.find(p => p.id === parseInt(line.vendor_phase_id));
+          const remaining = phase ? (phase.budget ? phase.budget - (phase.invoiced||0) : null) : null;
+          const isOver = remaining !== null && parseFloat(line.amount||0) > remaining;
+          return (
+            <div key={i} className={`border rounded-xl p-4 space-y-3 ${isOver ? "border-red-300 bg-red-50" : "border-gray-100 bg-gray-50"}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-500">Line {i+1}</span>
+                <button onClick={()=>removeLine(i)} className="text-xs text-gray-300 hover:text-red-500">✕ Remove</button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-400 mb-1">Description*</label>
+                  <input value={line.line_description} onChange={e=>handleLineChange(i,"line_description",e.target.value)}
+                    placeholder="e.g. Design – Guest Cabin" className={inp}/>
+                </div>
+                <div><label className="block text-xs text-gray-400 mb-1">Hours</label>
+                  <input type="number" value={line.hours} onChange={e=>handleLineChange(i,"hours",e.target.value)} placeholder="0" className={inp}/></div>
+                <div><label className="block text-xs text-gray-400 mb-1">Rate</label>
+                  <input type="number" value={line.rate} onChange={e=>handleLineChange(i,"rate",e.target.value)} placeholder="0.00" className={inp}/></div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Amount*</label>
+                  <input type="number" value={line.amount} onChange={e=>handleLineChange(i,"amount",e.target.value)} placeholder="0.00" className={`${inp} font-bold`}/>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-400 mb-1">Map to Budget Phase*</label>
+                  <select value={line.vendor_phase_id} onChange={e=>{
+                    const ph = vendor.phases.find(p=>String(p.id)===e.target.value);
+                    updateLine(i,"vendor_phase_id",e.target.value);
+                    updateLine(i,"vendor_phase_name",ph?.phase||"");
+                  }} className={inp}>
+                    <option value="">— Select budget phase —</option>
+                    {vendor.phases.map(p=>(
+                      <option key={p.id} value={p.id}>
+                        {p.phase} {p.budget ? `(${$f(p.budget - (p.invoiced||0))} remaining)` : "(T&M)"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {/* Budget check */}
+              {phase && (
+                <div className={`text-xs rounded-lg px-3 py-2 flex items-center justify-between ${isOver ? "bg-red-100 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
+                  <span>{phase.phase}</span>
+                  <span className="font-semibold">
+                    {isOver ? `⚠ Over budget by ${$f(parseFloat(line.amount||0) - remaining)}` : `${$f(remaining)} remaining`}
+                  </span>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Notes</label>
+                <input value={line.notes} onChange={e=>updateLine(i,"notes",e.target.value)} placeholder="Optional notes…" className={inp}/>
+              </div>
+            </div>
+          );
+        })}
+        {lines.length > 0 && (
+          <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+            <span className="text-xs text-gray-400">Lines total</span>
+            <span className={`text-sm font-bold ${form.total_amount && Math.abs(linesTotal - parseFloat(form.total_amount||0)) > 0.5 ? "text-red-600" : "text-gray-900"}`}>{$f(linesTotal)}</span>
+          </div>
+        )}
+      </Card>
+
+      <div className="flex gap-3">
+        <button onClick={saveInvoice}
+          disabled={!form.invoice_num||!form.invoice_date||lines.length===0||saving}
+          className={cx("px-6 py-2.5 text-xs font-bold rounded-lg transition-colors",
+            form.invoice_num&&form.invoice_date&&lines.length>0&&!saving ? "bg-gray-900 hover:bg-gray-800 text-white" : "bg-gray-100 text-gray-400 cursor-not-allowed")}>
+          {saving ? "Saving…" : "Submit Invoice →"}
+        </button>
+        <button onClick={()=>setView("list")} className="px-6 py-2.5 text-xs font-semibold rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-gray-700">Cancel</button>
+      </div>
+    </div>
+  );
+
+  // ── DETAIL VIEW ───────────────────────────────────────────────────────────
+  if (view === "detail" && selected) {
+    const inv = invoices.find(i=>i.id===selected.id) || selected;
+    const linesTotal2 = inv.lines?.reduce((s,l)=>s+l.amount,0)||0;
+    const allMapped = inv.lines?.every(l=>l.vendor_phase_id) && inv.lines?.length > 0;
+    const anyOverBudget = inv.lines?.some(l=>l.is_over_budget);
+    const canApprove = allMapped && !anyOverBudget && inv.status !== "Approved" && inv.status !== "Zoho Matched" && inv.status !== "Paid";
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={()=>setView("list")} className="text-xs text-gray-400 hover:text-gray-700">← Back</button>
+            <span className="text-sm font-bold text-gray-900">Invoice {inv.invoice_num}</span>
+            <InvStatusTag status={inv.status} />
+          </div>
+          <div className="flex gap-2">
+            {(inv.status==="Submitted"||inv.status==="Under Review") && canApprove && (
+              <button onClick={()=>approve(inv.id)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg">✓ Approve Invoice</button>
+            )}
+            {inv.status==="Approved" && (
+              <button onClick={()=>markZohoMatch(inv)} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg">Match to Zoho →</button>
+            )}
+            {inv.status==="Zoho Matched" && (
+              <button onClick={()=>markPaid(inv)} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-lg">Mark as Paid</button>
+            )}
+            {(inv.status==="Approved"||inv.status==="Under Review") && (
+              <button onClick={()=>unapprove(inv.id)} className="px-3 py-2 border border-gray-200 text-xs font-semibold rounded-lg text-gray-500 hover:text-gray-700">Send Back</button>
+            )}
+          </div>
+        </div>
+
+        {/* Warnings */}
+        {!allMapped && inv.lines?.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+            <span className="text-amber-500">⚑</span>
+            <p className="text-xs font-semibold text-amber-700">{inv.lines.filter(l=>!l.vendor_phase_id).length} line item{inv.lines.filter(l=>!l.vendor_phase_id).length!==1?"s":""} not yet mapped to a budget phase — required before approval</p>
+          </div>
+        )}
+        {anyOverBudget && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-3">
+            <span className="text-red-500">⚠</span>
+            <p className="text-xs font-semibold text-red-700">One or more line items exceed the remaining budget for their phase — review before approving</p>
+          </div>
+        )}
+        {inv.status === "Zoho Matched" && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-blue-500">✓</span>
+              <div>
+                <p className="text-xs font-semibold text-blue-700">Matched to Zoho</p>
+                <p className="text-xs text-blue-600">Bill ID: {inv.zoho_bill_id} · {$f(inv.zoho_match_amount)}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Invoice header info */}
+        <Card className="overflow-hidden">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-gray-50">
+            {[["Vendor", vendor.full_name],["Invoice #", inv.invoice_num],["Date", inv.invoice_date],["Period", inv.period_start&&inv.period_end?`${inv.period_start} – ${inv.period_end}`:"—"]].map(([k,v])=>(
+              <div key={k} className="px-4 py-3">
+                <p className="text-xs text-gray-400 mb-0.5">{k}</p>
+                <p className="text-xs font-semibold text-gray-900">{v}</p>
+              </div>
+            ))}
+          </div>
+          {inv.notes && <div className="px-4 py-2 border-t border-gray-50 bg-gray-50"><p className="text-xs text-gray-500 italic">{inv.notes}</p></div>}
+        </Card>
+
+        {/* Line items */}
+        <Card className="overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100">
+            <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Line Items — Budget Check</span>
+          </div>
+          <table className="w-full">
+            <thead><tr><TH>Description</TH><TH>Hours</TH><TH>Rate</TH><TH right>Amount</TH><TH>Budget Phase</TH><TH right>Phase Remaining</TH><TH>Budget Status</TH></tr></thead>
+            <tbody>
+              {(inv.lines||[]).map((line, i) => (
+                <tr key={line.id} className={`border-b border-gray-50 ${line.is_over_budget?"bg-red-50":""}`}>
+                  <TD bold className="text-gray-800">{line.line_description}</TD>
+                  <TD muted>{line.hours||"—"}</TD>
+                  <TD muted>{line.rate?$f(line.rate):"—"}</TD>
+                  <TD right bold className="text-gray-900">{$f(line.amount)}</TD>
+                  <TD>
+                    {inv.status==="Submitted"||inv.status==="Under Review" ? (
+                      <select
+                        value={line.vendor_phase_id||""}
+                        onChange={e=>{
+                          const ph = vendor.phases.find(p=>String(p.id)===e.target.value);
+                          updatePhaseMapping(line.id, e.target.value, ph?.phase||"");
+                        }}
+                        className="bg-white border border-gray-200 rounded px-2 py-1 text-xs outline-none focus:border-indigo-400 w-48"
+                        onClick={e=>e.stopPropagation()}>
+                        <option value="">— Map to phase —</option>
+                        {vendor.phases.map(p=>(
+                          <option key={p.id} value={p.id}>{p.phase}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="text-xs font-medium text-indigo-600">{line.vendor_phase_name||"—"}</span>
+                    )}
+                  </TD>
+                  <TD right className={line.is_over_budget?"text-red-600 font-bold":"text-gray-500"}>
+                    {line.budget_remaining!=null?$f(line.budget_remaining):"T&M"}
+                  </TD>
+                  <TD>
+                    {line.vendor_phase_id ? (
+                      line.is_over_budget
+                        ? <Tag text="⚠ Over Budget" color="red" />
+                        : <Tag text="✓ Within Budget" color="green" />
+                    ) : <Tag text="Unmapped" color="amber" />}
+                  </TD>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <TR subtle>
+                <TD bold colSpan={3} muted>Invoice Total</TD>
+                <TD right bold className="text-gray-900">{$f(linesTotal2)}</TD>
+                <TD colSpan={3} />
+              </TR>
+            </tfoot>
+          </table>
+        </Card>
+
+        {/* Approval checklist */}
+        <Card className="p-5">
+          <SectionTitle>Approval Checklist</SectionTitle>
+          <div className="space-y-2 mt-2">
+            {[
+              [inv.lines?.length > 0, "Invoice has line items"],
+              [allMapped, "All line items mapped to budget phases"],
+              [!anyOverBudget, "No line items exceed phase budget"],
+              [inv.status !== "Submitted", "Invoice reviewed"],
+            ].map(([ok, label], i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${ok?"bg-emerald-100 text-emerald-600":"bg-gray-100 text-gray-400"}`}>{ok?"✓":"·"}</span>
+                <span className={`text-xs ${ok?"text-gray-700":"text-gray-400"}`}>{label}</span>
+              </div>
+            ))}
+          </div>
+          {canApprove && (
+            <button onClick={()=>approve(inv.id)} className="mt-4 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors">
+              ✓ Approve Invoice — {$f(linesTotal2)}
+            </button>
+          )}
+          {!canApprove && inv.status==="Submitted" && (
+            <div className="mt-4 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Complete the checklist above before approving
+            </div>
+          )}
+        </Card>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+
 // ─── VENDORS VIEW SINGLE ──────────────────────────────────────────────────────
 // Extracted from VendorsView to show a single vendor
 function VendorsViewSingle({ vendorKey }) {
@@ -3051,12 +3568,11 @@ function VendorsViewSingle({ vendorKey }) {
       </div>
 
       <div className="flex border-b border-gray-200">
-        {[["overview","Overview"],["phases","Budget Phases"],["invoices","Invoices"]].map(([id,lbl]) => (
+        {[["invoices","Invoices"],["phases","Budget Phases"],["overview","Overview"]].map(([id,lbl]) => (
           <button key={id} onClick={() => { setSubTab(id); setModal(null); setAddingInv(false); setEditingId(null); }}
             className={cx("px-4 py-2.5 text-xs font-semibold transition-all border-b-2 -mb-px",
               subTab===id ? "border-indigo-500 text-indigo-600" : "border-transparent text-gray-400 hover:text-gray-600")}>
             {lbl}
-            {id==="invoices" && <span className="ml-1 text-gray-300">({vendor.invoices.length})</span>}
           </button>
         ))}
       </div>
