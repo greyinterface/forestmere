@@ -710,6 +710,8 @@ app.get('/api/data', async (req, res) => {
       return n;
     });
 
+    const historicalTotal = parseFloat(histR.rows[0]?.total || 0);
+
     res.json({
       budget: normalize(budgetR.rows, ['budget']),
       awards: normalize(awardsR.rows, ['award_amount','co_amount','current_amount']),
@@ -720,6 +722,7 @@ app.get('/api/data', async (req, res) => {
       priorPhases,
       cashFlow: cashR.rows.map(r => ({ m: r.month, v: parseFloat(r.value) })),
       documents: docsR.rows,
+      historicalTotal,
     });
   } catch (err) {
     console.error(err);
