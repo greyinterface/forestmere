@@ -973,7 +973,15 @@ function InvoicesView() {
 
   const openMarkPaid = (inv) => {
     setMarkPaidModal(inv);
-    setPayForm({ actualPaid: String(inv.approved), creditApplied:"0", paidDate: new Date().toLocaleDateString("en-US") });
+    // Pre-populate from existing payment data if available (e.g. set by SmartUpload)
+    const existingCredit = parseFloat(inv.credit_applied || 0);
+    const existingWire   = parseFloat(inv.actual_paid || 0);
+    const approved       = parseFloat(inv.approved || 0);
+    // If credit was already parsed/stored, use those values; otherwise default wire = full approved
+    const wireDefault   = existingWire > 0 ? String(existingWire) : existingCredit > 0 ? String(Math.max(0, approved - existingCredit)) : String(approved);
+    const creditDefault = existingCredit > 0 ? String(existingCredit) : "0";
+    const dateDefault   = inv.paid_date || new Date().toLocaleDateString("en-US");
+    setPayForm({ actualPaid: wireDefault, creditApplied: creditDefault, paidDate: dateDefault });
     setModal(null);
   };
 
@@ -981,11 +989,18 @@ function InvoicesView() {
     const wire = parseFloat(payForm.actualPaid)||0;
     const credit = parseFloat(payForm.creditApplied)||0;
     const approved = parseFloat(markPaidModal.approved)||0;
-    const isFullyPaid = (wire + credit) >= approved - 1;
+    const diff = (wire + credit) - approved;
+    const isFullyPaid = Math.abs(diff) <= 15; // tolerate up to $15 rounding (Taconic invoices carry consistent $10 delta)
+    const hasCredit = credit > 0;
+    const status = isFullyPaid
+      ? (hasCredit && wire > 0 ? 'Paid - Credit Applied, Balance Paid'
+        : hasCredit ? 'Paid - Credit Applied'
+        : 'Paid')
+      : 'Pending Payment';
     await apiFetch(`/invoices/${markPaidModal.id}`, {
       method:'PUT', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        status: isFullyPaid ? 'Paid' : 'Pending Payment',
+        status,
         paidDate: isFullyPaid ? payForm.paidDate : null,
         notes: markPaidModal.notes,
         actualPaid: wire,
@@ -1086,7 +1101,7 @@ function InvoicesView() {
             {!modal.status?.startsWith("Paid") && (
               <button onClick={() => openMarkPaid(modal)} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors">Mark as Paid</button>
             )}
-            <button onClick={() => { setMarkPaidModal(modal); setPayForm({ actualPaid: String(modal.actual_paid||modal.approved), creditApplied: String(modal.credit_applied||0), paidDate: modal.paid_date||new Date().toLocaleDateString("en-US") }); setModal(null); }}
+            <button onClick={() => openMarkPaid(modal)}
               className="flex-1 py-2.5 border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-semibold rounded-lg transition-colors">
               {modal.status?.startsWith("Paid") ? "Edit Payment Info" : "Edit Payment"}
             </button>
@@ -1111,9 +1126,9 @@ function InvoicesView() {
               const approved = parseFloat(markPaidModal.approved)||0;
               const diff = total - approved;
               const outstanding = approved - total;
-              const isBalanced = Math.abs(diff) < 1;
-              const isPartial = outstanding > 1;
-              const isOver = diff > 1;
+              const isBalanced = Math.abs(diff) <= 15;
+              const isPartial = outstanding > 15;
+              const isOver = diff > 15;
               return (
                 <div className={`rounded-lg px-3 py-2 text-xs font-medium border ${isBalanced?"bg-emerald-50 border-emerald-200 text-emerald-700":isOver?"bg-red-50 border-red-200 text-red-600":"bg-blue-50 border-blue-200 text-blue-700"}`}>
                   {isBalanced && "✓ Fully paid — balanced"}
