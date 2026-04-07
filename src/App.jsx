@@ -244,7 +244,7 @@ function Dashboard({ setTab }) {
   return (
     <div className="space-y-5">
       {reconSummary?.failed > 0 && (
-        <button onClick={() => setTab("reconcile")} className="w-full text-left flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 hover:bg-red-100 transition-colors">
+        <button onClick={() => setTab("phase11:reconcile")} className="w-full text-left flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 hover:bg-red-100 transition-colors">
           <span className="text-red-500 text-xs">✕</span>
           <p className="text-xs font-semibold text-red-700 flex-1">Reconciliation Errors Detected — {reconSummary.failed} check{reconSummary.failed > 1 ? "s" : ""} failing · click to review</p>
           <span className="text-red-400 text-xs">→</span>
@@ -264,14 +264,14 @@ function Dashboard({ setTab }) {
         </div>
       </div>
       {reconSummary?.failed === 0 && reconSummary?.total > 0 && (
-        <button onClick={() => setTab("reconcile")} className="w-full text-left flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 hover:bg-emerald-100 transition-colors">
+        <button onClick={() => setTab("phase11:reconcile")} className="w-full text-left flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 hover:bg-emerald-100 transition-colors">
           <span className="text-emerald-500 text-xs">✓</span>
           <p className="text-xs font-semibold text-emerald-700 flex-1">All {reconSummary.total} reconciliation checks passing — books balanced</p>
           <span className="text-emerald-400 text-xs">→</span>
         </button>
       )}
       {pendingInvs.length > 0 && (
-        <button onClick={() => setTab("invoices")} className="w-full text-left flex items-start gap-3 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 hover:bg-indigo-100 transition-colors">
+        <button onClick={() => setTab("phase11:invoices")} className="w-full text-left flex items-start gap-3 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 hover:bg-indigo-100 transition-colors">
           <span className="text-indigo-500 mt-0.5">⚠</span>
           <div className="flex-1">
             <p className="text-sm font-semibold text-indigo-700">Payment Action Required</p>
@@ -285,15 +285,15 @@ function Dashboard({ setTab }) {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Total Project Spend" value={$f(inceptionToDateTotal)} sub="Inception to date · all phases" accent onClick={() => setModal("spend")} />
-        <Stat label="Revised Contract" value={$f(revisedContractTotal)} sub={`Original $13,093,419 + ${$f(revisedContractTotal - 13093419.47)} COs (incl. fees)`} onClick={() => setTab("budget")} />
-        <Stat label="GC Awarded" value={$f(totalAwarded)} sub={pf(totalAwarded / revisedContractTotal) + " of revised contract"} onClick={() => setTab("awards")} />
-        <Stat label="GC Paid to Date" value={$f(taconicPaid)} sub={pf(taconicPaid / totalAwarded) + " of awarded"} onClick={() => setTab("invoices")} />
+        <Stat label="Revised Contract" value={$f(revisedContractTotal)} sub={`Original $13,093,419 + ${$f(revisedContractTotal - 13093419.47)} COs (incl. fees)`} onClick={() => setTab("phase11:budget")} />
+        <Stat label="GC Awarded" value={$f(totalAwarded)} sub={pf(totalAwarded / revisedContractTotal) + " of revised contract"} onClick={() => setTab("phase11:awards")} />
+        <Stat label="GC Paid to Date" value={$f(taconicPaid)} sub={pf(taconicPaid / totalAwarded) + " of awarded"} onClick={() => setTab("phase11:invoices")} />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Approved COs" value={$f(totalCOs)} sub={changeOrders.length + " change orders"} onClick={() => setTab("cos")} />
+        <Stat label="Approved COs" value={$f(totalCOs)} sub={changeOrders.length + " change orders"} onClick={() => setTab("phase11:cos")} />
         <Stat label="Retainage Held" value={$f(retainageHeld)} sub="Released at substantial completion" onClick={() => setModal("retainage")} />
-        <Stat label="GC Pending" value={$f(taconicPending)} accent sub={pendingInvs.length + " invoices outstanding"} onClick={() => setTab("invoices")} />
-        <Stat label="GC Balance to Finish" value={$f(balanceToFinish)} sub="Revised contract less completed to date" onClick={() => setTab("lineitem")} />
+        <Stat label="GC Pending" value={$f(taconicPending)} accent sub={pendingInvs.length + " invoices outstanding"} onClick={() => setTab("phase11:invoices")} />
+        <Stat label="GC Balance to Finish" value={$f(balanceToFinish)} sub="Revised contract less completed to date" onClick={() => setTab("phase11:lineitem")} />
       </div>
 
       <div className="grid md:grid-cols-2 gap-5">
@@ -2620,13 +2620,13 @@ function TotalSpendView() {
 
 
 // ─── PHASE 1.1 SHELL ──────────────────────────────────────────────────────────
-function Phase11Shell() {
+function Phase11Shell({ initialSubTab = 'landing' }) {
   const {
     totalBudget, totalAwarded, taconicPaid, taconicPending,
     balanceToFinish, retainageHeld, revisedContractTotal,
     invoices, changeOrders, awards, lineItems,
   } = useAppData();
-  const [subTab, setSubTab] = useState("landing");
+  const [subTab, setSubTab] = useState(initialSubTab || "landing");
 
   const SUB_TABS = [
     { id: "landing",   label: "Summary"         },
@@ -3107,6 +3107,8 @@ function AppShell() {
   const getInitialTab = () => {
     const hash = window.location.hash.replace("#", "");
     const validTabs = ["dashboard","totalspend","phase11","designeng","priorphases","uploads"];
+    // Handle phase11:subtab format
+    if (hash.startsWith("phase11:")) return hash;
     return validTabs.includes(hash) ? hash : "dashboard";
   };
   const [tab, setTabState] = useState(getInitialTab);
@@ -3209,7 +3211,8 @@ function AppShell() {
         <main style={{ padding: "28px 32px", maxWidth: 1280 }}>
           {tab === "dashboard"   && <Dashboard setTab={setTab} />}
           {tab === "totalspend"  && <TotalSpendView />}
-          {tab === "phase11"     && <Phase11Shell />}
+          {tab === "phase11"     && <Phase11Shell initialSubTab={tab.startsWith("phase11:") ? tab.split(":")[1] : "landing"} />}
+          {tab.startsWith("phase11:") && <Phase11Shell initialSubTab={tab.split(":")[1]} />}
           {tab === "designeng"   && <DesignEngShell />}
           {tab === "priorphases" && <PriorPhasesView />}
           {tab === "uploads"     && <DocumentsView />}
