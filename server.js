@@ -154,6 +154,36 @@ async function createSchema() {
       month VARCHAR(10) PRIMARY KEY,
       value NUMERIC(14,2)
     );
+    CREATE TABLE IF NOT EXISTS project_phases (
+      id VARCHAR(30) PRIMARY KEY,
+      name TEXT NOT NULL,
+      stage VARCHAR(30),
+      job_num VARCHAR(30),
+      sort_order INTEGER DEFAULT 0,
+      start_date VARCHAR(20),
+      end_date VARCHAR(20),
+      status VARCHAR(20) DEFAULT 'Complete',
+      description TEXT,
+      color VARCHAR(20)
+    );
+    CREATE TABLE IF NOT EXISTS historical_payments (
+      id SERIAL PRIMARY KEY,
+      stage VARCHAR(30),
+      work_package VARCHAR(60),
+      payment_date VARCHAR(20),
+      vendor TEXT,
+      category VARCHAR(60),
+      description TEXT,
+      amount_usd NUMERIC(14,2),
+      source VARCHAR(30),
+      notes TEXT,
+      is_batched BOOLEAN DEFAULT FALSE
+    );
+    ALTER TABLE vendor_phases ADD COLUMN IF NOT EXISTS stage VARCHAR(30);
+    ALTER TABLE vendor_phases ADD COLUMN IF NOT EXISTS work_package VARCHAR(60);
+    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS actual_paid NUMERIC(14,2);
+    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS credit_applied NUMERIC(14,2) DEFAULT 0;
+    ALTER TABLE change_orders ADD COLUMN IF NOT EXISTS has_document BOOLEAN DEFAULT FALSE;
   `);
 }
 
@@ -324,66 +354,66 @@ async function seedIfEmpty() {
 
   // VENDOR PHASES — Ivan
   const ivanPhases = [
-    ['ivan','Phase A','Master Plan Evaluation, Lodge Building design, Bidding & construction services',91884.43,91884.43,'Complete',1],
-    ['ivan','Phase B','APA Permit Application (Great Hall), Environmental Assessment, APA response',150115,150115,'Complete',2],
-    ['ivan','Phase C – Design','Design revisions: Car Barn, Main Residence, Hot Tub Pavilion, Woods Road',90005,90005,'Complete',3],
-    ['ivan','Phase C – CM','Construction management services in Phase C to date',24426.25,24426.25,'Complete',4],
-    ['ivan','Guest Cabin Design','Civil Engineering plans for Proposed Guest Cabin (Phase C)',16000,4835,'In Progress',5],
-    ['ivan','CM Phase C (cont.)','Continuation of construction management in Phase C',15000,4750,'In Progress',6],
-    ['ivan','CM Phase B (Rec/Pub)','Construction management for Recreational Complex & Pub Building',25000,0,'Not Started',7],
-    ['ivan','Contingencies','Allowances for design/scope changes',25000,0,'Not Started',8],
+    ['ivan','Phase A','Master Plan Evaluation, Lodge Building design, Bidding & construction services',91884.43,91884.43,'Complete',1,'Pre-Construction','Design & Permitting'],
+    ['ivan','Phase B','APA Permit Application (Great Hall), Environmental Assessment, APA response',150115,150115,'Complete',2,'Pre-Construction','Design & Permitting'],
+    ['ivan','Phase C – Design','Design revisions: Car Barn, Main Residence, Hot Tub Pavilion, Woods Road',90005,90005,'Complete',3,'Pre-Construction','Design & Permitting'],
+    ['ivan','Phase C – CM','Construction management services in Phase C to date',24426.25,24426.25,'Complete',4,'Construction','Phase 1.1'],
+    ['ivan','Guest Cabin Design','Civil Engineering plans for Proposed Guest Cabin (Phase C)',16000,4835,'In Progress',5,'Construction','Phase 1.1'],
+    ['ivan','CM Phase C (cont.)','Continuation of construction management in Phase C',15000,4750,'In Progress',6,'Construction','Phase 1.1'],
+    ['ivan','CM Phase B (Rec/Pub)','Construction management for Recreational Complex & Pub Building',25000,0,'Not Started',7,'Construction','Phase 1.2'],
+    ['ivan','Contingencies','Allowances for design/scope changes',25000,0,'Not Started',8,'Construction','Phase 1.1'],
   ];
   for (const r of ivanPhases) {
-    await pool.query('INSERT INTO vendor_phases (vendor_key,phase,description,budget,invoiced,status,sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7)', r);
+    await pool.query('INSERT INTO vendor_phases (vendor_key,phase,description,budget,invoiced,status,sort_order,stage,work_package) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)', r);
   }
 
   // VENDOR PHASES — Reed
   const reedPhases = [
-    ['reed','Framework Plan','Forestmere Lakes Planning',150000,146906,'Complete',1],
-    ['reed','Initial Consulting / House Predesign','T&M',null,11180,'Complete',2],
-    ['reed','APA Permitting','T&M',null,692248,'Complete',3],
-    ['reed','Lodge – Schematic Design','Lodge House',45000,41199,'Complete',4],
-    ['reed','Lodge – Design Development','Lodge House',65000,64944,'Complete',5],
-    ['reed','Lodge – Construction Documents','Lodge House',110000,106813,'Complete',6],
-    ['reed','Lodge – Bidding/Const. Observation','Lodge House',105000,34243,'Complete',7],
-    ['reed','Phase 1 – Design Development','Main Res, Pavilion, Boat House, Car Barn',160000,158508,'Complete',8],
-    ['reed','Phase 1 – Construction Documents','Main Res, Pavilion, Boat House, Car Barn',280000,216844,'In Progress',9],
-    ['reed','Phase 1.1 – Reduced Scope Documentation','T&M – Reduced scope study & revisions',40000,40000,'Complete',10],
-    ['reed','Phase 1.1 – Bidding/Const. Observation','T&M – Ongoing through April 2027',null,110453.75,'In Progress',11],
-    ['reed','Guest Cabin – Permitting','APA Jurisdictional Inquiry',15000,3212.5,'In Progress',12],
-    ['reed','Guest Cabin – Design & Documentation','Paving, planting, grading; coordination',70000,25297.5,'In Progress',13],
-    ['reed','Guest Cabin – Bidding/Const. Observation','T&M estimate',50000,0,'Not Started',14],
-    ['reed','Phase 1.2 – Construction Documents','Pub, Rec Hall, Caretaker Res, Maintenance Barn',60000,0,'Not Started',15],
-    ['reed','Reimbursable – Travel/Lodging/Meals','Site visits, owner meetings & construction obs.',null,32973,'Ongoing',16],
-    ['reed','Reimbursable – Subconsultants','Trail advisory + site electrical network design',null,19176,'Ongoing',17],
+    ['reed','Framework Plan','Forestmere Lakes Planning',150000,146906,'Complete',1,'Pre-Construction','Design & Permitting'],
+    ['reed','Initial Consulting / House Predesign','T&M',null,11180,'Complete',2,'Pre-Construction','Design & Permitting'],
+    ['reed','APA Permitting','T&M',null,692248,'Complete',3,'Pre-Construction','Design & Permitting'],
+    ['reed','Lodge – Schematic Design','Lodge House',45000,41199,'Complete',4,'Pre-Construction','Design & Permitting'],
+    ['reed','Lodge – Design Development','Lodge House',65000,64944,'Complete',5,'Pre-Construction','Design & Permitting'],
+    ['reed','Lodge – Construction Documents','Lodge House',110000,106813,'Complete',6,'Pre-Construction','Design & Permitting'],
+    ['reed','Lodge – Bidding/Const. Observation','Lodge House',105000,34243,'Complete',7,'Pre-Construction','Design & Permitting'],
+    ['reed','Phase 1 – Design Development','Main Res, Pavilion, Boat House, Car Barn',160000,158508,'Complete',8,'Pre-Construction','Design & Permitting'],
+    ['reed','Phase 1 – Construction Documents','Main Res, Pavilion, Boat House, Car Barn',280000,216844,'In Progress',9,'Pre-Construction','Design & Permitting'],
+    ['reed','Phase 1.1 – Reduced Scope Documentation','T&M – Reduced scope study & revisions',40000,40000,'Complete',10,'Pre-Construction','Design & Permitting'],
+    ['reed','Phase 1.1 – Bidding/Const. Observation','T&M – Ongoing through April 2027',null,110453.75,'In Progress',11,'Construction','Phase 1.1'],
+    ['reed','Guest Cabin – Permitting','APA Jurisdictional Inquiry',15000,3212.5,'In Progress',12,'Construction','Phase 1.1'],
+    ['reed','Guest Cabin – Design & Documentation','Paving, planting, grading; coordination',70000,25297.5,'In Progress',13,'Construction','Phase 1.1'],
+    ['reed','Guest Cabin – Bidding/Const. Observation','T&M estimate',50000,0,'Not Started',14,'Construction','Phase 1.1'],
+    ['reed','Phase 1.2 – Construction Documents','Pub, Rec Hall, Caretaker Res, Maintenance Barn',60000,0,'Not Started',15,'Construction','Phase 1.2'],
+    ['reed','Reimbursable – Travel/Lodging/Meals','Site visits, owner meetings & construction obs.',null,32973,'Ongoing',16,'Construction','Phase 1.1'],
+    ['reed','Reimbursable – Subconsultants','Trail advisory + site electrical network design',null,19176,'Ongoing',17,'Construction','Phase 1.1'],
   ];
   for (const r of reedPhases) {
-    await pool.query('INSERT INTO vendor_phases (vendor_key,phase,description,budget,invoiced,status,sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7)', r);
+    await pool.query('INSERT INTO vendor_phases (vendor_key,phase,description,budget,invoiced,status,sort_order,stage,work_package) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)', r);
   }
 
   // VENDOR PHASES — Arch
   const archPhases = [
-    ['arch','S-1 Site Study / Framework Plan','06/2022–12/2024',0,276863,'Complete',1],
-    ['arch','S-2 APA / DEC Permit Drawings','02/2023–12/2024',0,73745,'Complete',2],
-    ['arch','L-1 Lodge – Design & Documentation','01/2023–11/2023 · $4.45M const.',467772,280128,'Complete',3],
-    ['arch','L-2 Lodge – Construction Administration','12/2023–02/2024',0,24730,'Complete',4],
-    ['arch','0-1 Pub V1 – Design & Documentation','03/2024–08/2024 · $1.76M const.',184995,155000,'Complete',5],
-    ['arch','0-2 Barns V1 (4x) – Design & Documentation','11/2023–08/2024 · $2.46M const.',257950,232000,'Complete',6],
-    ['arch','0-3 Staff Housing – Design & Documentation','11/2023–02/2024 · $1.25M const.',131245,38775,'Complete',7],
-    ['arch','1-1 Pub V2 – Design & Documentation','09/2024–03/2025 · $2.79M const.',220042,218545,'Complete',8],
-    ['arch','1-2 Recreation Hall – Design & Doc.','11/2023–08/2024 · $1.65M const.',173075,180000,'Complete',9],
-    ['arch','1-3 Caretaker Res. – Design & Doc.','11/2023–08/2024 · $1.0M const.',104996,50960,'Complete',10],
-    ['arch','1-4 Barns V2 (2x) – Design & Doc.','09/2024–03/2025 · $1.79M const.',93924,37560,'Complete',11],
-    ['arch','1-5 Boathouse – Design & Doc.','11/2023–08/2025 · $771k const.',81015,125130,'Complete',12],
-    ['arch','1-6 Main Res. & Pavilion – Design & Doc.','09/2024–04/2025 · $2.99M const.',313799,239303,'Complete',13],
-    ['arch','1-7 Great Hall – Design & Doc.','TBD · $5.76M const.',605183,0,'Not Started',14],
-    ['arch','1-8 Guest Cabin','10/2025–03/2026 · $1.0M const.',100000,1730,'In Progress',15],
-    ['arch','CA-1 Phase 1.1 Construction Admin.','22 months · ~$13k/month',288000,101800,'In Progress',16],
-    ['arch','FFE – Furniture, Furnishings & Equipment','Scope TBD',0,29215,'Ongoing',17],
-    ['arch','Reimbursable Expenses','Travel, lodging, meals, reproductions',0,2704.62,'Ongoing',18],
+    ['arch','S-1 Site Study / Framework Plan','06/2022–12/2024',0,276863,'Complete',1,'Pre-Construction','Design & Permitting'],
+    ['arch','S-2 APA / DEC Permit Drawings','02/2023–12/2024',0,73745,'Complete',2,'Pre-Construction','Design & Permitting'],
+    ['arch','L-1 Lodge – Design & Documentation','01/2023–11/2023 · $4.45M const.',467772,280128,'Complete',3,'Pre-Construction','Design & Permitting'],
+    ['arch','L-2 Lodge – Construction Administration','12/2023–02/2024',0,24730,'Complete',4,'Pre-Construction','Design & Permitting'],
+    ['arch','0-1 Pub V1 – Design & Documentation','03/2024–08/2024 · $1.76M const.',184995,155000,'Complete',5,'Pre-Construction','Design & Permitting'],
+    ['arch','0-2 Barns V1 (4x) – Design & Documentation','11/2023–08/2024 · $2.46M const.',257950,232000,'Complete',6,'Pre-Construction','Design & Permitting'],
+    ['arch','0-3 Staff Housing – Design & Documentation','11/2023–02/2024 · $1.25M const.',131245,38775,'Complete',7,'Pre-Construction','Design & Permitting'],
+    ['arch','1-1 Pub V2 – Design & Documentation','09/2024–03/2025 · $2.79M const.',220042,218545,'Complete',8,'Pre-Construction','Design & Permitting'],
+    ['arch','1-2 Recreation Hall – Design & Doc.','11/2023–08/2024 · $1.65M const.',173075,180000,'Complete',9,'Pre-Construction','Design & Permitting'],
+    ['arch','1-3 Caretaker Res. – Design & Doc.','11/2023–08/2024 · $1.0M const.',104996,50960,'Complete',10,'Pre-Construction','Design & Permitting'],
+    ['arch','1-4 Barns V2 (2x) – Design & Doc.','09/2024–03/2025 · $1.79M const.',93924,37560,'Complete',11,'Pre-Construction','Design & Permitting'],
+    ['arch','1-5 Boathouse – Design & Doc.','11/2023–08/2025 · $771k const.',81015,125130,'Complete',12,'Pre-Construction','Design & Permitting'],
+    ['arch','1-6 Main Res. & Pavilion – Design & Doc.','09/2024–04/2025 · $2.99M const.',313799,239303,'Complete',13,'Pre-Construction','Design & Permitting'],
+    ['arch','1-7 Great Hall – Design & Doc.','TBD · $5.76M const.',605183,0,'Not Started',14,'Construction','Great Hall'],
+    ['arch','1-8 Guest Cabin','10/2025–03/2026 · $1.0M const.',100000,1730,'In Progress',15,'Construction','Phase 1.1'],
+    ['arch','CA-1 Phase 1.1 Construction Admin.','22 months · ~$13k/month',288000,101800,'In Progress',16,'Construction','Phase 1.1'],
+    ['arch','FFE – Furniture, Furnishings & Equipment','Scope TBD',0,29215,'Ongoing',17,'Construction','Phase 1.1'],
+    ['arch','Reimbursable Expenses','Travel, lodging, meals, reproductions',0,2704.62,'Ongoing',18,'Construction','Phase 1.1'],
   ];
   for (const r of archPhases) {
-    await pool.query('INSERT INTO vendor_phases (vendor_key,phase,description,budget,invoiced,status,sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7)', r);
+    await pool.query('INSERT INTO vendor_phases (vendor_key,phase,description,budget,invoiced,status,sort_order,stage,work_package) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)', r);
   }
 
   // VENDOR INVOICES — Ivan
@@ -451,6 +481,147 @@ async function seedIfEmpty() {
   }
 
   console.log('Database seeded successfully.');
+}
+
+// ─── SEED PROJECT PHASES ─────────────────────────────────────────────────────
+async function seedProjectPhases() {
+  const { rows } = await pool.query("SELECT COUNT(*) FROM project_phases");
+  if (parseInt(rows[0].count) > 0) return;
+
+  const phases = [
+    ['land-acquisition',  'Land Acquisition',         'Pre-Construction', null,     1, '2022-06-01', '2022-06-01', 'Complete',    'Purchase of Camp Forestmere property from Timothy R Smith', '#6366f1'],
+    ['design-permitting', 'Design & Permitting',      'Pre-Construction', null,     2, '2022-04-01', '2025-05-31', 'Complete',    'Architecture, landscape, civil engineering, permits, surveys, consulting', '#8b5cf6'],
+    ['road',              'Road Construction',         'Construction',     'C23-101',3, '2024-01-01', '2024-06-30', 'Complete',    'Site access road construction — Taconic Builders (C23-101)', '#f59e0b'],
+    ['demolition',        'Demolition',                'Construction',     'C25-102',4, '2025-01-01', '2025-05-31', 'Complete',    'Demolition of 12 existing structures (18,144 SF) — Taconic / Mayville Enterprises', '#ef4444'],
+    ['phase-1-1',         'Phase 1.1',                 'Construction',     'C25-104',5, '2025-06-23', '2027-04-30', 'In Progress', 'Main Residence, Pavilion, Boat House, Car Barn, Site Work', '#10b981'],
+    ['phase-1-2',         'Phase 1.2',                 'Construction',     null,     6, null,         null,         'Future',      'Pub, Recreation Hall, Caretaker Residence, Maintenance Barn', '#6b7280'],
+    ['great-hall',        'Great Hall',                'Construction',     null,     7, null,         null,         'Future',      'Great Hall Complex', '#6b7280'],
+  ];
+
+  for (const [id, name, stage, job_num, sort_order, start_date, end_date, status, description, color] of phases) {
+    await pool.query(
+      `INSERT INTO project_phases (id,name,stage,job_num,sort_order,start_date,end_date,status,description,color)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT DO NOTHING`,
+      [id, name, stage, job_num, sort_order, start_date, end_date, status, description, color]
+    );
+  }
+
+  // Historical payments — stage, work_package, date, vendor, category, description, amount, source, notes, is_batched
+  const payments = [
+    // LAND ACQUISITION
+    ['Pre-Construction','Land Acquisition','2022-06-01','Timothy R Smith','Land & Property Acquisition','Land purchase — Camp Forestmere, 8927 Route 30, Paul Smiths NY',3634949.67,'zoho',null,false],
+
+    // RAND BOATS (boat purchase — pre-construction)
+    ['Pre-Construction','Design & Permitting','2022-04-01','Rand Boats','Construction','Boat purchase — Camp Forestmere',13669.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-05-31','Rand Boats','Construction','Boat purchase — Camp Forestmere',3895.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-06-08','Rand Boats','Construction','Boat purchase — Camp Forestmere',41017.00,'writeup',null,false],
+
+    // REED HILDERBRAND (pre-construction design fees)
+    ['Pre-Construction','Design & Permitting','2022-06-06','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',5192.50,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-06-29','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',20000.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-08-02','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',4510.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-08-23','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',53266.21,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-10-03','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',23289.11,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-11-04','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',39470.76,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-01-06','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',50163.12,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-02-03','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',20106.05,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-03-20','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',24725.70,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-05-19','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',94843.76,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-07-17','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',28100.98,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-08-14','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',48660.46,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-10-04','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',99972.37,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-10-24','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',52169.45,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-12-29','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',85969.33,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2024-01-26','Reed Hilderbrand','Landscape Architecture','Landscape architecture fees',47601.32,'writeup',null,false],
+
+    // ARCHITECTUREFIRM (pre-construction design fees)
+    ['Pre-Construction','Design & Permitting','2022-06-30','ArchitectureFirm','Architecture','Architecture fees',10000.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-08-10','ArchitectureFirm','Architecture','Architecture fees',22023.76,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-09-16','ArchitectureFirm','Architecture','Architecture fees',19830.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-10-18','ArchitectureFirm','Architecture','Architecture fees',25338.86,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-02-23','ArchitectureFirm','Architecture','Architecture fees',27690.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-03-31','ArchitectureFirm','Architecture','Architecture fees',30828.63,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-05-24','ArchitectureFirm','Architecture','Architecture fees',73906.26,'writeup',null,false],
+
+    // IVAN ZDRAHAL (pre-construction design fees)
+    ['Pre-Construction','Design & Permitting','2023-01-05','Ivan Zdrahal PE','Civil & Structural Engineering','Civil engineering fees',3710.00,'writeup',null,false],
+
+    // LEIFHEIT AND LITTLEFIELD (surveys)
+    ['Pre-Construction','Design & Permitting','2022-06-29','Leifheit and Littlefield','Land & Property Acquisition','Survey / land services',2500.00,'writeup',null,false],
+
+    // BRYAN CHAMPAGNE (landscaping — pre-construction)
+    ['Pre-Construction','Design & Permitting','2022-07-14','Bryan Champagne','Landscape Architecture','Landscaping',3150.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-08-03','Bryan Champagne','Landscape Architecture','Landscaping',3150.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-09-08','Bryan Champagne','Landscape Architecture','Landscaping',3150.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-10-31','Bryan Champagne','Landscape Architecture','Landscaping',3150.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-11-16','Bryan Champagne','Landscape Architecture','Landscaping',650.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-02-08','Bryan Champagne','Landscape Architecture','Landscaping',650.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-04-19','Bryan Champagne','Landscape Architecture','Landscaping',1950.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-05-23','Bryan Champagne','Landscape Architecture','Landscaping',5823.08,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-07-11','Bryan Champagne','Landscape Architecture','Landscaping',7009.71,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-09-13','Bryan Champagne','Landscape Architecture','Landscaping',3150.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-10-04','Bryan Champagne','Landscape Architecture','Landscaping',650.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-11-06','Bryan Champagne','Landscape Architecture','Landscaping',650.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-12-04','Bryan Champagne','Landscape Architecture','Landscaping',650.00,'writeup',null,false],
+
+    // DANIEL SPADA (consulting)
+    ['Pre-Construction','Design & Permitting','2022-09-21','Daniel Spada','Consulting Fees','Consulting fees',1031.25,'writeup',null,false],
+
+    // ACENTECH (acoustic consulting)
+    ['Pre-Construction','Design & Permitting','2023-05-03','Acentech','Consulting Fees','Acoustic consulting',3829.49,'writeup',null,false],
+
+    // WHITEMAN OSTERMAN & HANNA (legal)
+    ['Pre-Construction','Design & Permitting','2023-06-02','Whiteman Osterman & Hanna','Consulting Fees','Legal fees',5000.00,'writeup',null,false],
+
+    // TOWN OF BRIGHTON (permits)
+    ['Pre-Construction','Design & Permitting','2022-11-14','Town of Brighton','Land & Property Acquisition','Permits / fees',4575.64,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2022-11-14','Town of Brighton','Land & Property Acquisition','Permits / fees',10226.67,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-03-08','Town of Brighton','Land & Property Acquisition','Permits / fees',6950.09,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-03-08','Town of Brighton','Land & Property Acquisition','Permits / fees',3109.62,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-08-14','Town of Brighton','Land & Property Acquisition','Permits / fees',6530.00,'writeup',null,false],
+
+    // SARANAC LAKE (permits)
+    ['Pre-Construction','Design & Permitting','2023-09-28','Saranac Lake','Land & Property Acquisition','Permits / fees',10282.32,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-09-28','Saranac Lake','Land & Property Acquisition','Permits / fees',4600.54,'writeup',null,false],
+
+    // PAUL SMITH COLLEGE (access/easement)
+    ['Pre-Construction','Design & Permitting','2023-08-24','Paul Smith College','Land & Property Acquisition','Access / easement fees',16150.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-11-02','Paul Smith College','Land & Property Acquisition','Access / easement fees',16150.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2024-02-23','Paul Smith College','Land & Property Acquisition','Access / easement fees',16150.00,'writeup',null,false],
+
+    // FRANKLIN AND LITTLEFIELD (surveys)
+    ['Pre-Construction','Design & Permitting','2023-05-03','Franklin and Littlefield','Land & Property Acquisition','Survey services',6100.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-05-24','Franklin and Littlefield','Land & Property Acquisition','Survey services',3395.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-08-14','Franklin and Littlefield','Land & Property Acquisition','Survey services',3725.00,'writeup',null,false],
+    ['Pre-Construction','Design & Permitting','2023-10-06','Franklin and Littlefield','Land & Property Acquisition','Survey services',6150.00,'writeup',null,false],
+
+    // TACONIC — road construction
+    ['Construction','Road Construction','2023-07-07','Taconic Builders','Construction','Road construction — deposit / early payment',50000.00,'writeup',null,false],
+    ['Construction','Road Construction','2024-02-06','Taconic Builders','Construction','Road construction payment',193013.89,'writeup',null,false],
+    ['Construction','Road Construction','2024-02-29','Taconic Builders','Construction','Road construction payment',363913.81,'writeup',null,false],
+
+    // BATCHED PAYMENTS — flagged, needs breakdown
+    ['Pre-Construction','Design & Permitting','2022-09-12','Acentech & Jonathan Gorgas','Other','Batched payment — needs breakdown',25818.92,'writeup','Batched: Acentech + Jonathan Gorgas',true],
+    ['Pre-Construction','Design & Permitting','2022-11-28','ArchitectureFirm / Acentech','Other','Batched payment — needs breakdown',32970.27,'writeup','Batched: Acentech + ArchitectureFirm',true],
+    ['Pre-Construction','Design & Permitting','2022-12-29','Multiple Vendors','Other','Batched payment — needs breakdown',39638.75,'writeup','Batched: Acentech + ArchitectureFirm + Bryan Champagne + Daniel Spada',true],
+    ['Pre-Construction','Design & Permitting','2023-01-23','ArchitectureFirm & Ivan Zdrahal','Other','Batched payment — needs breakdown',13890.00,'writeup','Batched: ArchitectureFirm + Ivan Zdrahal',true],
+    ['Pre-Construction','Design & Permitting','2023-07-25','ArchitectureFirm & Ivan Zdrahal','Other','Batched payment — needs breakdown',50095.00,'writeup','Batched: ArchitectureFirm + Ivan Zdrahal',true],
+    ['Pre-Construction','Design & Permitting','2023-08-16','ArchitectureFirm / Ivan Zdrahal / Daniel Spada','Other','Batched payment — needs breakdown',160184.44,'writeup','Batched: ArchitectureFirm + Ivan Zdrahal + Daniel Spada',true],
+    ['Pre-Construction','Design & Permitting','2023-11-02','ArchitectureFirm & Paul Smith College','Other','Batched payment — needs breakdown',160506.59,'writeup','Batched: ArchitectureFirm + Paul Smith College',true],
+    ['Pre-Construction','Design & Permitting','2023-11-21','ArchitectureFirm & Ivan Zdrahal','Other','Batched payment — needs breakdown',86909.94,'writeup','Batched: ArchitectureFirm + Ivan Zdrahal',true],
+    ['Pre-Construction','Design & Permitting','2024-01-04','Bryan Champagne & ArchitectureFirm','Other','Batched payment — needs breakdown',77931.93,'writeup','Batched: Bryan Champagne + ArchitectureFirm',true],
+    ['Pre-Construction','Design & Permitting','2024-02-05','ArchitectureFirm / Ivan Zdrahal / Drinker Biddle','Other','Batched payment — needs breakdown',88889.13,'writeup','Batched: ArchitectureFirm + Ivan Zdrahal + Drinker Biddle',true],
+  ];
+
+  for (const [stage, work_package, payment_date, vendor, category, description, amount_usd, source, notes, is_batched] of payments) {
+    await pool.query(
+      `INSERT INTO historical_payments (stage,work_package,payment_date,vendor,category,description,amount_usd,source,notes,is_batched)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [stage, work_package, payment_date, vendor, category, description, amount_usd, source, notes, is_batched]
+    );
+  }
+
+  console.log('Project phases and historical payments seeded.');
 }
 
 // ─── EXPRESS APP ──────────────────────────────────────────────────────────────
@@ -613,6 +784,17 @@ app.put('/api/vendors/invoices/:id', async (req, res) => {
       [invNum, date, desc, parseFloat(amount) || 0, status, notes || null, req.params.id]
     );
     res.json({ ...rows[0], amount: parseFloat(rows[0].amount) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/vendor-phases/:id', async (req, res) => {
+  try {
+    const { stage, work_package } = req.body;
+    const { rows } = await pool.query(
+      'UPDATE vendor_phases SET stage=$1, work_package=$2 WHERE id=$3 RETURNING *',
+      [stage, work_package, req.params.id]
+    );
+    res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1070,6 +1252,55 @@ app.get('/api/reconciliation', async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── PROJECT PHASES & HISTORICAL PAYMENTS ────────────────────────────────────
+app.get('/api/project-phases', async (req, res) => {
+  try {
+    const [phasesR, paymentsR, vendorPhasesR] = await Promise.all([
+      pool.query('SELECT * FROM project_phases ORDER BY sort_order'),
+      pool.query('SELECT * FROM historical_payments ORDER BY payment_date ASC'),
+      pool.query('SELECT vp.*, v.name as vendor_name, v.full_name as vendor_full_name FROM vendor_phases vp JOIN vendors v ON v.key = vp.vendor_key ORDER BY vp.vendor_key, vp.sort_order'),
+    ]);
+    const allPayments = paymentsR.rows.map(p => ({ ...p, amount_usd: parseFloat(p.amount_usd) }));
+    const vendorPhaseMapping = vendorPhasesR.rows.map(p => ({
+      ...p,
+      budget: p.budget ? parseFloat(p.budget) : null,
+      invoiced: parseFloat(p.invoiced),
+    }));
+    res.json({ phases: phasesR.rows, allPayments, vendorPhaseMapping });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/historical-payments', async (req, res) => {
+  try {
+    const { phase_id, payment_date, vendor, category, description, amount_usd, source, notes, is_batched } = req.body;
+    const { rows } = await pool.query(
+      `INSERT INTO historical_payments (phase_id,payment_date,vendor,category,description,amount_usd,source,notes,is_batched)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [phase_id, payment_date, vendor, category, description, parseFloat(amount_usd)||0, source||'manual', notes||null, is_batched||false]
+    );
+    res.json({ ...rows[0], amount_usd: parseFloat(rows[0].amount_usd) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/historical-payments/:id', async (req, res) => {
+  try {
+    const { phase_id, payment_date, vendor, category, description, amount_usd, notes, is_batched } = req.body;
+    const { rows } = await pool.query(
+      `UPDATE historical_payments SET phase_id=$1,payment_date=$2,vendor=$3,category=$4,description=$5,amount_usd=$6,notes=$7,is_batched=$8
+       WHERE id=$9 RETURNING *`,
+      [phase_id, payment_date, vendor, category, description, parseFloat(amount_usd)||0, notes||null, is_batched||false, req.params.id]
+    );
+    res.json({ ...rows[0], amount_usd: parseFloat(rows[0].amount_usd) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/historical-payments/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM historical_payments WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ─── SERVE FRONTEND (production) ──────────────────────────────────────────────
 if (!IS_DEV) {
   const distPath = path.join(process.cwd(), 'dist');
@@ -1082,6 +1313,7 @@ async function start() {
   try {
     await createSchema();
     await seedIfEmpty();
+    await seedProjectPhases();
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Camp Forestmere API running on port ${PORT}`);
     });
