@@ -3818,7 +3818,7 @@ function AppShell() {
         {/* Nav */}
         <nav style={{ flex: 1, padding: "0 10px", overflowY: "auto" }}>
           {NAV.map(n => {
-            const active = tab === n.id;
+            const active = tab === n.id || tab.startsWith(n.id + ":");
             const docsCount = n.id === "uploads" && documents.length > 0 ? documents.length : null;
             return (
               <button
