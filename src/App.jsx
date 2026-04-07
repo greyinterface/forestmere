@@ -2359,10 +2359,10 @@ function TotalSpendView() {
   const conTotal = roadTotal + demoTotal + phase11Total;
   const grandTotal = preConTotal + conTotal;
 
-  // BY VENDOR: group vendor phase mapping by vendor
+  // BY VENDOR: group vendor phase mapping by vendor (big 4)
   const byVendor = {};
   vendorPhaseMapping.forEach(vp => {
-    if (!byVendor[vp.vendor_key]) byVendor[vp.vendor_key] = { name: vp.vendor_full_name || vp.vendor_name, total: 0, phases: [] };
+    if (!byVendor[vp.vendor_key]) byVendor[vp.vendor_key] = { name: vp.vendor_full_name || vp.vendor_name, total: 0, phases: [], payments: [] };
     byVendor[vp.vendor_key].total += vp.invoiced;
     byVendor[vp.vendor_key].phases.push(vp);
   });
@@ -2375,7 +2375,30 @@ function TotalSpendView() {
       { phase: 'Demolition (C25-102)', invoiced: demoTotal, stage: 'Construction', work_package: 'Demolition', status: 'Complete' },
       { phase: 'Phase 1.1 (C25-104)', invoiced: tacPhase11, stage: 'Construction', work_package: 'Phase 1.1', status: 'In Progress' },
     ],
+    payments: [],
   };
+
+  // OTHER VENDORS: from historical payments, exclude big 4
+  const bigVendorNames = ['Reed Hilderbrand', 'ArchitectureFirm', 'Ivan Zdrahal', 'Taconic', 'Timothy R Smith'];
+  const isBigVendor = (v) => bigVendorNames.some(b => v.toLowerCase().includes(b.toLowerCase()) || b.toLowerCase().includes(v.toLowerCase().split(' ')[0]));
+
+  const otherVendorMap = {};
+  allPayments.forEach(p => {
+    if (isBigVendor(p.vendor)) return; // skip big vendors
+    const key = p.vendor;
+    if (!otherVendorMap[key]) otherVendorMap[key] = { name: p.vendor, total: 0, payments: [] };
+    otherVendorMap[key].total += p.amount_usd;
+    otherVendorMap[key].payments.push(p);
+  });
+
+  // Land acquisition separate
+  const landAcqVendor = allPayments.filter(p => p.work_package === 'Land Acquisition');
+  const landTotal = landAcqVendor.reduce((s,p) => s+p.amount_usd, 0);
+
+  const bigVendorTotal = Object.values(byVendor).reduce((s,v) => s+v.total, 0);
+  const otherVendorTotal = Object.values(otherVendorMap).reduce((s,v) => s+v.total, 0);
+  const batchedVendors = allPayments.filter(p => p.is_batched);
+  const batchedVendorTotal = batchedVendors.reduce((s,p) => s+p.amount_usd, 0);
 
   const batchedTotal = allPayments.filter(p => p.is_batched).reduce((s,p) => s+p.amount_usd, 0);
   const inp = "bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-400";
@@ -2508,10 +2531,40 @@ function TotalSpendView() {
       {/* ── BY VENDOR ── */}
       {viewMode === "vendor" && (
         <div className="space-y-3">
+
+          {/* Land Acquisition — separate line */}
+          <Card className="overflow-hidden">
+            <button onClick={() => setExpandedVendor(expandedVendor === "land" ? null : "land")}
+              className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-indigo-500" />
+                <span className="font-semibold text-gray-900 text-sm">Timothy R Smith — Land Acquisition</span>
+                <span className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-600">Pre-Construction</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-bold text-gray-900">{$f(landTotal)}</span>
+                <span className="text-xs text-gray-400">{grandTotal > 0 ? pf(landTotal/grandTotal) : "—"}</span>
+                <span className="text-gray-300 text-sm">{expandedVendor === "land" ? "▾" : "›"}</span>
+              </div>
+            </button>
+            {expandedVendor === "land" && (
+              <div className="border-t border-gray-100">
+                <table className="w-full">
+                  <thead><tr><TH>Date</TH><TH>Description</TH><TH right>Amount</TH></tr></thead>
+                  <tbody>
+                    {landAcqVendor.map((p,i) => (
+                      <TR key={i}><TD muted>{p.payment_date}</TD><TD className="text-gray-600">{p.description}</TD><TD right bold className="text-gray-900">{$f(p.amount_usd)}</TD></TR>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+
+          {/* Big 4 vendors */}
           {Object.entries(byVendor).sort((a,b) => b[1].total - a[1].total).map(([key, v]) => (
             <Card key={key} className="overflow-hidden">
-              <button
-                onClick={() => setExpandedVendor(expandedVendor === key ? null : key)}
+              <button onClick={() => setExpandedVendor(expandedVendor === key ? null : key)}
                 className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-gray-900 text-sm">{v.name}</span>
@@ -2531,28 +2584,95 @@ function TotalSpendView() {
                       {v.phases.filter(p => p.invoiced > 0 || p.budget > 0).map((p, i) => (
                         <TR key={i}>
                           <TD bold className="text-gray-800">{p.phase}</TD>
-                          <TD>
-                            {p.stage && <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (STAGE_COLORS[p.stage]||"#9ca3af")+"20", color: STAGE_COLORS[p.stage]||"#9ca3af" }}>{p.stage}</span>}
-                          </TD>
-                          <TD>
-                            {p.work_package && <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (WP_COLORS[p.work_package]||"#9ca3af")+"20", color: WP_COLORS[p.work_package]||"#9ca3af" }}>{p.work_package}</span>}
-                          </TD>
+                          <TD>{p.stage && <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (STAGE_COLORS[p.stage]||"#9ca3af")+"20", color: STAGE_COLORS[p.stage]||"#9ca3af" }}>{p.stage}</span>}</TD>
+                          <TD>{p.work_package && <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (WP_COLORS[p.work_package]||"#9ca3af")+"20", color: WP_COLORS[p.work_package]||"#9ca3af" }}>{p.work_package}</span>}</TD>
                           <TD>{statusTag(p.status)}</TD>
                           <TD right bold className="text-gray-900">{$f(p.invoiced)}</TD>
                         </TR>
                       ))}
                     </tbody>
-                    <tfoot>
-                      <TR subtle>
-                        <TD bold colSpan={4} muted>Total</TD>
-                        <TD right bold className="text-gray-900">{$f(v.total)}</TD>
-                      </TR>
-                    </tfoot>
+                    <tfoot><TR subtle><TD bold colSpan={4} muted>Total</TD><TD right bold className="text-gray-900">{$f(v.total)}</TD></TR></tfoot>
                   </table>
                 </div>
               )}
             </Card>
           ))}
+
+          {/* Other vendors — from historical payments */}
+          {Object.keys(otherVendorMap).length > 0 && (
+            <Card className="overflow-hidden">
+              <button onClick={() => setExpandedVendor(expandedVendor === "other" ? null : "other")}
+                className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full bg-gray-400" />
+                  <span className="font-semibold text-gray-900 text-sm">Other Vendors</span>
+                  <span className="text-xs text-gray-400">{Object.keys(otherVendorMap).length} vendors</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-bold text-gray-900">{$f(otherVendorTotal)}</span>
+                  <span className="text-xs text-gray-400">{grandTotal > 0 ? pf(otherVendorTotal/grandTotal) : "—"}</span>
+                  <span className="text-gray-300 text-sm">{expandedVendor === "other" ? "▾" : "›"}</span>
+                </div>
+              </button>
+              {expandedVendor === "other" && (
+                <div className="border-t border-gray-100">
+                  <table className="w-full">
+                    <thead><tr><TH>Vendor</TH><TH>Category</TH><TH right>Total</TH><TH right>Payments</TH></tr></thead>
+                    <tbody>
+                      {Object.entries(otherVendorMap).sort((a,b) => b[1].total - a[1].total).map(([vendor, d]) => (
+                        <TR key={vendor} onClick={() => setModal({ name: vendor, total: d.total, rows: d.payments })}>
+                          <TD bold className="text-gray-800">{vendor}</TD>
+                          <TD muted>{d.payments[0]?.category || "—"}</TD>
+                          <TD right bold className="text-gray-900">{$f(d.total)}</TD>
+                          <TD right muted>{d.payments.length} payment{d.payments.length !== 1 ? "s" : ""} →</TD>
+                        </TR>
+                      ))}
+                    </tbody>
+                    <tfoot><TR subtle><TD bold colSpan={2} muted>Total</TD><TD right bold className="text-gray-900">{$f(otherVendorTotal)}</TD><TD/></TR></tfoot>
+                  </table>
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* Batched / To Be Reconciled */}
+          {batchedVendors.length > 0 && (
+            <Card className="overflow-hidden border-amber-200">
+              <button onClick={() => setExpandedVendor(expandedVendor === "batched" ? null : "batched")}
+                className="w-full flex items-center justify-between px-5 py-4 hover:bg-amber-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <span className="text-amber-500">⚑</span>
+                  <span className="font-semibold text-amber-800 text-sm">Batched Payments — To Be Reconciled</span>
+                  <span className="text-xs text-amber-600">{batchedVendors.length} entries · multiple vendors</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-bold text-amber-800">{$f(batchedVendorTotal)}</span>
+                  <span className="text-xs text-amber-500">{grandTotal > 0 ? pf(batchedVendorTotal/grandTotal) : "—"}</span>
+                  <span className="text-amber-300 text-sm">{expandedVendor === "batched" ? "▾" : "›"}</span>
+                </div>
+              </button>
+              {expandedVendor === "batched" && (
+                <div className="border-t border-amber-100">
+                  <table className="w-full">
+                    <thead><tr><TH>Date</TH><TH>Description</TH><TH>Notes</TH><TH right>Amount</TH></tr></thead>
+                    <tbody>
+                      {batchedVendors.map((p,i) => (
+                        <TR key={i}>
+                          <TD muted>{p.payment_date}</TD>
+                          <TD bold className="text-gray-800">{p.vendor}</TD>
+                          <TD muted className="text-amber-600">{p.notes}</TD>
+                          <TD right bold className="text-gray-900">{$f(p.amount_usd)}</TD>
+                        </TR>
+                      ))}
+                    </tbody>
+                    <tfoot><TR subtle><TD bold colSpan={3} muted>Total (pending breakdown)</TD><TD right bold className="text-amber-700">{$f(batchedVendorTotal)}</TD></TR></tfoot>
+                  </table>
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* Grand total */}
           <div className="flex items-center justify-between px-5 py-4 bg-gray-900 rounded-xl">
             <span className="text-sm font-bold text-white">Total Inception to Date</span>
             <span className="text-lg font-bold text-white">{$f(grandTotal)}</span>
