@@ -2468,13 +2468,15 @@ function TotalSpendView() {
               total: conTotal,
               color: STAGE_COLORS["Construction"],
               workPackages: [
-                { name: "Road Construction", total: roadTotal, color: WP_COLORS["Road Construction"], rows: [] },
-                { name: "Demolition", total: demoTotal, color: WP_COLORS["Demolition"], rows: [] },
+                { name: "Road Construction", total: roadTotal, color: WP_COLORS["Road Construction"],
+                  rows: roadTotal > 0 ? [{ vendor: "Taconic Builders (GC)", amount_usd: roadTotal, payment_date: "2024", description: "Road Construction C23-101 — total paid" }] : [] },
+                { name: "Demolition", total: demoTotal, color: WP_COLORS["Demolition"],
+                  rows: demoTotal > 0 ? [{ vendor: "Taconic Builders (GC)", amount_usd: demoTotal, payment_date: "2025", description: "Demolition C25-102 — total paid" }] : [] },
                 { name: "Phase 1.1", total: phase11Total, color: WP_COLORS["Phase 1.1"],
                   rows: [
                     { vendor: "Taconic Builders (GC)", amount_usd: tacPhase11, payment_date: "Live", description: "Phase 1.1 GC payments to date" },
                     ...vendorPhaseMapping.filter(vp=>vp.work_package==="Phase 1.1"&&vp.invoiced>0).map(vp=>({
-                      vendor: vp.vendor_full_name, amount_usd: vp.invoiced, payment_date: "Live", description: vp.phase
+                      vendor: vp.vendor_full_name || vp.vendor_name, amount_usd: vp.invoiced, payment_date: "Live", description: vp.phase
                     }))
                   ]
                 },
@@ -2506,7 +2508,7 @@ function TotalSpendView() {
                         <div className="flex items-center gap-3">
                           <div className="w-2 h-2 rounded-full" style={{ background: wp.color }} />
                           <span className="text-xs font-semibold text-gray-700">{wp.name}</span>
-                          {wp.rows && wp.rows.length > 0 && <span className="text-xs text-indigo-400 font-medium">View {wp.rows.length} payments →</span>}
+                          {wp.rows && wp.rows.length > 0 && <span className="text-xs text-indigo-400 font-medium">View {wp.rows.length} {wp.rows.length === 1 ? "vendor" : "vendors"} →</span>}
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="w-32"><BarFill value={wp.total} max={stageData.total} color={wp.color} /></div>
