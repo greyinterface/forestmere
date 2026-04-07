@@ -49,7 +49,7 @@ function DataProvider({ children }) {
   if (!raw) return null;
 
   // ─── COMPUTED VALUES ────────────────────────────────────────────────────────
-  const { budget, awards, changeOrders, invoices, lineItems, vendors, priorPhases, cashFlow, documents } = raw;
+  const { budget, awards, changeOrders, invoices, lineItems, vendors, priorPhases, cashFlow, documents, historicalTotal } = raw;
 
   const awardedByCode = {};
   awards.forEach(a => { awardedByCode[a.code] = (awardedByCode[a.code] || 0) + parseFloat(a.current_amount); });
@@ -68,6 +68,9 @@ function DataProvider({ children }) {
 
   const INV_NUMS = invoices.map(i => i.inv_num);
 
+  // Inception-to-date grand total = historical payments + prior phases + Phase 1.1 vendors
+  // historicalTotal comes from the historical_payments table (writeup data)
+
   // Live computed values — mirror the Excel GRAND TOTAL row mechanics
   // Original contract is a fixed signed amount — does not change with budget line edits
   const ORIGINAL_CONTRACT = 13093419.47;
@@ -80,11 +83,17 @@ function DataProvider({ children }) {
   // Retainage Held = sum of retainage across all invoices (stored as negative in DB, so abs)
   const retainageHeld = invoices.reduce((s, i) => s + Math.abs(parseFloat(i.retainage||0)), 0);
 
+  // True inception-to-date grand total
+  // historical payments (writeup, pre-Feb 2024) + prior phases (road+demo) + Phase 1.1 all vendors
+  const priorPhasesTotal = priorPhases.reduce((s, p) => s + parseFloat(p.total_paid), 0);
+  const inceptionToDateTotal = historicalTotal + priorPhasesTotal + taconicPaid + izPaid + rhPaid + afPaid;
+
   const value = {
     budget, awards, changeOrders, invoices, lineItems, vendors, priorPhases, cashFlow, documents,
     awardedByCode, totalBudget, totalAwarded, totalCOs, taconicPaid, taconicPending,
     izPaid, rhPaid, afPaid, priorPaid, grandTotalPaid, INV_NUMS,
     balanceToFinish, retainageHeld, completedToDate, revisedContractTotal,
+    historicalTotal, priorPhasesTotal, inceptionToDateTotal,
     refresh,
   };
 
@@ -209,6 +218,7 @@ function Dashboard({ setTab }) {
     totalBudget, totalAwarded, totalCOs, taconicPaid, taconicPending,
     grandTotalPaid, izPaid, rhPaid, afPaid, priorPhases,
     balanceToFinish, retainageHeld, revisedContractTotal,
+    inceptionToDateTotal,
   } = useAppData();
   const [modal, setModal] = useState(null);
   const [reconSummary, setReconSummary] = useState(null);
@@ -262,7 +272,7 @@ function Dashboard({ setTab }) {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Total Project Spend" value={$f(phase11GrandTotal)} sub="All vendors · excl. prior phases" accent onClick={() => setModal("spend")} />
+        <Stat label="Total Project Spend" value={$f(inceptionToDateTotal)} sub="Inception to date · all phases" accent onClick={() => setModal("spend")} />
         <Stat label="Revised Contract" value={$f(revisedContractTotal)} sub={`Original $13,093,419 + ${$f(revisedContractTotal - 13093419.47)} COs (incl. fees)`} onClick={() => setTab("budget")} />
         <Stat label="GC Awarded" value={$f(totalAwarded)} sub={pf(totalAwarded / revisedContractTotal) + " of revised contract"} onClick={() => setTab("awards")} />
         <Stat label="GC Paid to Date" value={$f(taconicPaid)} sub={pf(taconicPaid / totalAwarded) + " of awarded"} onClick={() => setTab("invoices")} />
@@ -352,16 +362,24 @@ function Dashboard({ setTab }) {
       </div>
 
       {modal === "spend" && (
-        <Modal title="Total Project Spend" subtitle="All vendors · prior phases excluded (coming soon)" onClose={() => setModal(null)}>
+        <Modal title="Total Project Spend" subtitle="Inception to date · all phases · USD" onClose={() => setModal(null)}>
           <table className="w-full text-xs">
-            <thead><tr><TH>Vendor / Phase</TH><TH right>Paid to Date</TH><TH right>% of Total</TH></tr></thead>
+            <thead><tr><TH>Category / Vendor</TH><TH right>Amount</TH><TH right>% of Total</TH></tr></thead>
             <tbody>
+              <TR subtle><TD bold colSpan={3} className="text-indigo-600">Pre-Construction</TD></TR>
+              <TR><TD className="pl-6 text-gray-600">Land Acquisition</TD><TD right bold>{$f(inceptionToDateTotal > 0 ? 3634949.67 : 0)}</TD><TD right muted>{inceptionToDateTotal > 0 ? pf(3634949.67/inceptionToDateTotal) : "—"}</TD></TR>
+              <TR><TD className="pl-6 text-gray-600">Design & Permitting (writeup)</TD><TD right bold>{$f(historicalTotal - 3634949.67)}</TD><TD right muted>{inceptionToDateTotal > 0 ? pf((historicalTotal-3634949.67)/inceptionToDateTotal) : "—"}</TD></TR>
+              <TR subtle><TD bold colSpan={3} className="text-indigo-600">Construction</TD></TR>
+              <TR><TD className="pl-6 text-gray-600">Road Construction (C23-101)</TD><TD right bold>{$f(priorPhases.find(p=>p.id==="road")?.total_paid||0)}</TD><TD right muted>{inceptionToDateTotal > 0 ? pf((priorPhases.find(p=>p.id==="road")?.total_paid||0)/inceptionToDateTotal) : "—"}</TD></TR>
+              <TR><TD className="pl-6 text-gray-600">Demolition (C25-102)</TD><TD right bold>{$f(priorPhases.find(p=>p.id==="demolition")?.total_paid||0)}</TD><TD right muted>{inceptionToDateTotal > 0 ? pf((priorPhases.find(p=>p.id==="demolition")?.total_paid||0)/inceptionToDateTotal) : "—"}</TD></TR>
+              <TR subtle><TD bold colSpan={3} className="text-gray-500 pl-4">Phase 1.1</TD></TR>
               {spendRows.map(v => (
-                <TR key={v.name}><TD bold className="text-gray-800">{v.name}</TD><TD right bold>{$f(v.paid)}</TD><TD right muted>{phase11GrandTotal > 0 ? pf(v.paid / phase11GrandTotal) : "—"}</TD></TR>
+                <TR key={v.name}><TD className="pl-8 text-gray-600">{v.name}</TD><TD right bold>{$f(v.paid)}</TD><TD right muted>{inceptionToDateTotal > 0 ? pf(v.paid/inceptionToDateTotal) : "—"}</TD></TR>
               ))}
             </tbody>
-            <tfoot><TR subtle><TD bold colSpan={1} className="text-gray-600">Phase 1.1 Total</TD><TD right bold className="text-gray-900">{$f(phase11GrandTotal)}</TD><TD right muted>100%</TD></TR></tfoot>
+            <tfoot><TR subtle><TD bold className="text-gray-900">Total Inception to Date</TD><TD right bold className="text-gray-900">{$f(inceptionToDateTotal)}</TD><TD right muted>100%</TD></TR></tfoot>
           </table>
+          <p className="text-xs text-gray-400 mt-2">* Pre-construction detail from Excel writeups (inception → Feb 2024). See Total Spend tab for full breakdown.</p>
         </Modal>
       )}
       {modal === "retainage" && (
