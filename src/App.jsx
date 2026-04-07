@@ -283,40 +283,64 @@ function Dashboard({ setTab }) {
         </button>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Total Project Spend" value={$f(inceptionToDateTotal)} sub="Inception to date · all phases" accent onClick={() => setModal("spend")} />
-        <Stat label="Revised Contract" value={$f(revisedContractTotal)} sub={`Original $13,093,419 + ${$f(revisedContractTotal - 13093419.47)} COs (incl. fees)`} onClick={() => setTab("phase11:budget")} />
-        <Stat label="GC Awarded" value={$f(totalAwarded)} sub={pf(totalAwarded / revisedContractTotal) + " of revised contract"} onClick={() => setTab("phase11:awards")} />
-        <Stat label="GC Paid to Date" value={$f(taconicPaid)} sub={pf(taconicPaid / totalAwarded) + " of awarded"} onClick={() => setTab("phase11:invoices")} />
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Approved COs" value={$f(totalCOs)} sub={changeOrders.length + " change orders"} onClick={() => setTab("phase11:cos")} />
-        <Stat label="Retainage Held" value={$f(retainageHeld)} sub="Released at substantial completion" onClick={() => setModal("retainage")} />
-        <Stat label="GC Pending" value={$f(taconicPending)} accent sub={pendingInvs.length + " invoices outstanding"} onClick={() => setTab("phase11:invoices")} />
-        <Stat label="GC Balance to Finish" value={$f(balanceToFinish)} sub="Revised contract less completed to date" onClick={() => setTab("phase11:lineitem")} />
+      {/* ── TOTAL PROJECT SPEND ── */}
+      <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-indigo-400 mb-0.5">Total Project Spend — Inception to Date</p>
+          <p className="text-2xl font-bold text-indigo-700 tabular-nums">{$f(inceptionToDateTotal)}</p>
+          <p className="text-xs text-indigo-500 mt-0.5">Land acquisition + pre-construction + road + demo + Phase 1.1</p>
+        </div>
+        <button onClick={() => setModal("spend")} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors shrink-0">View Breakdown →</button>
       </div>
 
+      {/* ── PHASE 1.1 SECTION ── */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Phase 1.1 — Construction (Taconic Builders)</span>
+          <div className="flex-1 h-px bg-gray-200" />
+          <button onClick={() => setTab("phase11")} className="text-xs text-indigo-500 font-semibold hover:text-indigo-700">View Phase 1.1 →</button>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Stat label="Revised Contract" value={$f(revisedContractTotal)} sub={`Original $13,093,419 + ${$f(revisedContractTotal - 13093419.47)} COs`} onClick={() => setTab("phase11:budget")} />
+          <Stat label="GC Awarded" value={$f(totalAwarded)} sub={pf(totalAwarded / revisedContractTotal) + " of revised contract"} onClick={() => setTab("phase11:awards")} />
+          <Stat label="GC Paid to Date" value={$f(taconicPaid)} sub={pf(taconicPaid / totalAwarded) + " of awarded"} accent onClick={() => setTab("phase11:invoices")} />
+          <Stat label="GC Balance to Finish" value={$f(balanceToFinish)} sub="Revised contract less completed to date" onClick={() => setTab("phase11:lineitem")} />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+          <Stat label="Approved COs" value={$f(totalCOs)} sub={changeOrders.length + " change orders"} onClick={() => setTab("phase11:cos")} />
+          <Stat label="Retainage Held" value={$f(retainageHeld)} sub="Released at substantial completion" onClick={() => setModal("retainage")} />
+          <Stat label="GC Pending" value={$f(taconicPending)} accent sub={pendingInvs.length + " invoices outstanding"} onClick={() => setTab("phase11:invoices")} />
+          <Stat label="% Complete" value={pf(taconicPaid / revisedContractTotal)} sub="Based on paid to date" />
+        </div>
+      </div>
+
+      {/* ── PHASE 1.1 CHARTS ── */}
       <div className="grid md:grid-cols-2 gap-5">
         <Card className="p-5">
-          <SectionTitle>Spend by Vendor</SectionTitle>
+          <SectionTitle>Phase 1.1 — Spend by Vendor</SectionTitle>
+          <p className="text-xs text-gray-400 -mt-3 mb-3">Phase 1.1 only · click vendor for detail</p>
           <div className="space-y-3">
             {spendRows.map(v => (
-              <button key={v.name} onClick={() => setModal({ type: "spendDetail", row: v })} className="w-full flex items-center gap-3 text-xs text-left hover:bg-[#f5f6f8] rounded-lg px-1 py-1 transition-colors">
+              <button key={v.name} onClick={() => {
+                if (v.name.includes("Taconic")) setTab("phase11:invoices");
+                else setTab("designeng");
+              }} className="w-full flex items-center gap-3 text-xs text-left hover:bg-[#f5f6f8] rounded-lg px-1 py-1 transition-colors">
                 <div className="w-2 h-2 rounded-full shrink-0" style={{ background: v.color }} />
                 <span className="text-gray-500 w-44 shrink-0 truncate">{v.name}</span>
-                <div className="flex-1"><BarFill value={v.paid} max={grandTotalPaid} color={v.color} /></div>
+                <div className="flex-1"><BarFill value={v.paid} max={phase11GrandTotal} color={v.color} /></div>
                 <span className="text-gray-800 font-semibold tabular-nums w-24 text-right">{$f(v.paid)}</span>
               </button>
             ))}
             <div className="flex justify-between items-center border-t border-gray-100 pt-2 mt-1">
-              <span className="text-xs font-semibold text-gray-400">Grand Total</span>
+              <span className="text-xs font-semibold text-gray-400">Phase 1.1 Total</span>
               <span className="text-sm font-bold text-gray-900 tabular-nums">{$f(phase11GrandTotal)}</span>
             </div>
           </div>
         </Card>
 
         <Card className="p-5">
-          <SectionTitle>Phase 1.1 Budget vs. Awarded by Category</SectionTitle>
+          <SectionTitle>Phase 1.1 — Budget vs. Awarded by Category</SectionTitle>
+          <p className="text-xs text-gray-400 -mt-3 mb-3">Taconic control budget · click for detail</p>
           <div className="space-y-2">
             {Object.entries(catBudget).sort((a, b) => b[1] - a[1]).map(([cat, bud]) => {
               const awd = awards.filter(a => budget.find(b => b.code === a.code)?.cat === cat).reduce((s, a) => s + parseFloat(a.current_amount), 0);
