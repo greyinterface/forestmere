@@ -265,8 +265,8 @@ function Dashboard({ setTab }) {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Total Project Spend" value={$f(phase11GrandTotal)} sub="All vendors · excl. prior phases" accent onClick={() => setModal("spend")} />
-        <Stat label="GC Control Budget" value={$f(totalBudget)} sub="Taconic Phase 1.1" onClick={() => setTab("budget")} />
-        <Stat label="GC Awarded" value={$f(totalAwarded)} sub={pf(totalAwarded / totalBudget) + " of budget"} onClick={() => setTab("awards")} />
+        <Stat label="Revised Contract" value={$f(revisedContractTotal)} sub={`Original ${$f(totalBudget)} + ${$f(revisedContractTotal - totalBudget)} COs (incl. fees)`} onClick={() => setTab("budget")} />
+        <Stat label="GC Awarded" value={$f(totalAwarded)} sub={pf(totalAwarded / revisedContractTotal) + " of revised contract"} onClick={() => setTab("awards")} />
         <Stat label="GC Paid to Date" value={$f(taconicPaid)} sub={pf(taconicPaid / totalAwarded) + " of awarded"} onClick={() => setTab("invoices")} />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
