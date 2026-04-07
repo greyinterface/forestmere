@@ -710,7 +710,11 @@ app.get('/api/data', async (req, res) => {
       return n;
     });
 
-    const historicalTotal = parseFloat(histR?.rows?.[0]?.total || 0);
+    let historicalTotal = 0;
+    try {
+      const histR = await pool.query('SELECT COALESCE(SUM(amount_usd),0) as total FROM historical_payments');
+      historicalTotal = parseFloat(histR.rows[0]?.total || 0);
+    } catch(e) { historicalTotal = 0; }
 
     res.json({
       budget: normalize(budgetR.rows, ['budget']),
