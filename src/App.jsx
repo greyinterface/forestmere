@@ -2683,9 +2683,19 @@ function TotalSpendView() {
       {/* ── PHASE MAPPING ── */}
       {viewMode === "mapping" && (
         <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-            <p className="text-xs font-semibold text-blue-700">Phase Mapping Reference</p>
-            <p className="text-xs text-blue-600 mt-0.5">Shows how each vendor budget phase is tagged to a project stage and work package. Click Edit to update any assignment.</p>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-blue-700">Phase Mapping Reference</p>
+              <p className="text-xs text-blue-600 mt-0.5">Shows how each vendor budget phase is tagged to a project stage and work package. Click Edit to update any assignment.</p>
+            </div>
+            <button onClick={async () => {
+              try {
+                const r = await apiFetch('/admin/migrate-phase-tags', { method: 'POST' });
+                if (r.ok) { alert(`✓ Phase tags applied to ${r.updated} phases. Refreshing...`); load(); }
+              } catch(e) { alert('Migration failed: ' + e.message); }
+            }} className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg shrink-0 transition-colors">
+              Apply Tags →
+            </button>
           </div>
           <Card className="overflow-hidden">
             <table className="w-full">
