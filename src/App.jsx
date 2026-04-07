@@ -206,7 +206,7 @@ function Dashboard({ setTab }) {
     budget, awards, invoices, changeOrders, awardedByCode,
     totalBudget, totalAwarded, totalCOs, taconicPaid, taconicPending,
     grandTotalPaid, izPaid, rhPaid, afPaid, priorPhases,
-    balanceToFinish, retainageHeld,
+    balanceToFinish, retainageHeld, revisedContractTotal,
   } = useAppData();
   const [modal, setModal] = useState(null);
   const [reconSummary, setReconSummary] = useState(null);
