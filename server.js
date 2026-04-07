@@ -710,7 +710,7 @@ app.get('/api/data', async (req, res) => {
       return n;
     });
 
-    const historicalTotal = parseFloat(histR.rows[0]?.total || 0);
+    const historicalTotal = parseFloat(histR?.rows?.[0]?.total || 0);
 
     res.json({
       budget: normalize(budgetR.rows, ['budget']),
