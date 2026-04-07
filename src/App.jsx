@@ -251,6 +251,18 @@ function Dashboard({ setTab }) {
         </button>
       )}
       {/* Prior phases now tracked in Total Spend tab */}
+      {/* Reconciliation pending warning */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-3">
+        <span className="text-blue-500 mt-0.5 shrink-0">⚠</span>
+        <div>
+          <p className="text-xs font-semibold text-blue-700">Total Project Spend — Reconciliation Pending</p>
+          <p className="text-xs text-blue-600 mt-0.5">
+            Pre-construction spend for Reed Hilderbrand, ArchitectureFirm and Ivan Zdrahal is currently counted in both the historical writeup data (inception → Feb 2024) and their vendor phase invoiced totals. 
+            This will cause slight overstatement until vendor invoices are fully reconciled to Zoho. 
+            All other figures are accurate.
+          </p>
+        </div>
+      </div>
       {reconSummary?.failed === 0 && reconSummary?.total > 0 && (
         <button onClick={() => setTab("reconcile")} className="w-full text-left flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 hover:bg-emerald-100 transition-colors">
           <span className="text-emerald-500 text-xs">✓</span>
@@ -2345,6 +2357,18 @@ function TotalSpendView() {
 
   return (
     <div className="space-y-5">
+      {/* Reconciliation pending warning */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-3">
+        <span className="text-blue-500 mt-0.5 shrink-0">⚠</span>
+        <div>
+          <p className="text-xs font-semibold text-blue-700">Reconciliation Pending — Total may be slightly overstated</p>
+          <p className="text-xs text-blue-600 mt-0.5">
+            Reed Hilderbrand, ArchitectureFirm and Ivan Zdrahal pre-Feb 2024 spend appears in both the historical writeup data and vendor phase totals. 
+            Full reconciliation to Zoho in progress — will be resolved once vendor invoices are matched to accounting records.
+          </p>
+        </div>
+      </div>
+
       {/* Batched warning */}
       {batchedTotal > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
