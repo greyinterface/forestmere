@@ -392,6 +392,7 @@ function Dashboard({ setTab }) {
             <tfoot><TR subtle><TD bold className="text-gray-900">Total Inception to Date</TD><TD right bold className="text-gray-900">{$f(inceptionToDateTotal)}</TD><TD right muted>100%</TD></TR></tfoot>
           </table>
           <p className="text-xs text-gray-400 mt-2">* Pre-construction detail from Excel writeups (inception → Feb 2024). See Total Spend tab for full breakdown.</p>
+          <button onClick={() => { setModal(null); setTab("totalspend"); }} className="mt-3 w-full py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold rounded-lg transition-colors">View Full Breakdown in Total Spend →</button>
         </Modal>
       )}
       {modal === "retainage" && (
