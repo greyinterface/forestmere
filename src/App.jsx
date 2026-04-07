@@ -2341,9 +2341,9 @@ function TotalSpendView() {
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Total Inception to Date" value={$f(grandTotal)} sub="All stages · USD" accent />
-        <Stat label="Pre-Construction" value={$f(preConTotal)} sub="Land + Design & Permitting" onClick={() => setViewMode("stage")} />
-        <Stat label="Construction" value={$f(conTotal)} sub="Road + Demo + Phase 1.1" onClick={() => setViewMode("stage")} />
-        <Stat label="Phase 1.1 to Date" value={$f(phase11Total)} sub="Taconic + consultants" onClick={() => setExpandedStage("Construction")} />
+        <Stat label="Pre-Construction" value={$f(preConTotal)} sub="Land + Design & Permitting" />
+        <Stat label="Construction" value={$f(conTotal)} sub="Road + Demo + Phase 1.1" />
+        <Stat label="Phase 1.1 to Date" value={$f(phase11Total)} sub="Taconic + consultants" />
       </div>
 
       {/* View toggle */}
@@ -2411,16 +2411,16 @@ function TotalSpendView() {
                   {stageData.workPackages.map(wp => (
                     <div key={wp.name}>
                       <button
-                        onClick={() => setModal(modal?.name === wp.name ? null : wp)}
-                        className="w-full flex items-center justify-between px-8 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50">
+                        onClick={() => wp.rows && wp.rows.length > 0 ? setModal(wp) : null}
+                        className={cx("w-full flex items-center justify-between px-8 py-3 transition-colors border-b border-gray-50", wp.rows && wp.rows.length > 0 ? "hover:bg-indigo-50 cursor-pointer" : "cursor-default")}>
                         <div className="flex items-center gap-3">
                           <div className="w-2 h-2 rounded-full" style={{ background: wp.color }} />
                           <span className="text-xs font-semibold text-gray-700">{wp.name}</span>
+                          {wp.rows && wp.rows.length > 0 && <span className="text-xs text-indigo-400 font-medium">View {wp.rows.length} payments →</span>}
                         </div>
                         <div className="flex items-center gap-4">
-                          <BarFill value={wp.total} max={stageData.total} color={wp.color} />
+                          <div className="w-32"><BarFill value={wp.total} max={stageData.total} color={wp.color} /></div>
                           <span className="text-xs font-bold text-gray-800 w-28 text-right">{$f(wp.total)}</span>
-                          <span className="text-xs text-gray-300">→</span>
                         </div>
                       </button>
                     </div>
