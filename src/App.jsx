@@ -2576,31 +2576,485 @@ function TotalSpendView() {
 }
 
 
+// ─── PHASE 1.1 SHELL ──────────────────────────────────────────────────────────
+function Phase11Shell() {
+  const {
+    totalBudget, totalAwarded, taconicPaid, taconicPending,
+    balanceToFinish, retainageHeld, revisedContractTotal,
+    invoices, changeOrders, awards, lineItems,
+  } = useAppData();
+  const [subTab, setSubTab] = useState("landing");
+
+  const SUB_TABS = [
+    { id: "landing",   label: "Summary"         },
+    { id: "budget",    label: "Control Budget"   },
+    { id: "awards",    label: "Awards"           },
+    { id: "cos",       label: "Change Orders"    },
+    { id: "invoices",  label: "Invoices"         },
+    { id: "lineitem",  label: "Line Item Billing"},
+    { id: "reconcile", label: "Reconcile"        },
+  ];
+
+  return (
+    <div className="space-y-5">
+      {/* Sub-tab nav */}
+      <div className="flex gap-1 border-b border-gray-200 -mt-2">
+        {SUB_TABS.map(t => (
+          <button key={t.id} onClick={() => setSubTab(t.id)}
+            className={cx("px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
+              subTab === t.id ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600")}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Landing */}
+      {subTab === "landing" && (
+        <div className="space-y-5">
+          {/* KPI summary */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Stat label="Revised Contract"    value={$f(revisedContractTotal)} sub={`Original $13,093,419 + ${$f(revisedContractTotal - 13093419.47)} COs`} />
+            <Stat label="Paid to Date"        value={$f(taconicPaid)}          sub={pf(taconicPaid / revisedContractTotal) + " of revised contract"} accent />
+            <Stat label="Balance to Finish"   value={$f(balanceToFinish)}      sub="Revised contract less completed to date" />
+            <Stat label="Retainage Held"      value={$f(retainageHeld)}        sub="Released at substantial completion" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Stat label="GC Awarded"          value={$f(totalAwarded)}         sub={awards.length + " subcontract awards"} onClick={() => setSubTab("awards")} />
+            <Stat label="Approved COs"        value={$f(changeOrders.reduce((s,c)=>s+parseFloat(c.approved_co),0))} sub={changeOrders.length + " change orders"} onClick={() => setSubTab("cos")} />
+            <Stat label="Pending Payment"     value={$f(taconicPending)}       sub={invoices.filter(i=>!i.status?.startsWith("Paid")).length + " invoices outstanding"} accent onClick={() => setSubTab("invoices")} />
+            <Stat label="% Complete"          value={pf(taconicPaid / revisedContractTotal)} sub="Based on paid to date" />
+          </div>
+
+          {/* Quick nav cards */}
+          <div className="grid grid-cols-3 gap-4 mt-2">
+            {[
+              { id:"budget",    icon:"⊟", label:"Control Budget",    desc:"51 line items · budget vs awarded" },
+              { id:"awards",    icon:"◎", label:"Contract Awards",    desc:awards.length + " subcontract awards" },
+              { id:"cos",       icon:"△", label:"Change Orders",      desc:changeOrders.length + " approved COs" },
+              { id:"invoices",  icon:"≡", label:"Invoices",           desc:invoices.length + " pay applications" },
+              { id:"lineitem",  icon:"⊞", label:"Line Item Billing",  desc:"Per-invoice cost breakdown" },
+              { id:"reconcile", icon:"✓", label:"Reconcile",          desc:"Balance checks & data integrity" },
+            ].map(card => (
+              <button key={card.id} onClick={() => setSubTab(card.id)}
+                className="bg-white border border-gray-100 rounded-xl p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all shadow-sm group">
+                <div className="text-xl mb-3 text-gray-300 group-hover:text-indigo-400 transition-colors">{card.icon}</div>
+                <div className="text-sm font-semibold text-gray-800 mb-1">{card.label}</div>
+                <div className="text-xs text-gray-400">{card.desc}</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Project details */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-gray-100">
+              <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Contract Details</span>
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-gray-50">
+              {[
+                [["General Contractor","Taconic Builders Inc."],["Contract #","C25-104"],["Contract Start","Jun 23, 2025"],["Est. Completion","April 2027"]],
+                [["Project Manager","Joseph Hamilton"],["Architect","ArchitectureFirm"],["Landscape Arch.","Reed Hilderbrand"],["Civil Engineer","Ivan Zdrahal PE"]],
+              ].map((col, ci) => (
+                <div key={ci} className="divide-y divide-gray-50">
+                  {col.map(([k,v]) => (
+                    <div key={k} className="flex items-center justify-between px-5 py-3">
+                      <span className="text-xs text-gray-400">{k}</span>
+                      <span className="text-xs font-semibold text-gray-800">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {subTab === "budget"    && <BudgetView setTab={(t) => setSubTab(t)} />}
+      {subTab === "awards"    && <AwardsView />}
+      {subTab === "cos"       && <COsView />}
+      {subTab === "invoices"  && <InvoicesView />}
+      {subTab === "lineitem"  && <LineItemView />}
+      {subTab === "reconcile" && <ReconcileView setTab={(t) => setSubTab(t)} />}
+    </div>
+  );
+}
+
+// ─── DESIGN & ENGINEERING SHELL ───────────────────────────────────────────────
+function DesignEngShell() {
+  const { vendors } = useAppData();
+  const [subTab, setSubTab] = useState("landing");
+
+  const VENDOR_TABS = [
+    { id: "landing", label: "Summary" },
+    { id: "arch",    label: "ArchitectureFirm"  },
+    { id: "reed",    label: "Reed Hilderbrand"  },
+    { id: "ivan",    label: "Ivan Zdrahal PE"   },
+  ];
+
+  const vendorSummary = ["arch","reed","ivan"].map(key => {
+    const v = vendors[key];
+    const totalInvoiced = v?.invoices.reduce((s,i) => s+(i.amount||0), 0) || 0;
+    const totalBudget   = v?.phases.reduce((s,p) => s+(p.budget||0), 0) || 0;
+    const totalPhaseInvoiced = v?.phases.reduce((s,p) => s+(p.invoiced||0), 0) || 0;
+    return { key, name: v?.full_name || v?.name, role: v?.role, color: v?.color,
+             invoiced: totalPhaseInvoiced, budget: totalBudget };
+  });
+
+  const grandInvoiced = vendorSummary.reduce((s,v) => s+v.invoiced, 0);
+
+  return (
+    <div className="space-y-5">
+      {/* Sub-tab nav */}
+      <div className="flex gap-1 border-b border-gray-200 -mt-2">
+        {VENDOR_TABS.map(t => (
+          <button key={t.id} onClick={() => setSubTab(t.id)}
+            className={cx("px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
+              subTab === t.id ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600")}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Landing */}
+      {subTab === "landing" && (
+        <div className="space-y-5">
+          <div className="grid grid-cols-3 gap-4">
+            {vendorSummary.map(v => (
+              <button key={v.key} onClick={() => setSubTab(v.key)}
+                className="bg-white border border-gray-100 rounded-xl p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all shadow-sm group">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-3 h-3 rounded-full" style={{ background: v.color }} />
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{v.role}</span>
+                </div>
+                <div className="text-sm font-bold text-gray-900 mb-3 leading-tight">{v.name}</div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Invoiced to date</span>
+                    <span className="font-bold text-gray-900">{$f(v.invoiced)}</span>
+                  </div>
+                  {v.budget > 0 && (
+                    <>
+                      <BarFill value={v.invoiced} max={v.budget} color={v.color} />
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-400">Budget</span>
+                        <span className="text-gray-500">{$f(v.budget)}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="mt-3 text-xs text-indigo-400 font-medium group-hover:text-indigo-600">View detail →</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Summary table */}
+          <Card className="overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Combined Summary</span>
+            </div>
+            <table className="w-full">
+              <thead><tr><TH>Vendor</TH><TH>Role</TH><TH right>Budget</TH><TH right>Invoiced</TH><TH right>Remaining</TH><TH className="w-32">Progress</TH></tr></thead>
+              <tbody>
+                {vendorSummary.map(v => {
+                  const rem = v.budget > 0 ? v.budget - v.invoiced : null;
+                  return (
+                    <TR key={v.key} onClick={() => setSubTab(v.key)}>
+                      <TD bold className="text-gray-900">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: v.color }} />
+                          {v.name}
+                        </div>
+                      </TD>
+                      <TD muted>{v.role}</TD>
+                      <TD right muted>{v.budget > 0 ? $f(v.budget) : "T&M"}</TD>
+                      <TD right bold className="text-gray-900">{$f(v.invoiced)}</TD>
+                      <TD right className={rem == null ? "text-gray-400" : rem < 0 ? "text-red-500 font-bold" : "text-indigo-600 font-medium"}>
+                        {rem == null ? "T&M" : $f(rem)}
+                      </TD>
+                      <TD>{v.budget > 0 && <BarFill value={v.invoiced} max={v.budget} color={v.color} />}</TD>
+                    </TR>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <TR subtle>
+                  <TD bold colSpan={3} muted>Total</TD>
+                  <TD right bold className="text-gray-900">{$f(grandInvoiced)}</TD>
+                  <TD colSpan={2} />
+                </TR>
+              </tfoot>
+            </table>
+          </Card>
+        </div>
+      )}
+
+      {/* Individual vendor views — reuse VendorsView with pre-selected vendor */}
+      {["arch","reed","ivan"].includes(subTab) && (
+        <VendorsViewSingle vendorKey={subTab} />
+      )}
+    </div>
+  );
+}
+
+// ─── VENDORS VIEW SINGLE ──────────────────────────────────────────────────────
+// Extracted from VendorsView to show a single vendor
+function VendorsViewSingle({ vendorKey }) {
+  const { vendors, refresh } = useAppData();
+  const [subTab, setSubTab] = useState("overview");
+  const [modal, setModal] = useState(null);
+  const [phaseView, setPhaseView] = useState("table");
+  const [addingInv, setAddingInv] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [addForm, setAddForm] = useState({ invNum:"", date:"", desc:"", amount:"", status:"Pending" });
+  const [editForm, setEditForm] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  const vendor = vendors[vendorKey];
+  if (!vendor) return null;
+
+  const totalInvoiced = vendor.invoices.reduce((s,i) => s+(i.amount||0), 0);
+  const totalBudgeted = vendor.phases.reduce((s,p) => s+(p.budget||0), 0);
+  const rem = totalBudgeted > 0 ? totalBudgeted - totalInvoiced : null;
+  const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-400";
+
+  const saveNewInv = async () => {
+    if (!addForm.invNum || !addForm.amount || saving) return;
+    setSaving(true);
+    await apiFetch(`/vendors/${vendorKey}/invoices`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ invNum:addForm.invNum, date:addForm.date, desc:addForm.desc, amount:parseFloat(addForm.amount.replace(/[^0-9.]/g,""))||0, status:addForm.status })
+    });
+    await refresh(); setAddForm({ invNum:"", date:"", desc:"", amount:"", status:"Pending" }); setAddingInv(false); setSaving(false);
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || saving) return; setSaving(true);
+    await apiFetch(`/vendors/invoices/${editingId}`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ invNum:editForm.inv_num, date:editForm.inv_date, desc:editForm.description, amount:parseFloat(editForm.amount)||0, status:editForm.status })
+    });
+    await refresh(); setEditingId(null); setSaving(false);
+  };
+
+  const deleteInv = async (id) => {
+    if (!confirm("Delete this invoice?")) return;
+    await apiFetch(`/vendors/invoices/${id}`, { method:'DELETE' });
+    await refresh();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-bold text-gray-900">{vendor.full_name}</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{vendor.role}</p>
+        </div>
+        <Tag text="Active" color="amber" />
+      </div>
+
+      <div className="flex border-b border-gray-200">
+        {[["overview","Overview"],["phases","Budget Phases"],["invoices","Invoices"]].map(([id,lbl]) => (
+          <button key={id} onClick={() => { setSubTab(id); setModal(null); setAddingInv(false); setEditingId(null); }}
+            className={cx("px-4 py-2.5 text-xs font-semibold transition-all border-b-2 -mb-px",
+              subTab===id ? "border-indigo-500 text-indigo-600" : "border-transparent text-gray-400 hover:text-gray-600")}>
+            {lbl}
+            {id==="invoices" && <span className="ml-1 text-gray-300">({vendor.invoices.length})</span>}
+          </button>
+        ))}
+      </div>
+
+      {subTab==="overview" && (
+        <div className="space-y-5">
+          <div className="grid grid-cols-3 gap-3">
+            <Stat label="Total Invoiced" value={$f(vendor.phases.reduce((s,p)=>s+(p.invoiced||0),0))} sub="All budget phases" accent onClick={() => setSubTab("phases")} />
+            {rem != null ? <Stat label="Remaining Budget" value={$f(rem)} sub="Against fixed fees" onClick={() => setSubTab("phases")} /> : <Stat label="Billing Type" value="T&M" sub="Billed monthly" />}
+            <Stat label="Invoices on File" value={String(vendor.invoices.length)} sub="Tracked invoices" onClick={() => setSubTab("invoices")} />
+          </div>
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <SectionTitle>Budget Phases</SectionTitle>
+              <div className="flex gap-1 -mt-4">
+                {[["table","Table"],["cards","Cards"],["timeline","List"]].map(([v,l]) => (
+                  <button key={v} onClick={() => setPhaseView(v)} className={cx("px-2.5 py-1 text-xs rounded-lg font-medium", phaseView===v ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-400 hover:text-gray-700")}>{l}</button>
+                ))}
+              </div>
+            </div>
+            {phaseView==="table" && (
+              <table className="w-full text-xs">
+                <thead><tr className="border-b border-gray-100"><TH>Phase</TH><TH>Stage</TH><TH>Work Package</TH><TH right>Budget</TH><TH right>Invoiced</TH><TH right>Remaining</TH><TH>Status</TH></tr></thead>
+                <tbody>
+                  {vendor.phases.map((p,i) => {
+                    const b=p.budget||0; const inv2=p.invoiced||0; const r=b>0?b-inv2:null;
+                    return (
+                      <TR key={i} onClick={() => { setSubTab("phases"); setModal(p); }}>
+                        <TD bold className="text-gray-800">{p.phase}</TD>
+                        <TD>{p.stage && <span className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-600">{p.stage}</span>}</TD>
+                        <TD>{p.work_package && <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">{p.work_package}</span>}</TD>
+                        <TD right muted>{b>0?$f(b):"T&M"}</TD>
+                        <TD right bold className="text-gray-900">{$f(inv2)}</TD>
+                        <TD right className={r==null?"text-gray-400":r<0?"text-red-500 font-bold":r>0?"text-indigo-600 font-medium":"text-gray-300"}>{r==null?"T&M":r>0?$f(r):r<0?`-${$f(-r)}`:"—"}</TD>
+                        <TD>{statusTag(p.status)}</TD>
+                      </TR>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <TR subtle>
+                    <TD bold colSpan={4} muted>Total</TD>
+                    <TD right bold className="text-gray-900">{$f(vendor.phases.reduce((s,p)=>s+(p.invoiced||0),0))}</TD>
+                    <TD right bold className="text-indigo-600">{rem!=null?$f(rem):"T&M"}</TD>
+                    <TD />
+                  </TR>
+                </tfoot>
+              </table>
+            )}
+            {phaseView==="cards" && (
+              <div className="grid md:grid-cols-2 gap-2">
+                {vendor.phases.map((p,i) => {
+                  const b=p.budget||0; const inv2=p.invoiced||0;
+                  return (
+                    <button key={i} onClick={()=>{setSubTab("phases");setModal(p);}} className="text-left bg-gray-50 hover:bg-indigo-50 rounded-xl p-3 border border-gray-100 transition-colors">
+                      <div className="flex items-start justify-between gap-2 mb-1"><span className="text-xs font-semibold text-gray-800 leading-tight">{p.phase}</span>{statusTag(p.status)}</div>
+                      {p.stage && <span className="text-xs text-indigo-500 font-medium">{p.stage} · {p.work_package}</span>}
+                      {b>0&&<BarFill value={inv2} max={b} color={vendor.color}/>}
+                      <div className="flex justify-between mt-2"><span className="text-xs text-gray-400">{b>0?$f(b)+" budget":"T&M"}</span><span className="text-xs font-bold text-gray-800">{$f(inv2)}</span></div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {subTab==="phases" && (
+        <Card className="overflow-hidden">
+          <table className="w-full">
+            <thead><tr><TH>Phase</TH><TH>Stage</TH><TH>Work Package</TH><TH>Description</TH><TH right>Budget</TH><TH right>Invoiced</TH><TH right>Remaining</TH><TH>Status</TH></tr></thead>
+            <tbody>
+              {vendor.phases.map((p,i) => {
+                const bP=p.budget||0; const invP=p.invoiced||0; const remP=bP>0?bP-invP:null;
+                return (
+                  <TR key={i} onClick={()=>setModal(p)}>
+                    <TD bold className="text-gray-800 whitespace-nowrap">{p.phase}</TD>
+                    <TD>{p.stage && <span className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-600">{p.stage}</span>}</TD>
+                    <TD>{p.work_package && <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">{p.work_package}</span>}</TD>
+                    <TD muted className="max-w-xs">{p.description}</TD>
+                    <TD right muted>{bP>0?$f(bP):"T&M"}</TD>
+                    <TD right bold className="text-gray-900">{$f(invP)}</TD>
+                    <TD right className={remP==null?"text-gray-400":remP<0?"text-red-500 font-bold":remP>0?"text-indigo-600 font-medium":"text-gray-300"}>{remP==null?"T&M":remP>0?$f(remP):remP<0?`-${$f(-remP)}`:"—"}</TD>
+                    <TD>{statusTag(p.status)}</TD>
+                  </TR>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <TR subtle>
+                <TD bold colSpan={5} muted>Total</TD>
+                <TD right bold className="text-gray-900">{$f(vendor.phases.reduce((s,p)=>s+(p.invoiced||0),0))}</TD>
+                <TD right bold className="text-indigo-600">{rem!=null?$f(rem):"T&M"}</TD>
+                <TD />
+              </TR>
+            </tfoot>
+          </table>
+        </Card>
+      )}
+
+      {subTab==="invoices" && (
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <button onClick={() => { setAddingInv(v=>!v); setEditingId(null); }}
+              className={cx("px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors", addingInv ? "bg-gray-200 text-gray-600" : "bg-gray-900 text-white")}>
+              {addingInv?"Cancel":"+ Add Invoice"}
+            </button>
+          </div>
+          {addingInv && (
+            <Card className="p-4">
+              <SectionTitle>New Invoice — {vendor.name}</SectionTitle>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+                <div><label className="block text-xs text-gray-400 mb-1">Invoice #</label><input value={addForm.invNum} onChange={e=>setAddForm(f=>({...f,invNum:e.target.value}))} placeholder="e.g. INV-001" className={inp}/></div>
+                <div><label className="block text-xs text-gray-400 mb-1">Date</label><input value={addForm.date} onChange={e=>setAddForm(f=>({...f,date:e.target.value}))} placeholder="MM/DD/YYYY" className={inp}/></div>
+                <div><label className="block text-xs text-gray-400 mb-1">Amount ($)</label><input value={addForm.amount} onChange={e=>setAddForm(f=>({...f,amount:e.target.value}))} placeholder="0.00" className={inp}/></div>
+                <div className="md:col-span-2"><label className="block text-xs text-gray-400 mb-1">Description</label><input value={addForm.desc} onChange={e=>setAddForm(f=>({...f,desc:e.target.value}))} placeholder="Invoice description…" className={inp}/></div>
+                <div><label className="block text-xs text-gray-400 mb-1">Status</label><select value={addForm.status} onChange={e=>setAddForm(f=>({...f,status:e.target.value}))} className={inp}>{["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}</select></div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={saveNewInv} disabled={!addForm.invNum||!addForm.amount||saving} className={cx("px-4 py-2 text-xs font-bold rounded-lg", addForm.invNum&&addForm.amount&&!saving?"bg-gray-900 text-white":"bg-gray-100 text-gray-400 cursor-not-allowed")}>{saving?"Saving…":"Save Invoice"}</button>
+                <button onClick={()=>setAddingInv(false)} className="px-4 py-2 text-xs font-semibold rounded-lg bg-gray-100 text-gray-500">Cancel</button>
+              </div>
+            </Card>
+          )}
+          <Card className="overflow-hidden">
+            <table className="w-full">
+              <thead><tr><TH>Invoice #</TH><TH>Date</TH><TH>Description</TH><TH right>Amount</TH><TH>Status</TH><TH>Actions</TH></tr></thead>
+              <tbody>
+                {vendor.invoices.map((vinv) => {
+                  const isEditing = editingId === vinv.id;
+                  return isEditing ? (
+                    <tr key={vinv.id} className="bg-indigo-50 border-b border-gray-100">
+                      <TD><input value={editForm.inv_num||""} onChange={e=>setEditForm(f=>({...f,inv_num:e.target.value}))} className={inp+" w-24"}/></TD>
+                      <TD><input value={editForm.inv_date||""} onChange={e=>setEditForm(f=>({...f,inv_date:e.target.value}))} className={inp+" w-24"}/></TD>
+                      <TD><input value={editForm.description||""} onChange={e=>setEditForm(f=>({...f,description:e.target.value}))} className={inp+" w-48"}/></TD>
+                      <TD right><input value={editForm.amount||""} onChange={e=>setEditForm(f=>({...f,amount:e.target.value}))} className={inp+" w-24 text-right"}/></TD>
+                      <TD><select value={editForm.status||"Pending"} onChange={e=>setEditForm(f=>({...f,status:e.target.value}))} className={inp+" w-24"}>{["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}</select></TD>
+                      <TD><div className="flex gap-1"><button onClick={saveEdit} className="text-xs px-2 py-1 bg-gray-900 text-white rounded">{saving?"…":"Save"}</button><button onClick={()=>setEditingId(null)} className="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded">Cancel</button></div></TD>
+                    </tr>
+                  ) : (
+                    <TR key={vinv.id} onClick={() => setModal({_inv:true,...vinv})}>
+                      <TD mono className="text-indigo-600 font-bold">{vinv.inv_num}</TD>
+                      <TD muted>{vinv.inv_date}</TD>
+                      <TD className="text-gray-600">{vinv.description}</TD>
+                      <TD right bold className="text-gray-900">{$f(vinv.amount)}</TD>
+                      <TD>{statusTag(vinv.status)}</TD>
+                      <TD onClick={e=>e.stopPropagation()}>
+                        <div className="flex gap-1">
+                          <button onClick={()=>{setEditingId(vinv.id);setEditForm({...vinv});}} className="text-xs px-2 py-1 border border-gray-200 rounded text-gray-400 hover:text-gray-700">Edit</button>
+                          <button onClick={()=>deleteInv(vinv.id)} className="text-xs px-2 py-1 text-gray-300 hover:text-red-500">✕</button>
+                        </div>
+                      </TD>
+                    </TR>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <TR subtle><TD bold colSpan={3} muted>Total</TD><TD right bold className="text-gray-900">{$f(vendor.invoices.reduce((s,i)=>s+(i.amount||0),0))}</TD><TD colSpan={2}/></TR>
+              </tfoot>
+            </table>
+          </Card>
+        </div>
+      )}
+
+      {modal && !modal._inv && (
+        <Modal title={modal.phase} subtitle={vendor.full_name} onClose={() => setModal(null)}>
+          <KVGrid rows={[["Phase",modal.phase],["Stage",modal.stage||"—"],["Work Package",modal.work_package||"—"],["Status",modal.status],["Budget",modal.budget>0?$f(modal.budget):"T&M"],["Invoiced",$f(modal.invoiced)],["Remaining",modal.budget>0?$f(modal.budget-modal.invoiced):"T&M"],["Description",modal.description]]} />
+        </Modal>
+      )}
+      {modal?._inv && (
+        <Modal title={`Invoice ${modal.inv_num}`} subtitle={`${vendor.name} · ${modal.inv_date}`} onClose={() => setModal(null)}>
+          <KVGrid rows={[["Invoice #",modal.inv_num],["Date",modal.inv_date],["Description",modal.description],["Amount",$f(modal.amount)],["Status",modal.status]]} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 const NAV = [
-  { id: "dashboard", label: "Overview",         icon: "◈" },
-  { id: "budget",    label: "Control Budget",   icon: "⊟" },
-  { id: "awards",    label: "Awards",           icon: "◎" },
-  { id: "cos",       label: "Change Orders",    icon: "△" },
-  { id: "vendors",   label: "Vendors",          icon: "⬡" },
-  { id: "invoices",  label: "Invoices",         icon: "≡" },
-  { id: "lineitem",  label: "Line Item Billing",icon: "⊞" },
-  { id: "uploads",   label: "Documents",        icon: "⊕" },
-  { id: "reconcile", label: "Reconcile",        icon: "✓" },
-  { id: "totalspend", label: "Total Spend",      icon: "∑" },
+  { id: "dashboard",   label: "Overview",              icon: "◈" },
+  { id: "totalspend",  label: "Total Spend",           icon: "∑" },
+  { id: "phase11",     label: "Phase 1.1",             icon: "◉" },
+  { id: "designeng",   label: "Design & Engineering",  icon: "⬡" },
+  { id: "priorphases", label: "Prior Phases",          icon: "◷" },
+  { id: "uploads",     label: "Documents",             icon: "⊕" },
 ];
 
 const PAGE_TITLES = {
-  dashboard:  { title: "Project Overview",      sub: "Camp Forestmere · JXM / Camp Forestmere Corp." },
-  budget:     { title: "Control Budget",        sub: "51 line items · Phase 1.1" },
-  awards:     { title: "Contract Awards",       sub: "20 awards · Subcontractors" },
-  cos:        { title: "Change Orders",         sub: "Approved scope changes" },
-  vendors:    { title: "Vendor Budgets",        sub: "Architecturefirm · Reed Hilderbrand · Ivan Zdrahal" },
-  invoices:   { title: "Invoice Tracker",       sub: "Taconic Builders · Payment history" },
-  lineitem:   { title: "Line Item Billing",     sub: "Per-invoice breakdown" },
-  uploads:    { title: "Documents",             sub: "Upload & parse invoices, COs, award letters" },
-  reconcile:  { title: "Reconciliation",        sub: "Balance checks & data integrity" },
-  totalspend: { title: "Total Spend",           sub: "Inception to date · All phases · USD" },
+  dashboard:   { title: "Project Overview",         sub: "Camp Forestmere · JXM / Camp Forestmere Corp." },
+  totalspend:  { title: "Total Spend",              sub: "Inception to date · All phases · USD" },
+  phase11:     { title: "Phase 1.1 — Construction", sub: "Taconic Builders · C25-104 · Jun 2025 – Apr 2027" },
+  designeng:   { title: "Design & Engineering",     sub: "ArchitectureFirm · Reed Hilderbrand · Ivan Zdrahal PE" },
+  priorphases: { title: "Prior Phases",             sub: "Road Construction (C23-101) · Demolition (C25-102)" },
+  uploads:     { title: "Documents",                sub: "Upload & parse invoices, COs, award letters" },
 };
 
 function AppShell() {
@@ -2609,7 +3063,7 @@ function AppShell() {
   // Persist active tab in URL hash so refresh keeps you on the same page
   const getInitialTab = () => {
     const hash = window.location.hash.replace("#", "");
-    const validTabs = ["dashboard","budget","awards","cos","vendors","invoices","lineitem","uploads","reconcile","totalspend"];
+    const validTabs = ["dashboard","totalspend","phase11","designeng","priorphases","uploads"];
     return validTabs.includes(hash) ? hash : "dashboard";
   };
   const [tab, setTabState] = useState(getInitialTab);
@@ -2710,16 +3164,12 @@ function AppShell() {
 
         {/* Page content */}
         <main style={{ padding: "28px 32px", maxWidth: 1280 }}>
-          {tab === "dashboard" && <Dashboard setTab={setTab} />}
-          {tab === "budget"    && <BudgetView setTab={setTab} />}
-          {tab === "awards"    && <AwardsView />}
-          {tab === "invoices"  && <InvoicesView />}
-          {tab === "lineitem"  && <LineItemView />}
-          {tab === "cos"       && <COsView />}
-          {tab === "vendors"   && <VendorsView />}
-          {tab === "uploads"   && <DocumentsView />}
-          {tab === "reconcile" && <ReconcileView setTab={setTab} />}
-          {tab === "totalspend" && <TotalSpendView />}
+          {tab === "dashboard"   && <Dashboard setTab={setTab} />}
+          {tab === "totalspend"  && <TotalSpendView />}
+          {tab === "phase11"     && <Phase11Shell />}
+          {tab === "designeng"   && <DesignEngShell />}
+          {tab === "priorphases" && <PriorPhasesView />}
+          {tab === "uploads"     && <DocumentsView />}
         </main>
       </div>
     </div>
