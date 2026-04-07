@@ -57,8 +57,8 @@ function DataProvider({ children }) {
   const totalBudget   = budget.reduce((s, b) => s + parseFloat(b.budget), 0);
   const totalAwarded  = awards.reduce((s, a) => s + parseFloat(a.current_amount), 0);
   const totalCOs      = changeOrders.reduce((s, c) => s + parseFloat(c.approved_co), 0);
-  const taconicPaid   = invoices.filter(i => i.status === 'Paid').reduce((s, i) => s + parseFloat(i.approved), 0);
-  const taconicPending = invoices.filter(i => i.status !== 'Paid').reduce((s, i) => s + parseFloat(i.approved) - parseFloat(i.credit_applied||0), 0);
+  const taconicPaid   = invoices.filter(i => i.status?.startsWith('Paid')).reduce((s, i) => s + parseFloat(i.approved), 0);
+  const taconicPending = invoices.filter(i => !i.status?.startsWith('Paid')).reduce((s, i) => s + parseFloat(i.approved) - parseFloat(i.credit_applied||0), 0);
 
   const izPaid  = vendors.ivan?.phases.reduce((s, p) => s + (p.invoiced || 0), 0) || 0;
   const rhPaid  = vendors.reed?.phases.reduce((s, p) => s + (p.invoiced || 0), 0) || 0;
@@ -68,10 +68,21 @@ function DataProvider({ children }) {
 
   const INV_NUMS = invoices.map(i => i.inv_num);
 
+  // Live computed values — mirror the Excel GRAND TOTAL row mechanics
+  // Revised Contract = Control Budget + all approved COs (incl. fees & insurance)
+  const revisedContractTotal = totalBudget + changeOrders.reduce((s, c) => s + parseFloat(c.total||0), 0);
+  // Completed to Date = sum of all line item billings (done field, already aggregated by server)
+  const completedToDate = lineItems.reduce((s, li) => s + li.done, 0);
+  // Balance to Finish = Revised Contract - Completed to Date (including retainage)
+  const balanceToFinish = revisedContractTotal - completedToDate;
+  // Retainage Held = sum of retainage across all invoices (stored as negative in DB, so abs)
+  const retainageHeld = invoices.reduce((s, i) => s + Math.abs(parseFloat(i.retainage||0)), 0);
+
   const value = {
     budget, awards, changeOrders, invoices, lineItems, vendors, priorPhases, cashFlow, documents,
     awardedByCode, totalBudget, totalAwarded, totalCOs, taconicPaid, taconicPending,
     izPaid, rhPaid, afPaid, priorPaid, grandTotalPaid, INV_NUMS,
+    balanceToFinish, retainageHeld, completedToDate, revisedContractTotal,
     refresh,
   };
 
@@ -104,6 +115,8 @@ const statusTag = (s) => {
   if (s === "In Progress")     return <Tag text="In Progress"    color="amber" />;
   if (s === "Ongoing")         return <Tag text="Ongoing"        color="blue"  />;
   if (s === "Pending")         return <Tag text="Pending"        color="amber" />;
+  if (s?.startsWith("Paid - Credit Applied, Balance")) return <Tag text="Paid (Credit + Wire)" color="green" />;
+  if (s?.startsWith("Paid - Credit"))  return <Tag text="Paid (Credit)"  color="green" />;
   if (s === "Paid")            return <Tag text="Paid"           color="green" />;
   if (s === "Pending Payment") return <Tag text="Pending Payment" color="amber" />;
   return <Tag text={s} />;
@@ -192,7 +205,8 @@ function Dashboard({ setTab }) {
   const {
     budget, awards, invoices, changeOrders, awardedByCode,
     totalBudget, totalAwarded, totalCOs, taconicPaid, taconicPending,
-    grandTotalPaid, izPaid, rhPaid, afPaid, priorPhases
+    grandTotalPaid, izPaid, rhPaid, afPaid, priorPhases,
+    balanceToFinish, retainageHeld,
   } = useAppData();
   const [modal, setModal] = useState(null);
   const [reconSummary, setReconSummary] = useState(null);
@@ -203,7 +217,7 @@ function Dashboard({ setTab }) {
     }).catch(() => {});
   }, []);
 
-  const pendingInvs = invoices.filter(i => i.status !== "Paid");
+  const pendingInvs = invoices.filter(i => !i.status?.startsWith("Paid"));
   const catBudget = {};
   budget.forEach(b => { catBudget[b.cat] = (catBudget[b.cat] || 0) + parseFloat(b.budget); });
 
@@ -257,9 +271,9 @@ function Dashboard({ setTab }) {
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Approved COs" value={$f(totalCOs)} sub={changeOrders.length + " change orders"} onClick={() => setTab("cos")} />
-        <Stat label="Retainage Held" value="$217,342" sub="Released at substantial completion" onClick={() => setModal("retainage")} />
+        <Stat label="Retainage Held" value={$f(retainageHeld)} sub="Released at substantial completion" onClick={() => setModal("retainage")} />
         <Stat label="GC Pending" value={$f(taconicPending)} accent sub={pendingInvs.length + " invoices outstanding"} onClick={() => setTab("invoices")} />
-        <Stat label="GC Balance to Finish" value="$10.14M" sub="Remaining on GC contract" onClick={() => setTab("lineitem")} />
+        <Stat label="GC Balance to Finish" value={$f(balanceToFinish)} sub="Revised contract less completed to date" onClick={() => setTab("lineitem")} />
       </div>
 
       <div className="grid md:grid-cols-2 gap-5">
@@ -353,8 +367,8 @@ function Dashboard({ setTab }) {
         </Modal>
       )}
       {modal === "retainage" && (
-        <Modal title="Retainage Held" subtitle="Per Taconic Invoice #1956 (Dec 31, 2025)" onClose={() => setModal(null)}>
-          <KVGrid rows={[["Total Retainage Held", "$217,342.38"], ["Retainage Rate", "~7% of completed work"], ["Completed Work Retainage", "$217,342.38"], ["Stored Material Retainage", "$0.00"], ["Release Trigger", "Substantial Completion"], ["Estimated Release", "April 2027"]]} />
+        <Modal title="Retainage Held" subtitle="10% of completed work — released at substantial completion" onClose={() => setModal(null)}>
+          <KVGrid rows={[["Total Retainage Held", $f(retainageHeld)], ["Retainage Rate", "~10% of completed work"], ["Completed Work Retainage", $f(retainageHeld)], ["Stored Material Retainage", "$0.00"], ["Release Trigger", "Substantial Completion"], ["Estimated Release", "April 2027"]]} />
         </Modal>
       )}
       {modal?.type === "catDetail" && (
@@ -947,7 +961,7 @@ function COsView() {
 
 // ─── INVOICES ─────────────────────────────────────────────────────────────────
 function InvoicesView() {
-  const { invoices, taconicPaid, taconicPending, refresh } = useAppData();
+  const { invoices, taconicPaid, taconicPending, retainageHeld, refresh } = useAppData();
   const [modal, setModal] = useState(null);
   const [markPaidModal, setMarkPaidModal] = useState(null);
   const [payForm, setPayForm] = useState({ actualPaid:"", creditApplied:"", paidDate:"" });
@@ -981,7 +995,6 @@ function InvoicesView() {
     await refresh(); setMarkPaidModal(null);
   };
 
-  const retainageHeld = invoices.reduce((s,i) => s + Math.abs(parseFloat(i.retainage||0)), 0);
   const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-400";
 
   return (
@@ -989,9 +1002,9 @@ function InvoicesView() {
       {/* KPI row */}
       <div className="grid grid-cols-4 gap-3">
         <Stat label="Total Approved" value={$f(invoices.reduce((s,i)=>s+parseFloat(i.approved),0))} sub={`${invoices.length} invoices`} />
-        <Stat label="Total Paid" value={$f(taconicPaid)} sub={`${invoices.filter(i=>i.status==="Paid").length} paid`} />
+        <Stat label="Total Paid" value={$f(taconicPaid)} sub={`${invoices.filter(i=>i.status?.startsWith("Paid")).length} paid`} />
         <Stat label="Retainage Held" value={$f(retainageHeld)} sub="Released at completion" />
-        <Stat label="Outstanding" value={$f(taconicPending)} accent sub={`${invoices.filter(i=>i.status!=="Paid").length} pending`} />
+        <Stat label="Outstanding" value={$f(taconicPending)} accent sub={`${invoices.filter(i=>!i.status?.startsWith("Paid")).length} pending`} />
       </div>
 
       {creditData?.creditBalance > 0 && (
@@ -1070,12 +1083,12 @@ function InvoicesView() {
             </div>
           )}
           <div className="flex gap-2">
-            {modal.status !== "Paid" && (
+            {!modal.status?.startsWith("Paid") && (
               <button onClick={() => openMarkPaid(modal)} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors">Mark as Paid</button>
             )}
             <button onClick={() => { setMarkPaidModal(modal); setPayForm({ actualPaid: String(modal.actual_paid||modal.approved), creditApplied: String(modal.credit_applied||0), paidDate: modal.paid_date||new Date().toLocaleDateString("en-US") }); setModal(null); }}
               className="flex-1 py-2.5 border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-semibold rounded-lg transition-colors">
-              {modal.status === "Paid" ? "Edit Payment Info" : "Edit Payment"}
+              {modal.status?.startsWith("Paid") ? "Edit Payment Info" : "Edit Payment"}
             </button>
             <button onClick={() => setModal(null)} className="px-4 py-2.5 border border-gray-200 text-gray-400 hover:bg-gray-50 text-xs font-semibold rounded-lg transition-colors">Close</button>
           </div>
