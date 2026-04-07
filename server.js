@@ -184,6 +184,44 @@ async function createSchema() {
     ALTER TABLE invoices ADD COLUMN IF NOT EXISTS actual_paid NUMERIC(14,2);
     ALTER TABLE invoices ADD COLUMN IF NOT EXISTS credit_applied NUMERIC(14,2) DEFAULT 0;
     ALTER TABLE change_orders ADD COLUMN IF NOT EXISTS has_document BOOLEAN DEFAULT FALSE;
+
+    -- Invoice review workflow
+    CREATE TABLE IF NOT EXISTS submitted_invoices (
+      id SERIAL PRIMARY KEY,
+      vendor_key VARCHAR(20) NOT NULL,
+      invoice_num VARCHAR(50),
+      invoice_date VARCHAR(20),
+      period_start VARCHAR(20),
+      period_end VARCHAR(20),
+      total_amount NUMERIC(14,2),
+      status VARCHAR(30) DEFAULT 'Submitted',
+      -- status flow: Submitted → Under Review → Approved → Zoho Matched → Paid
+      approved_at TIMESTAMP,
+      approved_by VARCHAR(50),
+      zoho_bill_id VARCHAR(100),
+      zoho_matched_at TIMESTAMP,
+      zoho_match_amount NUMERIC(14,2),
+      paid_at TIMESTAMP,
+      paid_amount NUMERIC(14,2),
+      notes TEXT,
+      document_id INTEGER REFERENCES documents(id),
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS submitted_invoice_lines (
+      id SERIAL PRIMARY KEY,
+      submitted_invoice_id INTEGER REFERENCES submitted_invoices(id) ON DELETE CASCADE,
+      line_description TEXT,
+      hours NUMERIC(8,2),
+      rate NUMERIC(10,2),
+      amount NUMERIC(14,2) NOT NULL,
+      vendor_phase_id INTEGER REFERENCES vendor_phases(id),
+      vendor_phase_name TEXT,
+      budget_remaining NUMERIC(14,2),
+      is_over_budget BOOLEAN DEFAULT FALSE,
+      notes TEXT,
+      sort_order INTEGER DEFAULT 0
+    );
   `);
 }
 
@@ -1308,6 +1346,161 @@ app.delete('/api/historical-payments/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+
+
+// ─── SUBMITTED INVOICES (vendor invoice review workflow) ──────────────────────
+
+// Get all submitted invoices, optionally filtered by vendor
+app.get('/api/submitted-invoices', async (req, res) => {
+  try {
+    const { vendor_key } = req.query;
+    const q = vendor_key
+      ? 'SELECT si.*, v.name as vendor_name, v.full_name as vendor_full_name FROM submitted_invoices si JOIN vendors v ON v.key = si.vendor_key WHERE si.vendor_key=$1 ORDER BY si.created_at DESC'
+      : 'SELECT si.*, v.name as vendor_name, v.full_name as vendor_full_name FROM submitted_invoices si JOIN vendors v ON v.key = si.vendor_key ORDER BY si.created_at DESC';
+    const { rows } = await pool.query(q, vendor_key ? [vendor_key] : []);
+    // Attach line items
+    const ids = rows.map(r => r.id);
+    let lines = [];
+    if (ids.length > 0) {
+      const lr = await pool.query(
+        'SELECT sil.*, vp.phase as phase_name, vp.budget, vp.invoiced FROM submitted_invoice_lines sil LEFT JOIN vendor_phases vp ON vp.id = sil.vendor_phase_id WHERE sil.submitted_invoice_id = ANY($1) ORDER BY sil.sort_order',
+        [ids]
+      );
+      lines = lr.rows;
+    }
+    const result = rows.map(inv => ({
+      ...inv,
+      total_amount: parseFloat(inv.total_amount || 0),
+      zoho_match_amount: inv.zoho_match_amount ? parseFloat(inv.zoho_match_amount) : null,
+      paid_amount: inv.paid_amount ? parseFloat(inv.paid_amount) : null,
+      lines: lines.filter(l => l.submitted_invoice_id === inv.id).map(l => ({
+        ...l,
+        amount: parseFloat(l.amount),
+        hours: l.hours ? parseFloat(l.hours) : null,
+        rate: l.rate ? parseFloat(l.rate) : null,
+        budget_remaining: l.budget_remaining ? parseFloat(l.budget_remaining) : null,
+        budget: l.budget ? parseFloat(l.budget) : null,
+        invoiced: l.invoiced ? parseFloat(l.invoiced) : null,
+      }))
+    }));
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Create a new submitted invoice with line items
+app.post('/api/submitted-invoices', async (req, res) => {
+  try {
+    const { vendor_key, invoice_num, invoice_date, period_start, period_end, total_amount, notes, document_id, lines } = req.body;
+    const { rows } = await pool.query(
+      `INSERT INTO submitted_invoices (vendor_key,invoice_num,invoice_date,period_start,period_end,total_amount,notes,document_id,status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'Submitted') RETURNING *`,
+      [vendor_key, invoice_num, invoice_date, period_start||null, period_end||null, parseFloat(total_amount)||0, notes||null, document_id||null]
+    );
+    const inv = rows[0];
+    // Insert line items
+    if (lines && lines.length > 0) {
+      for (let i = 0; i < lines.length; i++) {
+        const l = lines[i];
+        // Compute budget remaining for the phase
+        let budgetRemaining = null;
+        let isOverBudget = false;
+        if (l.vendor_phase_id) {
+          const pr = await pool.query('SELECT budget, invoiced FROM vendor_phases WHERE id=$1', [l.vendor_phase_id]);
+          if (pr.rows[0] && pr.rows[0].budget) {
+            const remaining = parseFloat(pr.rows[0].budget) - parseFloat(pr.rows[0].invoiced||0);
+            budgetRemaining = remaining;
+            isOverBudget = parseFloat(l.amount) > remaining;
+          }
+        }
+        await pool.query(
+          `INSERT INTO submitted_invoice_lines (submitted_invoice_id,line_description,hours,rate,amount,vendor_phase_id,vendor_phase_name,budget_remaining,is_over_budget,notes,sort_order)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+          [inv.id, l.line_description, l.hours||null, l.rate||null, parseFloat(l.amount)||0, l.vendor_phase_id||null, l.vendor_phase_name||null, budgetRemaining, isOverBudget, l.notes||null, i]
+        );
+      }
+    }
+    res.json({ ok: true, id: inv.id });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Update a submitted invoice line item (phase mapping)
+app.put('/api/submitted-invoice-lines/:id', async (req, res) => {
+  try {
+    const { vendor_phase_id, vendor_phase_name, notes } = req.body;
+    // Recompute budget remaining
+    let budgetRemaining = null;
+    let isOverBudget = false;
+    const lineR = await pool.query('SELECT amount FROM submitted_invoice_lines WHERE id=$1', [req.params.id]);
+    if (lineR.rows[0] && vendor_phase_id) {
+      const pr = await pool.query('SELECT budget, invoiced FROM vendor_phases WHERE id=$1', [vendor_phase_id]);
+      if (pr.rows[0] && pr.rows[0].budget) {
+        const remaining = parseFloat(pr.rows[0].budget) - parseFloat(pr.rows[0].invoiced||0);
+        budgetRemaining = remaining;
+        isOverBudget = parseFloat(lineR.rows[0].amount) > remaining;
+      }
+    }
+    const { rows } = await pool.query(
+      `UPDATE submitted_invoice_lines SET vendor_phase_id=$1, vendor_phase_name=$2, budget_remaining=$3, is_over_budget=$4, notes=$5 WHERE id=$6 RETURNING *`,
+      [vendor_phase_id||null, vendor_phase_name||null, budgetRemaining, isOverBudget, notes||null, req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Approve an invoice
+app.post('/api/submitted-invoices/:id/approve', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE submitted_invoices SET status='Approved', approved_at=NOW(), approved_by='Approved' WHERE id=$1 RETURNING *`,
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Unapprove / send back for review
+app.post('/api/submitted-invoices/:id/unapprove', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE submitted_invoices SET status='Under Review', approved_at=NULL, approved_by=NULL WHERE id=$1 RETURNING *`,
+      [req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Mark Zoho matched
+app.post('/api/submitted-invoices/:id/zoho-match', async (req, res) => {
+  try {
+    const { zoho_bill_id, zoho_match_amount } = req.body;
+    const { rows } = await pool.query(
+      `UPDATE submitted_invoices SET status='Zoho Matched', zoho_bill_id=$1, zoho_match_amount=$2, zoho_matched_at=NOW() WHERE id=$3 RETURNING *`,
+      [zoho_bill_id||null, parseFloat(zoho_match_amount)||0, req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Mark as paid
+app.post('/api/submitted-invoices/:id/pay', async (req, res) => {
+  try {
+    const { paid_amount, paid_at } = req.body;
+    const { rows } = await pool.query(
+      `UPDATE submitted_invoices SET status='Paid', paid_amount=$1, paid_at=$2 WHERE id=$3 RETURNING *`,
+      [parseFloat(paid_amount)||0, paid_at||new Date().toISOString(), req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Delete a submitted invoice
+app.delete('/api/submitted-invoices/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM submitted_invoices WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 // ─── ADMIN: MIGRATE VENDOR PHASE TAGS ────────────────────────────────────────
 app.post('/api/admin/migrate-phase-tags', async (req, res) => {
