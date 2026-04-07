@@ -181,6 +181,11 @@ async function createSchema() {
     );
     ALTER TABLE vendor_phases ADD COLUMN IF NOT EXISTS stage VARCHAR(30);
     ALTER TABLE vendor_phases ADD COLUMN IF NOT EXISTS work_package VARCHAR(60);
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key VARCHAR(50) PRIMARY KEY,
+      value TEXT,
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
     ALTER TABLE invoices ADD COLUMN IF NOT EXISTS actual_paid NUMERIC(14,2);
     ALTER TABLE invoices ADD COLUMN IF NOT EXISTS credit_applied NUMERIC(14,2) DEFAULT 0;
     ALTER TABLE change_orders ADD COLUMN IF NOT EXISTS has_document BOOLEAN DEFAULT FALSE;
@@ -1600,6 +1605,262 @@ app.post('/api/admin/migrate-phase-tags', async (req, res) => {
     const result = await pool.query('SELECT vendor_key, phase, stage, work_package FROM vendor_phases ORDER BY vendor_key, sort_order');
     res.json({ ok: true, updated: result.rows.length, rows: result.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+
+// ─── ZOHO INTEGRATION ─────────────────────────────────────────────────────────
+// Shared tag function for vendor → stage/work_package
+function zohoTagBill(vendorName, date) {
+  const d = new Date(date);
+  const cutoff = new Date('2025-06-23');
+  if (vendorName.includes('Timothy') || vendorName.includes('Smith')) return ['Pre-Construction','Land Acquisition','Land & Property Acquisition'];
+  if (vendorName.includes('Reed') || vendorName.includes('Hilderbrand'))
+    return d >= cutoff ? ['Construction','Phase 1.1','Landscape Architecture'] : ['Pre-Construction','Design & Permitting','Landscape Architecture'];
+  if (vendorName.includes('Architecture') || vendorName.includes('ARCHITECTURE'))
+    return d >= cutoff ? ['Construction','Phase 1.1','Architecture'] : ['Pre-Construction','Design & Permitting','Architecture'];
+  if (vendorName.includes('ZDRAHAL') || vendorName.includes('IVAN') || vendorName.includes('Zdrahal'))
+    return d >= cutoff ? ['Construction','Phase 1.1','Civil & Structural Engineering'] : ['Pre-Construction','Design & Permitting','Civil & Structural Engineering'];
+  if (vendorName.includes('Taconic')) {
+    if (d < new Date('2024-07-01')) return ['Construction','Road Construction','Construction'];
+    if (d < new Date('2025-06-01')) return ['Construction','Demolition','Construction'];
+    return ['Construction','Phase 1.1','Construction'];
+  }
+  if (vendorName.includes('Champagne') || vendorName.includes('Bryan')) return ['Pre-Construction','Design & Permitting','Landscape Architecture'];
+  if (['Brighton','Saranac','Paul Smith','Leifheit','Franklin'].some(x => vendorName.includes(x))) return ['Pre-Construction','Design & Permitting','Land & Property Acquisition'];
+  if (['Whiteman','Drinker','Faegre'].some(x => vendorName.includes(x))) return ['Pre-Construction','Design & Permitting','Consulting Fees'];
+  if (['LUCAS','CLEARVU','Acentech','Gorgas','Spada'].some(x => vendorName.includes(x))) return ['Pre-Construction','Design & Permitting','Consulting Fees'];
+  if (vendorName.includes('National Grid') || vendorName.includes('ADIRONDACK')) return ['Construction','Phase 1.1','Construction'];
+  if (vendorName.includes('Rand')) return ['Pre-Construction','Design & Permitting','Construction'];
+  return ['Pre-Construction','Design & Permitting','Other'];
+}
+
+const ZOHO_REGION = process.env.ZOHO_REGION || 'com';
+const ZOHO_ORG_ID = process.env.ZOHO_ORG_ID;
+const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID;
+const ZOHO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET;
+const ZOHO_REFRESH_TOKEN = process.env.ZOHO_REFRESH_TOKEN;
+
+let zohoAccessToken = null;
+let zohoTokenExpiry = 0;
+
+async function getZohoAccessToken() {
+  if (zohoAccessToken && Date.now() < zohoTokenExpiry - 60000) return zohoAccessToken;
+  const params = new URLSearchParams({
+    refresh_token: ZOHO_REFRESH_TOKEN,
+    client_id: ZOHO_CLIENT_ID,
+    client_secret: ZOHO_CLIENT_SECRET,
+    grant_type: 'refresh_token',
+  });
+  const r = await fetch(`https://accounts.zoho.${ZOHO_REGION}/oauth/v2/token`, {
+    method: 'POST', body: params,
+  });
+  const data = await r.json();
+  if (!data.access_token) throw new Error('Zoho token refresh failed: ' + JSON.stringify(data));
+  zohoAccessToken = data.access_token;
+  zohoTokenExpiry = Date.now() + (data.expires_in * 1000);
+  return zohoAccessToken;
+}
+
+async function zohoGet(path) {
+  const token = await getZohoAccessToken();
+  const r = await fetch(`https://www.zohoapis.${ZOHO_REGION}/books/v3${path}?organization_id=${ZOHO_ORG_ID}`, {
+    headers: { Authorization: `Zoho-oauthtoken ${token}` },
+  });
+  return r.json();
+}
+
+// Get all bills from Zoho (paginated)
+async function getAllZohoBills() {
+  let page = 1;
+  let bills = [];
+  while (true) {
+    const data = await zohoGet(`/bills?page=${page}&per_page=200`);
+    if (!data.bills || data.bills.length === 0) break;
+    bills = bills.concat(data.bills);
+    if (!data.page_context?.has_more_page) break;
+    page++;
+  }
+  return bills;
+}
+
+// ─── ZOHO API ROUTES ──────────────────────────────────────────────────────────
+
+// Test connection
+app.get('/api/zoho/test', async (req, res) => {
+  try {
+    const data = await zohoGet('/organizations');
+    res.json({ ok: true, org: data.organizations?.[0]?.name });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get all bills
+app.get('/api/zoho/bills', async (req, res) => {
+  try {
+    const { vendor_name, from_date, to_date } = req.query;
+    let path = '/bills?per_page=200';
+    if (vendor_name) path += `&vendor_name=${encodeURIComponent(vendor_name)}`;
+    if (from_date) path += `&date_start=${from_date}`;
+    if (to_date) path += `&date_end=${to_date}`;
+    const data = await zohoGet(path);
+    res.json(data.bills || []);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get bills for a specific vendor
+app.get('/api/zoho/bills/vendor/:vendor_name', async (req, res) => {
+  try {
+    const bills = await getAllZohoBills();
+    const filtered = bills.filter(b =>
+      b.vendor_name?.toLowerCase().includes(req.params.vendor_name.toLowerCase())
+    );
+    res.json(filtered);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get a single bill with line items
+app.get('/api/zoho/bills/:bill_id', async (req, res) => {
+  try {
+    const data = await zohoGet(`/bills/${req.params.bill_id}`);
+    res.json(data.bill || data);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Match a submitted invoice to a Zoho bill
+// Finds Zoho bills matching vendor + amount (within tolerance) + date range
+app.post('/api/zoho/match', async (req, res) => {
+  try {
+    const { vendor_key, invoice_num, total_amount, invoice_date } = req.body;
+
+    // Map vendor_key to Zoho vendor name
+    const vendorMap = {
+      arch: 'ArchitectureFirm',
+      reed: 'Reed Hilderbrand',
+      ivan: 'IVAN ZDRAHAL',
+      taconic: 'Taconic Builders',
+    };
+    const zohoVendorName = vendorMap[vendor_key];
+    if (!zohoVendorName) return res.status(400).json({ error: 'Unknown vendor' });
+
+    const bills = await getAllZohoBills();
+
+    // Filter by vendor
+    const vendorBills = bills.filter(b =>
+      b.vendor_name?.toLowerCase().includes(zohoVendorName.toLowerCase())
+    );
+
+    // Find best match: same amount (within $1) or matching bill number
+    const amount = parseFloat(total_amount);
+    const matches = vendorBills.filter(b => {
+      const billAmount = parseFloat(b.total);
+      const amountMatch = Math.abs(billAmount - amount) <= 1.00;
+      const numMatch = invoice_num && b.bill_number?.includes(invoice_num);
+      return amountMatch || numMatch;
+    });
+
+    res.json({
+      matches: matches.map(b => ({
+        bill_id: b.bill_id,
+        bill_number: b.bill_number,
+        date: b.date,
+        vendor_name: b.vendor_name,
+        total: parseFloat(b.total),
+        status: b.status,
+        balance: parseFloat(b.balance || 0),
+      }))
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Sync all Zoho bills into historical_payments
+// This replaces manually seeded data with live Zoho data
+app.post('/api/zoho/sync', async (req, res) => {
+  try {
+    const bills = await getAllZohoBills();
+
+    const tagBill = zohoTagBill;
+
+    // Exclude Taconic Phase 1.1 bills (those are tracked in invoices table)
+    // and exclude corporate/JXM vendors
+    const excludeVendors = ['Zoho','Amex','Crowe','KPMG','Davies','Electric Gas','NYS'];
+    const taconicPhase11Cutoff = new Date('2025-06-01');
+
+    let inserted = 0;
+    let skipped = 0;
+
+    // Clear existing zoho-sourced records first
+    await pool.query("DELETE FROM historical_payments WHERE source='zoho'");
+
+    for (const bill of bills) {
+      const vname = bill.vendor_name || '';
+      if (excludeVendors.some(x => vname.includes(x))) { skipped++; continue; }
+      // Skip Taconic Phase 1.1 — tracked in invoices table
+      if (vname.includes('Taconic') && new Date(bill.date) >= taconicPhase11Cutoff) { skipped++; continue; }
+
+      const [stage, wp, cat] = tagBill(vname, bill.date);
+      await pool.query(
+        `INSERT INTO historical_payments (stage,work_package,payment_date,vendor,category,description,amount_usd,source,notes,is_batched)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'zoho',NULL,FALSE)`,
+        [stage, wp, bill.date, vname, cat, bill.bill_number || '', parseFloat(bill.total) || 0]
+      );
+      inserted++;
+    }
+
+    // Record last sync time
+    await pool.query(
+      `INSERT INTO app_settings (key, value, updated_at) VALUES ('zoho_last_sync', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()`,
+      [new Date().toISOString()]
+    );
+
+    res.json({ ok: true, inserted, skipped, total: bills.length, synced_at: new Date().toISOString() });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get last sync status
+app.get('/api/zoho/sync-status', async (req, res) => {
+  try {
+    const r = await pool.query("SELECT value, updated_at FROM app_settings WHERE key='zoho_last_sync'");
+    if (r.rows.length === 0) return res.json({ last_sync: null, needs_sync: true });
+    const lastSync = new Date(r.rows[0].value);
+    const hoursSince = (Date.now() - lastSync.getTime()) / (1000 * 60 * 60);
+    res.json({ last_sync: r.rows[0].value, hours_since: Math.round(hoursSince), needs_sync: hoursSince > 24 });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Auto-sync endpoint — only syncs if last sync was >24 hours ago
+app.post('/api/zoho/auto-sync', async (req, res) => {
+  try {
+    const r = await pool.query("SELECT value FROM app_settings WHERE key='zoho_last_sync'");
+    if (r.rows.length > 0) {
+      const lastSync = new Date(r.rows[0].value);
+      const hoursSince = (Date.now() - lastSync.getTime()) / (1000 * 60 * 60);
+      if (hoursSince < 24) {
+        return res.json({ ok: true, skipped: true, reason: 'Last sync was ' + Math.round(hoursSince) + ' hours ago', last_sync: r.rows[0].value });
+      }
+    }
+    // Needs sync — run it
+    const bills = await getAllZohoBills();
+    const excludeVendors = ['Zoho','Amex','Crowe','KPMG','Davies','Electric Gas','NYS'];
+    const taconicPhase11Cutoff = new Date('2025-06-01');
+    let inserted = 0; let skipped = 0;
+    await pool.query("DELETE FROM historical_payments WHERE source='zoho'");
+    for (const bill of bills) {
+      const vname = bill.vendor_name || '';
+      if (excludeVendors.some(x => vname.includes(x))) { skipped++; continue; }
+      if (vname.includes('Taconic') && new Date(bill.date) >= taconicPhase11Cutoff) { skipped++; continue; }
+      const [stage, wp, cat] = tagBill(vname, bill.date);
+      await pool.query(
+        "INSERT INTO historical_payments (stage,work_package,payment_date,vendor,category,description,amount_usd,source,notes,is_batched) VALUES ($1,$2,$3,$4,$5,$6,$7,'zoho',NULL,FALSE)",
+        [stage, wp, bill.date, vname, cat, bill.bill_number || '', parseFloat(bill.total) || 0]
+      );
+      inserted++;
+    }
+    await pool.query(
+      "INSERT INTO app_settings (key,value,updated_at) VALUES ('zoho_last_sync',$1,NOW()) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()",
+      [new Date().toISOString()]
+    );
+    res.json({ ok: true, inserted, skipped, synced_at: new Date().toISOString() });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ─── ZOHO TOKEN EXCHANGE HELPER ───────────────────────────────────────────────
