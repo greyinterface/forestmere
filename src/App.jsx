@@ -25,7 +25,11 @@ function DataProvider({ children }) {
     }
   };
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    // Auto-sync Zoho on load (max once per 24 hours — server handles throttling)
+    apiFetch('/zoho/auto-sync', { method: 'POST' }).catch(() => {});
+    refresh();
+  }, []);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: "#f5f6f8" }}>
@@ -2248,6 +2252,42 @@ function ReconcileView({ setTab }) {
 }
 
 
+
+// ─── ZOHO SYNC BUTTON ─────────────────────────────────────────────────────────
+function ZohoSyncButton({ onSynced }) {
+  const [status, setStatus] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    apiFetch('/zoho/sync-status').then(s => setStatus(s)).catch(() => {});
+  }, []);
+
+  const forceSync = async () => {
+    setSyncing(true);
+    try {
+      const r = await apiFetch('/zoho/sync', { method: 'POST' });
+      if (r.ok) {
+        setStatus({ last_sync: r.synced_at, hours_since: 0, needs_sync: false });
+        if (onSynced) onSynced();
+      }
+    } catch(e) { alert('Sync error: ' + e.message); }
+    setSyncing(false);
+  };
+
+  const lastSync = status?.last_sync ? new Date(status.last_sync) : null;
+  const lastSyncStr = lastSync ? lastSync.toLocaleDateString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : 'Never';
+
+  return (
+    <div className="flex items-center gap-3 mt-2">
+      <span className="text-xs text-blue-500">Last Zoho sync: {lastSyncStr}</span>
+      <button onClick={forceSync} disabled={syncing}
+        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-300 text-white text-xs font-bold rounded-lg transition-colors">
+        {syncing ? "Syncing…" : "Force Sync →"}
+      </button>
+    </div>
+  );
+}
+
 // ─── TOTAL SPEND VIEW ─────────────────────────────────────────────────────────
 const STAGE_COLORS = {
   "Pre-Construction": "#6366f1",
@@ -2415,6 +2455,7 @@ function TotalSpendView() {
             Reed Hilderbrand, ArchitectureFirm and Ivan Zdrahal pre-Feb 2024 spend appears in both the historical writeup data and vendor phase totals. 
             Full reconciliation to Zoho in progress — will be resolved once vendor invoices are matched to accounting records.
           </p>
+          <ZohoSyncButton onSynced={load} />
         </div>
       </div>
 
@@ -3371,7 +3412,35 @@ function InvoiceWorkflow({ vendorKey }) {
               <button onClick={()=>approve(inv.id)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg">✓ Approve Invoice</button>
             )}
             {inv.status==="Approved" && (
-              <button onClick={()=>markZohoMatch(inv)} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg">Match to Zoho →</button>
+              <button onClick={async () => {
+                try {
+                  const r = await apiFetch('/zoho/match', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ vendor_key: vendorKey, invoice_num: inv.invoice_num, total_amount: inv.total_amount, invoice_date: inv.invoice_date })
+                  });
+                  if (r.matches?.length > 0) {
+                    const m = r.matches[0];
+                    if (confirm('Found Zoho match: Bill #' + m.bill_number + ' | Date: ' + m.date + ' | Amount: $' + m.total.toLocaleString() + '\n\nConfirm match?')) {
+                      await apiFetch('/submitted-invoices/' + inv.id + '/zoho-match', {
+                        method:'POST', headers:{'Content-Type':'application/json'},
+                        body: JSON.stringify({ zoho_bill_id: m.bill_id, zoho_match_amount: m.total })
+                      });
+                      await load();
+                    }
+                  } else {
+                    const billId = prompt('No automatic match found.\nEnter Zoho Bill ID manually:');
+                    if (billId) {
+                      await apiFetch('/submitted-invoices/' + inv.id + '/zoho-match', {
+                        method:'POST', headers:{'Content-Type':'application/json'},
+                        body: JSON.stringify({ zoho_bill_id: billId, zoho_match_amount: inv.total_amount })
+                      });
+                      await load();
+                    }
+                  }
+                } catch(e) { alert('Match error: ' + e.message); }
+              }} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg">
+                Match to Zoho →
+              </button>
             )}
             {inv.status==="Zoho Matched" && (
               <button onClick={()=>markPaid(inv)} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-lg">Mark as Paid</button>
