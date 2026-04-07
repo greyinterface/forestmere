@@ -1601,6 +1601,27 @@ app.post('/api/admin/migrate-phase-tags', async (req, res) => {
     res.json({ ok: true, updated: result.rows.length, rows: result.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+// ─── ZOHO TOKEN EXCHANGE HELPER ───────────────────────────────────────────────
+app.get('/api/zoho-setup', async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.send('<h2>Add ?code=YOUR_CODE to this URL</h2>');
+  try {
+    const params = new URLSearchParams({
+      code,
+      client_id: '1000.EJ0445O91EAM9CZHPEHTGM56PCP7TW',
+      client_secret: 'c7400b6a486acfe3fc44b0d77820fc1d3af22a62b5',
+      redirect_uri: 'https://zoho.com',
+      grant_type: 'authorization_code',
+    });
+    const r = await fetch('https://accounts.zoho.com/oauth/v2/token', {
+      method: 'POST',
+      body: params,
+    });
+    const data = await r.json();
+    res.send(`<pre style="font-size:16px;padding:20px">${JSON.stringify(data, null, 2)}</pre>`);
+  } catch(e) { res.send('Error: ' + e.message); }
+});
 // ─── SERVE FRONTEND (production) ──────────────────────────────────────────────
 if (!IS_DEV) {
   const distPath = path.join(process.cwd(), 'dist');
