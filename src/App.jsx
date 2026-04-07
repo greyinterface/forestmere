@@ -69,8 +69,10 @@ function DataProvider({ children }) {
   const INV_NUMS = invoices.map(i => i.inv_num);
 
   // Live computed values — mirror the Excel GRAND TOTAL row mechanics
-  // Revised Contract = Control Budget + all approved COs (incl. fees & insurance)
-  const revisedContractTotal = totalBudget + changeOrders.reduce((s, c) => s + parseFloat(c.total||0), 0);
+  // Original contract is a fixed signed amount — does not change with budget line edits
+  const ORIGINAL_CONTRACT = 13093419.47;
+  // Revised Contract = Original Contract + all approved COs (incl. GC fee & insurance)
+  const revisedContractTotal = ORIGINAL_CONTRACT + changeOrders.reduce((s, c) => s + parseFloat(c.total||0), 0);
   // Completed to Date = sum of all line item billings (done field, already aggregated by server)
   const completedToDate = lineItems.reduce((s, li) => s + li.done, 0);
   // Balance to Finish = Revised Contract - Completed to Date (including retainage)
@@ -265,7 +267,7 @@ function Dashboard({ setTab }) {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Total Project Spend" value={$f(phase11GrandTotal)} sub="All vendors · excl. prior phases" accent onClick={() => setModal("spend")} />
-        <Stat label="Revised Contract" value={$f(revisedContractTotal)} sub={`Original ${$f(totalBudget)} + ${$f(revisedContractTotal - totalBudget)} COs (incl. fees)`} onClick={() => setTab("budget")} />
+        <Stat label="Revised Contract" value={$f(revisedContractTotal)} sub={`Original $13,093,419 + ${$f(revisedContractTotal - 13093419.47)} COs (incl. fees)`} onClick={() => setTab("budget")} />
         <Stat label="GC Awarded" value={$f(totalAwarded)} sub={pf(totalAwarded / revisedContractTotal) + " of revised contract"} onClick={() => setTab("awards")} />
         <Stat label="GC Paid to Date" value={$f(taconicPaid)} sub={pf(taconicPaid / totalAwarded) + " of awarded"} onClick={() => setTab("invoices")} />
       </div>
