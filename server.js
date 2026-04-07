@@ -1308,6 +1308,106 @@ app.delete('/api/historical-payments/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+
+// ─── ADMIN: MIGRATE VENDOR PHASE TAGS ────────────────────────────────────────
+app.post('/api/admin/migrate-phase-tags', async (req, res) => {
+  try {
+    // Ivan phases
+    const ivanTags = [
+      ['Phase A',           'Pre-Construction', 'Design & Permitting'],
+      ['Phase B',           'Pre-Construction', 'Design & Permitting'],
+      ['Phase C – Design',  'Pre-Construction', 'Design & Permitting'],
+      ['Phase C – CM',      'Construction',     'Phase 1.1'],
+      ['Guest Cabin Design','Construction',     'Phase 1.1'],
+      ['CM Phase C (cont.)','Construction',     'Phase 1.1'],
+      ['CM Phase B (Rec/Pub)','Construction',   'Phase 1.2'],
+      ['Contingencies',     'Construction',     'Phase 1.1'],
+    ];
+    for (const [phase, stage, wp] of ivanTags) {
+      await pool.query(
+        "UPDATE vendor_phases SET stage=$1, work_package=$2 WHERE vendor_key='ivan' AND phase=$3",
+        [stage, wp, phase]
+      );
+    }
+
+    // Reed phases
+    const reedTags = [
+      ['Framework Plan',                        'Pre-Construction', 'Design & Permitting'],
+      ['Initial Consulting / House Predesign',  'Pre-Construction', 'Design & Permitting'],
+      ['APA Permitting',                        'Pre-Construction', 'Design & Permitting'],
+      ['Lodge – Schematic Design',              'Pre-Construction', 'Design & Permitting'],
+      ['Lodge – Design Development',            'Pre-Construction', 'Design & Permitting'],
+      ['Lodge – Construction Documents',        'Pre-Construction', 'Design & Permitting'],
+      ['Lodge – Bidding/Const. Observation',    'Pre-Construction', 'Design & Permitting'],
+      ['Phase 1 – Design Development',          'Pre-Construction', 'Design & Permitting'],
+      ['Phase 1 – Construction Documents',      'Pre-Construction', 'Design & Permitting'],
+      ['Phase 1.1 – Reduced Scope Documentation','Pre-Construction','Design & Permitting'],
+      ['Phase 1.1 – Bidding/Const. Observation','Construction',    'Phase 1.1'],
+      ['Guest Cabin – Permitting',              'Construction',     'Phase 1.1'],
+      ['Guest Cabin – Design & Documentation',  'Construction',     'Phase 1.1'],
+      ['Guest Cabin – Bidding/Const. Observation','Construction',   'Phase 1.1'],
+      ['Phase 1.2 – Construction Documents',    'Construction',     'Phase 1.2'],
+      ['Reimbursable – Travel/Lodging/Meals',   'Construction',     'Phase 1.1'],
+      ['Reimbursable – Subconsultants',         'Construction',     'Phase 1.1'],
+    ];
+    for (const [phase, stage, wp] of reedTags) {
+      await pool.query(
+        "UPDATE vendor_phases SET stage=$1, work_package=$2 WHERE vendor_key='reed' AND phase=$3",
+        [stage, wp, phase]
+      );
+    }
+
+    // Arch phases
+    const archTags = [
+      ['S-1 Site Study / Framework Plan',           'Pre-Construction', 'Design & Permitting'],
+      ['S-2 APA / DEC Permit Drawings',             'Pre-Construction', 'Design & Permitting'],
+      ['L-1 Lodge – Design & Documentation',        'Pre-Construction', 'Design & Permitting'],
+      ['L-2 Lodge – Construction Administration',   'Pre-Construction', 'Design & Permitting'],
+      ['0-1 Pub V1 – Design & Documentation',       'Pre-Construction', 'Design & Permitting'],
+      ['0-2 Barns V1 (4x) – Design & Documentation','Pre-Construction', 'Design & Permitting'],
+      ['0-3 Staff Housing – Design & Documentation','Pre-Construction', 'Design & Permitting'],
+      ['1-1 Pub V2 – Design & Documentation',       'Pre-Construction', 'Design & Permitting'],
+      ['1-2 Recreation Hall – Design & Doc.',       'Pre-Construction', 'Design & Permitting'],
+      ['1-3 Caretaker Res. – Design & Doc.',        'Pre-Construction', 'Design & Permitting'],
+      ['1-4 Barns V2 (2x) – Design & Doc.',         'Pre-Construction', 'Design & Permitting'],
+      ['1-5 Boathouse – Design & Doc.',             'Pre-Construction', 'Design & Permitting'],
+      ['1-6 Main Res. & Pavilion – Design & Doc.',  'Pre-Construction', 'Design & Permitting'],
+      ['1-7 Great Hall – Design & Doc.',            'Construction',     'Great Hall'],
+      ['1-8 Guest Cabin',                           'Construction',     'Phase 1.1'],
+      ['CA-1 Phase 1.1 Construction Admin.',        'Construction',     'Phase 1.1'],
+      ['FFE – Furniture, Furnishings & Equipment',  'Construction',     'Phase 1.1'],
+      ['Reimbursable Expenses',                     'Construction',     'Phase 1.1'],
+    ];
+    for (const [phase, stage, wp] of archTags) {
+      await pool.query(
+        "UPDATE vendor_phases SET stage=$1, work_package=$2 WHERE vendor_key='arch' AND phase=$3",
+        [stage, wp, phase]
+      );
+    }
+
+    // Also ensure project_phases table has the right data
+    const phases = [
+      ['land-acquisition',  'Land Acquisition',        'Pre-Construction', null,      1, '2022-06-01', '2022-06-01', 'Complete',    'Purchase of Camp Forestmere property', '#6366f1'],
+      ['design-permitting', 'Design & Permitting',     'Pre-Construction', null,      2, '2022-04-01', '2025-05-31', 'Complete',    'Architecture, landscape, civil, permits, surveys', '#8b5cf6'],
+      ['road',              'Road Construction',        'Construction',     'C23-101', 3, '2024-01-01', '2024-06-30', 'Complete',    'Site access road construction', '#f59e0b'],
+      ['demolition',        'Demolition',               'Construction',     'C25-102', 4, '2025-01-01', '2025-05-31', 'Complete',    'Demolition of 12 existing structures', '#ef4444'],
+      ['phase-1-1',         'Phase 1.1',                'Construction',     'C25-104', 5, '2025-06-23', '2027-04-30', 'In Progress', 'Main Residence, Pavilion, Boat House, Car Barn', '#10b981'],
+      ['phase-1-2',         'Phase 1.2',                'Construction',     null,      6, null,         null,         'Future',      'Pub, Recreation Hall, Caretaker Residence', '#6b7280'],
+      ['great-hall',        'Great Hall',               'Construction',     null,      7, null,         null,         'Future',      'Great Hall Complex', '#6b7280'],
+    ];
+    for (const [id, name, stage, job_num, sort_order, start_date, end_date, status, description, color] of phases) {
+      await pool.query(
+        `INSERT INTO project_phases (id,name,stage,job_num,sort_order,start_date,end_date,status,description,color)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         ON CONFLICT (id) DO UPDATE SET stage=EXCLUDED.stage, name=EXCLUDED.name, color=EXCLUDED.color`,
+        [id, name, stage, job_num, sort_order, start_date, end_date, status, description, color]
+      );
+    }
+
+    const result = await pool.query('SELECT vendor_key, phase, stage, work_package FROM vendor_phases ORDER BY vendor_key, sort_order');
+    res.json({ ok: true, updated: result.rows.length, rows: result.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 // ─── SERVE FRONTEND (production) ──────────────────────────────────────────────
 if (!IS_DEV) {
   const distPath = path.join(process.cwd(), 'dist');
