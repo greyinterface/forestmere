@@ -1663,7 +1663,8 @@ async function getZohoAccessToken() {
 
 async function zohoGet(path) {
   const token = await getZohoAccessToken();
-  const r = await fetch(`https://www.zohoapis.${ZOHO_REGION}/books/v3${path}?organization_id=${ZOHO_ORG_ID}`, {
+  const separator = path.includes('?') ? '&' : '?';
+  const r = await fetch(`https://www.zohoapis.${ZOHO_REGION}/books/v3${path}${separator}organization_id=${ZOHO_ORG_ID}`, {
     headers: { Authorization: `Zoho-oauthtoken ${token}` },
   });
   return r.json();
@@ -1787,14 +1788,22 @@ app.post('/api/zoho/sync', async (req, res) => {
     let inserted = 0;
     let skipped = 0;
 
-    // Clear existing zoho-sourced records first
+    // Only delete and replace Zoho-sourced entries (never touch writeup entries)
+    // Writeup covers inception → Feb 28 2024, Zoho covers Mar 1 2024 onwards
     await pool.query("DELETE FROM historical_payments WHERE source='zoho'");
+
+    const zohoStartDate = new Date('2024-03-01');
 
     for (const bill of bills) {
       const vname = bill.vendor_name || '';
+      const billDate = new Date(bill.date);
+
+      // Skip corporate/irrelevant vendors
       if (excludeVendors.some(x => vname.includes(x))) { skipped++; continue; }
       // Skip Taconic Phase 1.1 — tracked in invoices table
-      if (vname.includes('Taconic') && new Date(bill.date) >= taconicPhase11Cutoff) { skipped++; continue; }
+      if (vname.includes('Taconic') && billDate >= taconicPhase11Cutoff) { skipped++; continue; }
+      // Skip bills before Mar 1 2024 — covered by writeup entries
+      if (billDate < zohoStartDate) { skipped++; continue; }
 
       const [stage, wp, cat] = tagBill(vname, bill.date);
       await pool.query(
@@ -1844,10 +1853,13 @@ app.post('/api/zoho/auto-sync', async (req, res) => {
     const taconicPhase11Cutoff = new Date('2025-06-01');
     let inserted = 0; let skipped = 0;
     await pool.query("DELETE FROM historical_payments WHERE source='zoho'");
+    const zohoStart = new Date('2024-03-01');
     for (const bill of bills) {
       const vname = bill.vendor_name || '';
+      const bDate = new Date(bill.date);
       if (excludeVendors.some(x => vname.includes(x))) { skipped++; continue; }
-      if (vname.includes('Taconic') && new Date(bill.date) >= taconicPhase11Cutoff) { skipped++; continue; }
+      if (vname.includes('Taconic') && bDate >= taconicPhase11Cutoff) { skipped++; continue; }
+      if (bDate < zohoStart) { skipped++; continue; }
       const [stage, wp, cat] = tagBill(vname, bill.date);
       await pool.query(
         "INSERT INTO historical_payments (stage,work_package,payment_date,vendor,category,description,amount_usd,source,notes,is_batched) VALUES ($1,$2,$3,$4,$5,$6,$7,'zoho',NULL,FALSE)",
@@ -1860,6 +1872,18 @@ app.post('/api/zoho/auto-sync', async (req, res) => {
       [new Date().toISOString()]
     );
     res.json({ ok: true, inserted, skipped, synced_at: new Date().toISOString() });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ─── RESTORE WRITEUP DATA ─────────────────────────────────────────────────────
+// Re-seeds the historical_payments table with writeup entries (inception → Feb 2024)
+// Safe to run multiple times — clears writeup entries first then re-inserts
+app.post('/api/admin/restore-writeup', async (req, res) => {
+  try {
+    await pool.query("DELETE FROM historical_payments WHERE source='writeup'");
+    await seedProjectPhases();
+    res.json({ ok: true, message: 'Writeup data restored successfully' });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
