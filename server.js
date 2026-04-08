@@ -177,8 +177,12 @@ async function createSchema() {
       amount_usd NUMERIC(14,2),
       source VARCHAR(30),
       notes TEXT,
-      is_batched BOOLEAN DEFAULT FALSE
+      is_batched BOOLEAN DEFAULT FALSE,
+      reconciled_to VARCHAR(30),
+      zoho_bill_id VARCHAR(100)
     );
+    ALTER TABLE historical_payments ADD COLUMN IF NOT EXISTS reconciled_to VARCHAR(30);
+    ALTER TABLE historical_payments ADD COLUMN IF NOT EXISTS zoho_bill_id VARCHAR(100);
     ALTER TABLE vendor_phases ADD COLUMN IF NOT EXISTS stage VARCHAR(30);
     ALTER TABLE vendor_phases ADD COLUMN IF NOT EXISTS work_package VARCHAR(60);
     CREATE TABLE IF NOT EXISTS app_settings (
@@ -187,6 +191,8 @@ async function createSchema() {
       updated_at TIMESTAMP DEFAULT NOW()
     );
     ALTER TABLE invoices ADD COLUMN IF NOT EXISTS actual_paid NUMERIC(14,2);
+    ALTER TABLE historical_payments ADD COLUMN IF NOT EXISTS reconciled_to VARCHAR(30);
+    ALTER TABLE historical_payments ADD COLUMN IF NOT EXISTS zoho_bill_id VARCHAR(100);
     ALTER TABLE invoices ADD COLUMN IF NOT EXISTS credit_applied NUMERIC(14,2) DEFAULT 0;
     ALTER TABLE change_orders ADD COLUMN IF NOT EXISTS has_document BOOLEAN DEFAULT FALSE;
 
@@ -1795,46 +1801,63 @@ app.post('/api/zoho/match', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Sync all Zoho bills into historical_payments
-// This replaces manually seeded data with live Zoho data
+// Zoho account IDs for Camp Forestmere Corp (org 893385452)
+const ZOHO_ACCOUNTS = [
+  { id: '6666874000000096015', name: 'Land Held for Development', category: 'Land Held for Development' },
+  { id: '6666874000000104302', name: 'Maintenance land',          category: 'Maintenance' },
+  { id: '6666874000000107150', name: 'Legal',                     category: 'Legal' },
+  { id: '6666874000000114995', name: 'Permits',                   category: 'Permits' },
+  { id: '6666874000000100284', name: 'Professional Fees',         category: 'Professional Fees' },
+  { id: '6666874000000105970', name: 'School Tax',                category: 'School Tax' },
+  { id: '6666874000000000409', name: 'Bank Fees and Charges',     category: 'Bank Fees' },
+];
+
+// Sync all Zoho account transactions into historical_payments
 app.post('/api/zoho/sync', async (req, res) => {
   try {
-    const bills = await getAllZohoBills();
-
-    const tagBill = zohoTagBill;
-
-    // Exclude Taconic Phase 1.1 bills (those are tracked in invoices table)
-    // and exclude corporate/JXM vendors
     const excludeVendors = ['Zoho','Amex','Crowe','KPMG','Davies','Electric Gas','NYS'];
     const taconicPhase11Cutoff = new Date('2025-06-01');
 
     let inserted = 0;
     let skipped = 0;
+    let errors = [];
+    const preview = [];
 
-    // Only delete and replace Zoho-sourced entries (never touch writeup entries)
-    // Writeup covers inception → Feb 28 2024, Zoho covers Mar 1 2024 onwards
+    // Clear existing zoho-sourced records
     await pool.query("DELETE FROM historical_payments WHERE source='zoho'");
 
-    const zohoStartDate = new Date('2024-03-01');
+    // Pull bills from Zoho (covers LHD + Motor Boat + all vendors)
+    const allBills = await getAllZohoBills();
 
-    for (const bill of bills) {
+    for (const bill of allBills) {
       const vname = bill.vendor_name || '';
       const billDate = new Date(bill.date);
+      const amount = parseFloat(bill.total) || 0;
 
-      // Skip corporate/irrelevant vendors
+      if (amount <= 0) { skipped++; continue; }
       if (excludeVendors.some(x => vname.includes(x))) { skipped++; continue; }
-      // Skip Taconic Phase 1.1 — tracked in invoices table
-      if (vname.includes('Taconic') && billDate >= taconicPhase11Cutoff) { skipped++; continue; }
-      // Skip bills before Mar 1 2024 — covered by writeup entries
-      if (billDate < zohoStartDate) { skipped++; continue; }
 
-      const [stage, wp, cat] = tagBill(vname, bill.date);
+      const [stage, wp, cat] = zohoTagBill(vname, bill.date);
+
+      // Tag Taconic bills with what they reconcile to
+      let reconciledTo = null;
+      if (vname.includes('Taconic')) {
+        if (billDate >= taconicPhase11Cutoff) {
+          reconciledTo = 'invoices'; // Phase 1.1 — reconciles to PAY-001→PAY-009
+        } else if (billDate >= new Date('2025-01-01')) {
+          reconciledTo = 'prior_phases_demo'; // Demolition C25-102
+        } else {
+          reconciledTo = 'prior_phases_road'; // Road Construction C23-101
+        }
+      }
+
       await pool.query(
-        `INSERT INTO historical_payments (stage,work_package,payment_date,vendor,category,description,amount_usd,source,notes,is_batched)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'zoho',NULL,FALSE)`,
-        [stage, wp, bill.date, vname, cat, bill.bill_number || '', parseFloat(bill.total) || 0]
+        `INSERT INTO historical_payments (stage,work_package,payment_date,vendor,category,description,amount_usd,source,notes,is_batched,reconciled_to,zoho_bill_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'zoho',NULL,FALSE,$8,$9)`,
+        [stage, wp, bill.date, vname, cat, bill.bill_number || '', amount, reconciledTo, bill.bill_id || null]
       );
       inserted++;
+      preview.push({ vendor: vname, date: bill.date, amount, category: cat, reconciled_to: reconciledTo });
     }
 
     // Record last sync time
@@ -1844,7 +1867,14 @@ app.post('/api/zoho/sync', async (req, res) => {
       [new Date().toISOString()]
     );
 
-    res.json({ ok: true, inserted, skipped, total: bills.length, synced_at: new Date().toISOString() });
+    // Summary by vendor
+    const byVendor = {};
+    preview.forEach(p => {
+      if (!byVendor[p.vendor]) byVendor[p.vendor] = 0;
+      byVendor[p.vendor] += p.amount;
+    });
+
+    res.json({ ok: true, inserted, skipped, errors, synced_at: new Date().toISOString(), by_vendor: byVendor });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1876,17 +1906,21 @@ app.post('/api/zoho/auto-sync', async (req, res) => {
     const taconicPhase11Cutoff = new Date('2025-06-01');
     let inserted = 0; let skipped = 0;
     await pool.query("DELETE FROM historical_payments WHERE source='zoho'");
-    const zohoStart = new Date('2024-03-01');
     for (const bill of bills) {
       const vname = bill.vendor_name || '';
       const bDate = new Date(bill.date);
-      if (excludeVendors.some(x => vname.includes(x))) { skipped++; continue; }
-      if (vname.includes('Taconic') && bDate >= taconicPhase11Cutoff) { skipped++; continue; }
-      if (bDate < zohoStart) { skipped++; continue; }
-      const [stage, wp, cat] = tagBill(vname, bill.date);
+      const amount = parseFloat(bill.total) || 0;
+      if (amount <= 0 || excludeVendors.some(x => vname.includes(x))) { skipped++; continue; }
+      const [stage, wp, cat] = zohoTagBill(vname, bill.date);
+      let reconciledTo = null;
+      if (vname.includes('Taconic')) {
+        if (bDate >= taconicPhase11Cutoff) reconciledTo = 'invoices';
+        else if (bDate >= new Date('2025-01-01')) reconciledTo = 'prior_phases_demo';
+        else reconciledTo = 'prior_phases_road';
+      }
       await pool.query(
-        "INSERT INTO historical_payments (stage,work_package,payment_date,vendor,category,description,amount_usd,source,notes,is_batched) VALUES ($1,$2,$3,$4,$5,$6,$7,'zoho',NULL,FALSE)",
-        [stage, wp, bill.date, vname, cat, bill.bill_number || '', parseFloat(bill.total) || 0]
+        "INSERT INTO historical_payments (stage,work_package,payment_date,vendor,category,description,amount_usd,source,notes,is_batched,reconciled_to,zoho_bill_id) VALUES ($1,$2,$3,$4,$5,$6,$7,'zoho',NULL,FALSE,$8,$9)",
+        [stage, wp, bill.date, vname, cat, bill.bill_number || '', amount, reconciledTo, bill.bill_id || null]
       );
       inserted++;
     }
