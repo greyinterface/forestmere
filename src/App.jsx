@@ -129,8 +129,8 @@ const T = {
   cellMuted: "text-sm text-gray-400",
   cellBold:  "text-sm font-semibold text-gray-900",
   // Stat card value
-  statVal: "text-base font-bold tabular-nums tracking-tight text-gray-900",
-  statValAccent: "text-base font-bold tabular-nums tracking-tight text-indigo-600",
+  statVal: "text-base font-semibold tabular-nums text-gray-900",
+  statValAccent: "text-base font-semibold tabular-nums text-indigo-600",
   // Sub-tab label
   subLabel: "text-sm font-semibold",
 };
@@ -140,10 +140,10 @@ const cx = (...a) => a.filter(Boolean).join(" ");
 
 const Tag = ({ text, color = "muted" }) => {
   const map = {
-    green:  "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
-    amber:  "bg-indigo-50  text-indigo-700  ring-1 ring-indigo-200",
-    red:    "bg-red-50     text-red-700     ring-1 ring-red-200",
-    blue:   "bg-blue-50    text-blue-700    ring-1 ring-blue-200",
+    green:  "bg-emerald-50 text-emerald-700 border border-emerald-200",
+    amber:  "bg-indigo-50 text-indigo-600 border border-indigo-200",
+    red:    "bg-red-50 text-red-700 border border-red-200",
+    blue:   "bg-blue-50 text-blue-700 border border-blue-200",
     gray:   "bg-gray-100   text-gray-500",
     muted:  "bg-gray-100   text-gray-400",
   };
@@ -166,7 +166,7 @@ const BarFill = ({ value, max, color }) => {
   const w = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   const over = value > max * 1.02;
   return (
-    <div className="w-full bg-gray-100 rounded-full h-1.5">
+    <div className="w-full bg-[#f0f0ee] rounded-full h-1">
       <div className="h-full rounded-full transition-all" style={{ width: `${w}%`, background: over ? "#ef4444" : (color || "#4f46e5") }} />
     </div>
   );
@@ -175,14 +175,14 @@ const BarFill = ({ value, max, color }) => {
 const SectionTitle = ({ children }) => (
   <div className="flex items-center gap-3 mb-4">
     <span className={cx(T.label, "whitespace-nowrap")}>{children}</span>
-    <div className="flex-1 h-px bg-gray-100" />
+    <div className="flex-1 h-px bg-[#ebebea]" />
   </div>
 );
 
 const Stat = ({ label, value, sub, accent, onClick }) => (
   <div onClick={onClick} className={cx(
-    "bg-white rounded-xl px-4 py-3.5 border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.05)] transition-all select-none",
-    onClick && "cursor-pointer hover:shadow-[0_4px_12px_rgba(0,0,0,0.07)] hover:border-gray-200 active:scale-[0.99]"
+    "bg-white rounded-lg px-4 py-3.5 border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.05)] transition-all select-none",
+    onClick && "cursor-pointer hover:border-[#c8c8c4] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] active:scale-[0.99]"
   )}>
     <div className={cx(T.label, "mb-2")}>{label}</div>
     <div className={accent ? T.statValAccent : T.statVal}>{value}</div>
@@ -192,18 +192,18 @@ const Stat = ({ label, value, sub, accent, onClick }) => (
 );
 
 const Card = ({ children, className = "" }) => (
-  <div className={cx("bg-white border border-gray-100 rounded-xl shadow-[0_1px_4px_rgba(0,0,0,0.05)]", className)}>{children}</div>
+  <div className={cx("bg-white border border-[#e8e8e6] rounded-lg ", className)}>{children}</div>
 );
 
 // Table primitives — text-sm throughout, generous row height
 const TH = ({ children, right, className = "" }) => (
-  <th className={cx("px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-50 whitespace-nowrap border-b border-gray-100", right ? "text-right" : "text-left", className)}>{children}</th>
+  <th className={cx("px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-gray-400 bg-[#f9f9f7] whitespace-nowrap border-b border-[#e8e8e6]", right ? "text-right" : "text-left", className)}>{children}</th>
 );
 const TD = ({ children, right, muted, bold, colSpan, className = "" }) => (
-  <td colSpan={colSpan} className={cx("px-4 py-3 text-sm", right && "text-right tabular-nums", muted ? "text-gray-400" : "text-gray-700", bold && "font-semibold text-gray-900", className)}>{children}</td>
+  <td colSpan={colSpan} className={cx("px-4 py-2.5 text-sm", right && "text-right tabular-nums", muted ? "text-gray-400" : "text-gray-700", bold && "font-semibold text-gray-900", className)}>{children}</td>
 );
 const TR = ({ children, onClick, subtle }) => (
-  <tr onClick={onClick} className={cx("border-b border-gray-100 transition-colors", onClick && "cursor-pointer hover:bg-indigo-50/60", subtle && "bg-gray-50/60")}>{children}</tr>
+  <tr onClick={onClick} className={cx("border-b border-[#f0f0ee] transition-colors", onClick && "cursor-pointer hover:bg-[#f5f5f2]", subtle && "bg-[#f9f9f7]")}>{children}</tr>
 );
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
@@ -212,7 +212,7 @@ function Modal({ title, subtitle, onClose, children, wide }) {
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
       <div
         onClick={e => e.stopPropagation()}
-        className={cx("bg-white border border-gray-200 rounded-2xl flex flex-col shadow-2xl w-full", wide ? "max-w-4xl" : "max-w-2xl")}
+        className={cx("bg-white border border-[#d8d8d4] rounded-lg flex flex-col shadow-[0_8px_40px_rgba(0,0,0,0.12)] w-full", wide ? "max-w-4xl" : "max-w-2xl")}
         style={{ maxHeight: "90vh" }}
       >
         <div className="flex items-start justify-between px-6 py-4 border-b border-gray-100 shrink-0">
@@ -232,7 +232,7 @@ function KVGrid({ rows }) {
   return (
     <div className="grid grid-cols-2 gap-2.5">
       {rows.filter(Boolean).map(([k, v]) => (
-        <div key={k} className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+        <div key={k} className="bg-[#f9f9f7] rounded-lg px-4 py-3 border border-gray-100">
           <div className={cx(T.label, "mb-1")}>{k}</div>
           <div className="text-sm font-semibold text-gray-800 break-words">{v ?? "—"}</div>
         </div>
@@ -279,8 +279,8 @@ function Dashboard({ setTab }) {
   // Section header helper — consistent across whole Dashboard
   const SectionHeader = ({ label, action, actionLabel }) => (
     <div className="flex items-center gap-3 mb-4">
-      <span className="text-xs font-semibold uppercase tracking-widest text-gray-400 whitespace-nowrap">{label}</span>
-      <div className="flex-1 h-px bg-gray-100" />
+      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400 whitespace-nowrap">{label}</span>
+      <div className="flex-1 h-px bg-[#ebebea]" />
       {action && (
         <button onClick={action} className="text-sm font-semibold text-indigo-500 hover:text-indigo-700 transition-colors whitespace-nowrap">{actionLabel} →</button>
       )}
@@ -292,21 +292,21 @@ function Dashboard({ setTab }) {
 
       {/* ── Alert banners — only show when needed ── */}
       {reconSummary?.failed > 0 && (
-        <button onClick={() => setTab("phase11:reconcile")} className="w-full text-left flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 hover:bg-red-100 transition-colors">
+        <button onClick={() => setTab("phase11:reconcile")} className="w-full text-left flex items-center gap-3 bg-red-50/60 border border-red-100 rounded-lg px-4 py-2.5 hover:bg-red-100 transition-colors">
           <span className="text-red-500">✕</span>
           <p className="text-sm font-semibold text-red-700 flex-1">Reconciliation errors detected — {reconSummary.failed} check{reconSummary.failed > 1 ? "s" : ""} failing</p>
           <span className="text-red-400">→</span>
         </button>
       )}
       {reconSummary?.failed === 0 && reconSummary?.total > 0 && (
-        <button onClick={() => setTab("phase11:reconcile")} className="w-full text-left flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 hover:bg-emerald-100 transition-colors">
+        <button onClick={() => setTab("phase11:reconcile")} className="w-full text-left flex items-center gap-3 bg-emerald-50/60 border border-emerald-100 rounded-lg px-4 py-2.5 hover:bg-emerald-100 transition-colors">
           <span className="text-emerald-500 text-sm">✓</span>
           <p className="text-sm font-semibold text-emerald-700 flex-1">All {reconSummary.total} reconciliation checks passing</p>
           <span className="text-emerald-400">→</span>
         </button>
       )}
       {pendingInvs.length > 0 && (
-        <button onClick={() => setTab("phase11:invoices")} className="w-full text-left flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 hover:bg-amber-100 transition-colors">
+        <button onClick={() => setTab("phase11:invoices")} className="w-full text-left flex items-center gap-3 bg-amber-50/60 border border-amber-100 rounded-lg px-4 py-2.5 hover:bg-amber-100 transition-colors">
           <span className="text-amber-500">⚠</span>
           <div className="flex-1">
             <p className="text-sm font-semibold text-amber-800">Payment action required</p>
@@ -319,14 +319,14 @@ function Dashboard({ setTab }) {
       {/* ── Total Project Spend ── */}
       <div>
         <SectionHeader label="Total Project Spend" action={() => setTab("totalspend")} actionLabel="Full breakdown" />
-        <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+        <div className="bg-white border border-[#e8e8e6] rounded-lg overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[#f0f0ee]">
             <div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Inception to Date · All Phases</p>
               <p className="text-xl font-bold text-gray-900 tabular-nums">{$f(inceptionToDateTotal)}</p>
             </div>
             <button onClick={() => setModal("spend")}
-              className="px-5 py-2.5 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold rounded-xl transition-colors">
+              className="px-4 py-2 bg-[#111111] hover:bg-[#1f1f1f] text-white text-xs font-medium rounded-md transition-colors tracking-wide">
               View Breakdown →
             </button>
           </div>
@@ -373,7 +373,7 @@ function Dashboard({ setTab }) {
               <button key={v.name} onClick={() => {
                 if (v.name.includes("Taconic")) setTab("phase11:invoices");
                 else setTab("designeng");
-              }} className="w-full flex items-center gap-3 text-left hover:bg-gray-50 rounded-xl px-2 py-2 transition-colors">
+              }} className="w-full flex items-center gap-3 text-left hover:bg-gray-50 rounded-lg px-2 py-2 transition-colors">
                 <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: v.color }} />
                 <span className="text-sm text-gray-600 w-48 shrink-0 truncate">{v.name}</span>
                 <div className="flex-1"><BarFill value={v.paid} max={phase11GrandTotal} color={v.color} /></div>
@@ -394,7 +394,7 @@ function Dashboard({ setTab }) {
             {Object.entries(catBudget).sort((a, b) => b[1] - a[1]).map(([cat, bud]) => {
               const awd = awards.filter(a => budget.find(b => b.code === a.code)?.cat === cat).reduce((s, a) => s + parseFloat(a.current_amount), 0);
               return (
-                <button key={cat} onClick={() => setModal({ type: "catDetail", cat })} className="w-full flex items-center gap-3 text-left hover:bg-gray-50 rounded-xl px-2 py-1.5 transition-colors">
+                <button key={cat} onClick={() => setModal({ type: "catDetail", cat })} className="w-full flex items-center gap-3 text-left hover:bg-gray-50 rounded-lg px-2 py-1.5 transition-colors">
                   <span className="text-sm text-gray-500 w-24 shrink-0">{cat}</span>
                   <div className="flex-1"><BarFill value={awd} max={bud} /></div>
                   <span className="text-sm text-gray-500 tabular-nums w-24 text-right">{$f(bud)}</span>
@@ -410,8 +410,8 @@ function Dashboard({ setTab }) {
       <div>
         <SectionHeader label="Project Details" />
         <Card className="overflow-hidden">
-          <div className="grid grid-cols-2 divide-x divide-gray-50">
-            <div className="divide-y divide-gray-50">
+          <div className="grid grid-cols-2 divide-x divide-[#f0f0ee]">
+            <div className="divide-y divide-[#f0f0ee]">
               {[
                 ["Project",            "Camp Forestmere"],
                 ["Owner",              "JXM / Camp Forestmere Corp."],
@@ -426,7 +426,7 @@ function Dashboard({ setTab }) {
                 </div>
               ))}
             </div>
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-[#f0f0ee]">
               {[
                 ["Est. Completion",  "April 2027"],
                 ["Project Manager", "Joseph Hamilton"],
@@ -486,7 +486,7 @@ function Dashboard({ setTab }) {
                 </tfoot>
               </table>
             )}
-            <button onClick={() => { setModal(null); setTab("totalspend"); }} className="mt-3 w-full py-3 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-xl transition-colors">View Full Breakdown in Total Spend →</button>
+            <button onClick={() => { setModal(null); setTab("totalspend"); }} className="mt-3 w-full py-3 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-lg transition-colors">View Full Breakdown in Total Spend →</button>
           </Modal>
         );
       })()}
@@ -562,11 +562,11 @@ function PriorPhaseShell({ phaseId }) {
   return (
     <div className="space-y-5">
       {/* Sub-tab nav */}
-      <div className="flex gap-1 border-b border-gray-200 -mt-2">
+      <div className="flex gap-0 border-b border-[#e8e8e6] -mt-2">
         {SUB_TABS.map(t => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
-            className={cx("px-3 py-2 text-xs font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
-              subTab === t.id ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600")}>
+            className={cx("px-4 py-2 text-xs font-medium border-b-2 -mb-px transition-all whitespace-nowrap",
+              subTab === t.id ? "border-gray-800 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-700")}>
             {t.label}
           </button>
         ))}
@@ -576,7 +576,7 @@ function PriorPhaseShell({ phaseId }) {
       {subTab === "summary" && (
         <div className="space-y-5">
           {/* Status banner */}
-          <div className="flex items-center gap-3 px-5 py-3.5 rounded-xl border" style={{ background: meta.color + "10", borderColor: meta.color + "40" }}>
+          <div className="flex items-center gap-3 px-5 py-3.5 rounded-lg border" style={{ background: meta.color + "10", borderColor: meta.color + "40" }}>
             <span className="w-3 h-3 rounded-full shrink-0" style={{ background: meta.color }} />
             <div className="flex-1">
               <p className="text-sm font-bold text-gray-800">{meta.label} — {meta.contract}</p>
@@ -615,11 +615,11 @@ function PriorPhaseShell({ phaseId }) {
       {subTab === "budget" && (
         <div className="space-y-4">
           {/* Contract summary ledger */}
-          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
-            <div className="px-5 py-3 border-b border-gray-100">
+          <div className="bg-white border border-[#e8e8e6] rounded-lg overflow-hidden">
+            <div className="px-5 py-2.5 border-b border-[#e8e8e6]">
               <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Contract Summary</span>
             </div>
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-[#f0f0ee]">
               {[
                 ["Original Contract",  $f(phase.original_contract),  "text-gray-800"],
                 ["Approved COs",       $f(phase.approved_cos),       variance > 0 ? "text-amber-600" : "text-emerald-600"],
@@ -637,7 +637,7 @@ function PriorPhaseShell({ phaseId }) {
           {/* Line items */}
           {phase.lineItems?.length > 0 && (
             <Card className="overflow-hidden">
-              <div className="px-5 py-3 border-b border-gray-100">
+              <div className="px-5 py-2.5 border-b border-[#e8e8e6]">
                 <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Budget Line Items</span>
               </div>
               <table className="w-full">
@@ -686,7 +686,7 @@ function PriorPhaseShell({ phaseId }) {
                 <Stat label="Final Contract"    value={$f(phase.final_contract)}    sub="Original + all COs" accent />
               </div>
               <Card className="overflow-hidden">
-                <div className="px-5 py-3 border-b border-gray-100">
+                <div className="px-5 py-2.5 border-b border-[#e8e8e6]">
                   <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Change Orders</span>
                 </div>
                 <table className="w-full">
@@ -798,7 +798,7 @@ function PriorPhaseInvoices({ phaseId, phaseMeta, phaseTotalPaid }) {
         <p className="text-sm text-gray-400">{invoices.length} invoice{invoices.length !== 1 ? "s" : ""} recorded for {phaseMeta.label}</p>
         {!adding && (
           <button onClick={() => setAdding(true)}
-            className="px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold rounded-xl transition-colors">
+            className="px-3 py-1.5 bg-[#111111] hover:bg-[#1f1f1f] text-white text-xs font-medium rounded-md transition-colors">
             + Add Invoice
           </button>
         )}
@@ -836,11 +836,11 @@ function PriorPhaseInvoices({ phaseId, phaseMeta, phaseTotalPaid }) {
           </div>
           <div className="flex gap-2">
             <button onClick={saveInvoice} disabled={saving || !form.invoice_num || !form.invoice_date || !form.amount}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-xl transition-colors">
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors">
               {saving ? "Saving…" : "Save Invoice"}
             </button>
             <button onClick={() => { setAdding(false); setForm({ invoice_num:"", invoice_date:"", vendor:"", description:"", amount:"", notes:"" }); }}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl transition-colors">
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg transition-colors">
               Cancel
             </button>
           </div>
@@ -944,7 +944,7 @@ function VendorsView() {
           {vendorList.map(v => (
             <button key={v.key}
               onClick={() => { setVendorKey(v.key); setSubTab("overview"); setModal(null); setAddingInv(false); setEditingId(null); }}
-              className={cx("w-full text-left px-3 py-3 rounded-xl transition-all border", vendorKey===v.key ? "bg-white border-gray-200 shadow-sm" : "border-transparent hover:bg-gray-50")}>
+              className={cx("w-full text-left px-3 py-3 rounded-lg transition-all border", vendorKey===v.key ? "bg-white border-gray-200 shadow-sm" : "border-transparent hover:bg-gray-50")}>
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-2 h-2 rounded-full shrink-0" style={{ background: vendors[v.key].color }} />
                 <span className={cx("text-sm font-semibold leading-tight", vendorKey===v.key ? "text-gray-900" : "text-gray-500")}>{v.label}</span>
@@ -1022,7 +1022,7 @@ function VendorsView() {
                   {vendor.phases.map((p,i) => {
                     const b=p.budget||0; const inv2=p.invoiced||0;
                     return (
-                      <button key={i} onClick={()=>{setSubTab("phases");setModal(p);}} className="text-left bg-gray-50 hover:bg-indigo-50 rounded-xl p-3 border border-gray-100 transition-colors">
+                      <button key={i} onClick={()=>{setSubTab("phases");setModal(p);}} className="text-left bg-gray-50 hover:bg-indigo-50 rounded-lg p-3 border border-gray-100 transition-colors">
                         <div className="flex items-start justify-between gap-2 mb-2"><span className="text-sm font-semibold text-gray-800 leading-tight">{p.phase}</span>{statusTag(p.status)}</div>
                         {b>0&&<BarFill value={inv2} max={b} color={vendor.color}/>}
                         <div className="flex justify-between mt-2"><span className="text-sm text-gray-400">{b>0?$f(b)+" budget":"T&M"}</span><span className="text-sm font-bold text-gray-800">{$f(inv2)}</span></div>
@@ -1208,7 +1208,7 @@ function DocumentsView() {
   const typeColor = (t) => {
     if (t === "Invoice") return "bg-blue-50 text-blue-700 ring-1 ring-blue-200";
     if (t === "Change Order") return "bg-purple-50 text-purple-700 ring-1 ring-purple-200";
-    if (t === "Award Letter") return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
+    if (t === "Award Letter") return "bg-emerald-50 text-emerald-700 border border-emerald-200";
     return "bg-gray-100 text-gray-500";
   };
 
@@ -1229,7 +1229,7 @@ function DocumentsView() {
       {view === "history" && (
         <div className="space-y-3">
           {docs.length === 0 && (
-            <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
+            <div className="bg-white rounded-lg border border-gray-100 p-8 text-center">
               <p className="text-gray-400 text-sm">No documents uploaded yet.</p>
             </div>
           )}
@@ -1353,17 +1353,17 @@ function ZohoReconcileView() {
     <div className="space-y-5">
       {/* Summary KPIs */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-4">
           <p className="text-sm font-semibold text-amber-600 mb-1">Road Construction</p>
           <p className="text-sm font-bold text-gray-900">{$f(roadTotal)}</p>
           <p className="text-sm text-amber-500 mt-1">{roadBills.length} Zoho bills · C23-101</p>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-4">
           <p className="text-sm font-semibold text-red-500 mb-1">Demolition</p>
           <p className="text-sm font-bold text-gray-900">{$f(demoTotal)}</p>
           <p className="text-sm text-red-400 mt-1">{demoBills.length} Zoho bills · C25-102</p>
         </div>
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-4">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-4">
           <p className="text-sm font-semibold text-emerald-600 mb-1">Phase 1.1</p>
           <p className="text-sm font-bold text-gray-900">{$f(phase11Total)}</p>
           <p className="text-sm text-emerald-500 mt-1">{phase11Bills.length} Zoho bills · C25-104</p>
@@ -1421,7 +1421,7 @@ function ZohoReconcileView() {
       )}
 
       {/* Grand total */}
-      <div className="flex items-center justify-between px-5 py-3 bg-gray-900 rounded-xl">
+      <div className="flex items-center justify-between px-5 py-3 bg-[#111111] rounded-lg">
         <span className="text-sm font-bold text-white">Total Taconic — All Phases</span>
         <span className="text-sm font-bold text-white tabular-nums">{$f(grandTotal)}</span>
       </div>
@@ -1467,7 +1467,7 @@ function ReconcileView({ setTab }) {
   );
 
   if (!recon) return (
-    <div className="bg-white rounded-xl border border-gray-100 p-8 text-center shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+    <div className="bg-white rounded-lg border border-gray-100 p-8 text-center ">
       <p className="text-gray-400 text-sm mb-3">Could not load reconciliation data.</p>
       <button onClick={load} className="px-4 py-2 bg-gray-900 text-white text-sm font-bold rounded-lg">Retry</button>
     </div>
@@ -1528,7 +1528,7 @@ function ReconcileView({ setTab }) {
     <div className="space-y-5">
 
       {/* Header scorecard */}
-      <div className={`rounded-xl p-5 border ${issues.length === 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-200'}`}>
+      <div className={`rounded-lg p-5 border ${issues.length === 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-200'}`}>
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3">
@@ -1642,7 +1642,7 @@ function ReconcileView({ setTab }) {
         <div className="space-y-3">
           {/* One-time data fix */}
           {!reseedDone && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-4 flex items-center justify-between">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-4 flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-blue-700">Fix All Billing Data</p>
                 <p className="text-sm text-blue-500 mt-0.5">Reseeds all 67 line item billings from Excel data (PAY-001 to PAY-007) — including Fee, Insurance, Deposit rows. Run this once after deploy.</p>
@@ -1655,7 +1655,7 @@ function ReconcileView({ setTab }) {
             </div>
           )}
           {reseedDone && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-700 font-semibold">✓ Data fix applied — line items updated.</div>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-700 font-semibold">✓ Data fix applied — line items updated.</div>
           )}
           <Card className="p-4">
             <SectionTitle>Invoices Without Line Item Detail</SectionTitle>
@@ -1898,7 +1898,7 @@ function TotalSpendView() {
   return (
     <div className="space-y-5">
       {/* Sync bar — clean, minimal */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border border-gray-100 rounded-xl shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 bg-white border border-gray-100 rounded-lg shadow-sm">
         <ZohoSyncButton onSynced={load} />
         {batchedTotal > 0 && (
           <span className="text-sm text-amber-600 font-medium">⚑ {$f(batchedTotal)} in batched payments need breakdown</span>
@@ -1906,7 +1906,7 @@ function TotalSpendView() {
       </div>
 
       {/* ── SPEND SUMMARY (clickable rows = the drill-down) ── */}
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-[#e8e8e6] rounded-lg overflow-hidden">
         {/* Header */}
         <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <div>
@@ -1930,7 +1930,7 @@ function TotalSpendView() {
             rows: allPayments.filter(p => p.work_package === "Design & Permitting") },
         ].map(ph => (
           <button key={ph.name} onClick={() => setModal(ph)}
-            className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-indigo-50/40 transition-colors text-left group">
+            className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-[#f5f5f2] transition-colors text-left group">
             <span className="w-2.5 h-2.5 rounded-full shrink-0 mr-4" style={{ background: ph.color }} />
             <div className="flex-1 min-w-0">
               <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
@@ -1963,7 +1963,7 @@ function TotalSpendView() {
             rows: allPayments.filter(p => p.work_package === "Phase 1.1") },
         ].map(ph => (
           <button key={ph.name} onClick={() => setModal(ph)}
-            className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-indigo-50/40 transition-colors text-left group">
+            className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-[#f5f5f2] transition-colors text-left group">
             <span className="w-2.5 h-2.5 rounded-full shrink-0 mr-4" style={{ background: ph.color }} />
             <div className="flex-1 min-w-0">
               <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
@@ -1984,7 +1984,7 @@ function TotalSpendView() {
         </div>
 
         {/* Grand total */}
-        <div className="px-5 py-3 bg-gray-900 flex items-center justify-between">
+        <div className="px-5 py-3 bg-[#111111] flex items-center justify-between">
           <span className="text-sm font-bold text-white uppercase tracking-widest">Total — Inception to Date</span>
           <div className="flex items-center gap-6">
             <span className="text-sm text-gray-400 tabular-nums">100%</span>
@@ -1996,11 +1996,11 @@ function TotalSpendView() {
 
       {/* View toggle — By Vendor | Phase Mapping (subtle) */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 w-fit">
           {[["vendor","By Vendor"],["stage","By Phase"]].map(([id,lbl]) => (
             <button key={id} onClick={() => setViewMode(id)}
               className={cx("px-4 py-2 rounded-lg text-sm font-semibold transition-all",
-                viewMode === id ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600")}>
+                viewMode === id ? "bg-white text-gray-900 shadow-[0_1px_3px_rgba(0,0,0,0.08)]" : "text-gray-500 hover:text-gray-700")}>
               {lbl}
             </button>
           ))}
@@ -2039,10 +2039,10 @@ function TotalSpendView() {
               ]
             }
           ].map(stageData => (
-            <div key={stageData.stage} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+            <div key={stageData.stage} className="bg-white border border-[#e8e8e6] rounded-lg overflow-hidden">
               <button
                 onClick={() => setExpandedStage(expandedStage === stageData.stage ? null : stageData.stage)}
-                className="w-full flex items-center px-5 py-2.5 hover:bg-gray-50 transition-colors text-left">
+                className="w-full flex items-center px-5 py-2.5 hover:bg-[#f9f9f7] transition-colors text-left">
                 <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: stageData.color }} />
                 <span className="flex-1 text-sm font-bold text-gray-800">{stageData.stage}</span>
                 <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(stageData.total/grandTotal) : "—"}</span>
@@ -2053,7 +2053,7 @@ function TotalSpendView() {
                 <div className="border-t border-gray-100">
                   {stageData.phases.map((ph) => (
                     <button key={ph.name} onClick={() => setModal(ph)}
-                      className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-indigo-50/40 transition-colors text-left group">
+                      className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-[#f5f5f2] transition-colors text-left group">
                       <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-4" style={{ background: ph.color }} />
                       <div className="flex-1 min-w-0">
                         <span className="text-sm font-semibold text-gray-700">{ph.name}</span>
@@ -2085,9 +2085,9 @@ function TotalSpendView() {
               phases: v.phases,
             })),
           ].map(v => (
-            <div key={v.key} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+            <div key={v.key} className="bg-white border border-[#e8e8e6] rounded-lg overflow-hidden">
               <button onClick={() => setExpandedVendor(expandedVendor === v.key ? null : v.key)}
-                className="w-full flex items-center px-5 py-2.5 hover:bg-gray-50 transition-colors text-left">
+                className="w-full flex items-center px-5 py-2.5 hover:bg-[#f9f9f7] transition-colors text-left">
                 <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: v.color }} />
                 <div className="flex-1 min-w-0 flex items-center gap-3">
                   <span className="text-sm font-semibold text-gray-800">{v.name}</span>
@@ -2123,9 +2123,9 @@ function TotalSpendView() {
 
           {/* Other vendors — excluding intercompany */}
           {Object.keys(otherVendorMap).filter(k => !isExcluded(k)).length > 0 && (
-            <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+            <div className="bg-white border border-[#e8e8e6] rounded-lg overflow-hidden">
               <button onClick={() => setExpandedVendor(expandedVendor === "other" ? null : "other")}
-                className="w-full flex items-center px-5 py-2.5 hover:bg-gray-50 transition-colors text-left">
+                className="w-full flex items-center px-5 py-2.5 hover:bg-[#f9f9f7] transition-colors text-left">
                 <span className="w-3 h-3 rounded-full shrink-0 mr-3 bg-gray-300" />
                 <span className="flex-1 text-sm font-semibold text-gray-800">Other Vendors</span>
                 <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(Object.entries(otherVendorMap).filter(([k])=>!isExcluded(k)).reduce((s,[,v])=>s+v.total,0)/grandTotal) : "—"}</span>
@@ -2153,7 +2153,7 @@ function TotalSpendView() {
 
           {/* Batched */}
           {batchedVendors.length > 0 && (
-            <div className="bg-white border border-amber-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="bg-white border border-amber-200 rounded-lg overflow-hidden shadow-sm">
               <button onClick={() => setExpandedVendor(expandedVendor === "batched" ? null : "batched")}
                 className="w-full flex items-center px-5 py-4 hover:bg-amber-50/40 transition-colors text-left">
                 <span className="text-amber-400 text-sm mr-3">⚑</span>
@@ -2185,7 +2185,7 @@ function TotalSpendView() {
       {/* ── PHASE MAPPING (admin / subtle) ── */}
       {viewMode === "mapping" && (
         <div className="space-y-4">
-          <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 flex items-center justify-between">
             <p className="text-sm text-gray-500">Phase tagging — assigns each vendor contract phase to a timeline and project phase.</p>
             <button onClick={async () => {
               try {
@@ -2309,11 +2309,11 @@ function Phase11Shell({ initialSubTab = 'landing' }) {
   return (
     <div className="space-y-5">
       {/* Sub-tab nav */}
-      <div className="flex gap-1 border-b border-gray-200 -mt-2">
+      <div className="flex gap-0 border-b border-[#e8e8e6] -mt-2">
         {SUB_TABS.map(t => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
-            className={cx("px-3 py-2 text-xs font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
-              subTab === t.id ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600")}>
+            className={cx("px-4 py-2 text-xs font-medium border-b-2 -mb-px transition-all whitespace-nowrap",
+              subTab === t.id ? "border-gray-800 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-700")}>
             {t.label}
           </button>
         ))}
@@ -2347,7 +2347,7 @@ function Phase11Shell({ initialSubTab = 'landing' }) {
               { id:"reconcile", icon:"✓", label:"Reconcile",          desc:"Balance checks & data integrity" },
             ].map(card => (
               <button key={card.id} onClick={() => setSubTab(card.id)}
-                className="bg-white border border-gray-100 rounded-xl p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all shadow-sm group">
+                className="bg-white border border-gray-100 rounded-lg p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all shadow-sm group">
                 <div className="text-sm mb-3 text-gray-300 group-hover:text-indigo-400 transition-colors">{card.icon}</div>
                 <div className="text-sm font-semibold text-gray-800 mb-1">{card.label}</div>
                 <div className="text-sm text-gray-400">{card.desc}</div>
@@ -2356,16 +2356,16 @@ function Phase11Shell({ initialSubTab = 'landing' }) {
           </div>
 
           {/* Project details */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-5 py-2.5 border-b border-[#e8e8e6]">
               <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Contract Details</span>
             </div>
-            <div className="grid grid-cols-2 divide-x divide-gray-50">
+            <div className="grid grid-cols-2 divide-x divide-[#f0f0ee]">
               {[
                 [["General Contractor","Taconic Builders Inc."],["Contract #","C25-104"],["Contract Start","Jun 23, 2025"],["Est. Completion","April 2027"]],
                 [["Project Manager","Joseph Hamilton"],["Architect","ArchitectureFirm"],["Landscape Arch.","Reed Hilderbrand"],["Civil Engineer","Ivan Zdrahal PE"]],
               ].map((col, ci) => (
-                <div key={ci} className="divide-y divide-gray-50">
+                <div key={ci} className="divide-y divide-[#f0f0ee]">
                   {col.map(([k,v]) => (
                     <div key={k} className="flex items-center justify-between px-5 py-3">
                       <span className="text-sm text-gray-400">{k}</span>
@@ -2416,11 +2416,11 @@ function DesignEngShell() {
   return (
     <div className="space-y-5">
       {/* Sub-tab nav */}
-      <div className="flex gap-1 border-b border-gray-200 -mt-2">
+      <div className="flex gap-0 border-b border-[#e8e8e6] -mt-2">
         {VENDOR_TABS.map(t => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
-            className={cx("px-3 py-2 text-xs font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
-              subTab === t.id ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600")}>
+            className={cx("px-4 py-2 text-xs font-medium border-b-2 -mb-px transition-all whitespace-nowrap",
+              subTab === t.id ? "border-gray-800 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-700")}>
             {t.label}
           </button>
         ))}
@@ -2432,7 +2432,7 @@ function DesignEngShell() {
           <div className="grid grid-cols-3 gap-4">
             {vendorSummary.map(v => (
               <button key={v.key} onClick={() => setSubTab(v.key)}
-                className="bg-white border border-gray-100 rounded-xl p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all shadow-sm group">
+                className="bg-white border border-gray-100 rounded-lg p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all shadow-sm group">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-3 h-3 rounded-full" style={{ background: v.color }} />
                   <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{v.role}</span>
@@ -2680,7 +2680,7 @@ function InvoiceWorkflow({ vendorKey }) {
       {loading ? (
         <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" /></div>
       ) : invoices.length === 0 ? (
-        <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
+        <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
           No invoices yet — click "+ New Invoice" to add one
         </div>
       ) : (
@@ -2735,7 +2735,7 @@ function InvoiceWorkflow({ vendorKey }) {
             const total = invoices.filter(i=>i.status===s||(i.status==="Zoho Matched"&&s==="Approved")).reduce((sum,i)=>sum+i.total_amount,0);
             const c = INV_STATUS_COLORS[s];
             return (
-              <div key={s} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+              <div key={s} className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="w-2 h-2 rounded-full" style={{background:c.dot}} />
                   <span className="text-sm font-semibold" style={{color:c.text}}>{s}</span>
@@ -2780,7 +2780,7 @@ function InvoiceWorkflow({ vendorKey }) {
           <button onClick={addLine} className="text-sm px-3 py-1.5 bg-gray-900 text-white rounded-lg font-semibold">+ Add Line</button>
         </div>
         {lines.length === 0 && (
-          <div className="text-center py-6 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
+          <div className="text-center py-6 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
             Add line items from the invoice — one row per service/phase
           </div>
         )}
@@ -2789,7 +2789,7 @@ function InvoiceWorkflow({ vendorKey }) {
           const remaining = phase ? (phase.budget ? phase.budget - (phase.invoiced||0) : null) : null;
           const isOver = remaining !== null && parseFloat(line.amount||0) > remaining;
           return (
-            <div key={i} className={`border rounded-xl p-4 space-y-3 ${isOver ? "border-red-300 bg-red-50" : "border-gray-100 bg-gray-50"}`}>
+            <div key={i} className={`border rounded-lg p-4 space-y-3 ${isOver ? "border-red-300 bg-red-50" : "border-gray-100 bg-gray-50"}`}>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-gray-500">Line {i+1}</span>
                 <button onClick={()=>removeLine(i)} className="text-sm text-gray-300 hover:text-red-500">✕ Remove</button>
@@ -2924,19 +2924,19 @@ function InvoiceWorkflow({ vendorKey }) {
 
         {/* Warnings */}
         {!allMapped && inv.lines?.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center gap-3">
             <span className="text-amber-500">⚑</span>
             <p className="text-sm font-semibold text-amber-700">{inv.lines.filter(l=>!l.vendor_phase_id).length} line item{inv.lines.filter(l=>!l.vendor_phase_id).length!==1?"s":""} not yet mapped to a budget phase — required before approval</p>
           </div>
         )}
         {anyOverBudget && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-3">
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center gap-3">
             <span className="text-red-500">⚠</span>
             <p className="text-sm font-semibold text-red-700">One or more line items exceed the remaining budget for their phase — review before approving</p>
           </div>
         )}
         {inv.status === "Zoho Matched" && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-blue-500">✓</span>
               <div>
@@ -2962,7 +2962,7 @@ function InvoiceWorkflow({ vendorKey }) {
 
         {/* Line items */}
         <Card className="overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100">
+          <div className="px-5 py-2.5 border-b border-[#e8e8e6]">
             <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Line Items — Budget Check</span>
           </div>
           <table className="w-full">
@@ -3167,7 +3167,7 @@ function VendorsViewSingle({ vendorKey }) {
                 {vendor.phases.map((p,i) => {
                   const b=p.budget||0; const inv2=p.invoiced||0;
                   return (
-                    <button key={i} onClick={()=>{setSubTab("phases");setModal(p);}} className="text-left bg-gray-50 hover:bg-indigo-50 rounded-xl p-3 border border-gray-100 transition-colors">
+                    <button key={i} onClick={()=>{setSubTab("phases");setModal(p);}} className="text-left bg-gray-50 hover:bg-indigo-50 rounded-lg p-3 border border-gray-100 transition-colors">
                       <div className="flex items-start justify-between gap-2 mb-1"><span className="text-sm font-semibold text-gray-800 leading-tight">{p.phase}</span>{statusTag(p.status)}</div>
                       {p.stage && <span className="text-sm text-indigo-500 font-medium">{p.stage} · {p.work_package}</span>}
                       {b>0&&<BarFill value={inv2} max={b} color={vendor.color}/>}
@@ -3335,26 +3335,29 @@ function AppShell() {
   const page = PAGE_TITLES[tab] || { title: tab, sub: "" };
 
   return (
-    <div style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif", background: "#f5f6f8", minHeight: "100vh" }}>
+    <div style={{ fontFamily: "'Inter', 'Plus Jakarta Sans', system-ui, sans-serif", background: "#f6f5f3", minHeight: "100vh" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
         * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        body { -webkit-font-smoothing: antialiased; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        button { font-family: inherit; }
+        input, select, textarea { font-family: inherit; }
       `}</style>
 
       {/* ── Sidebar ────────────────────────────────────── */}
       <aside style={{
-        position: "fixed", top: 0, left: 0, bottom: 0, width: 200,
-        background: "#ffffff", borderRight: "1px solid #e8eaed",
+        position: "fixed", top: 0, left: 0, bottom: 0, width: 196,
+        background: "#0f1117", borderRight: "none",
         display: "flex", flexDirection: "column", zIndex: 30,
       }}>
         {/* Logo */}
-        <div style={{ padding: "24px 20px 20px", borderBottom: "1px solid #f3f4f6", marginBottom: 8 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "#111827", letterSpacing: "-0.2px", lineHeight: 1, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>Camp Forestmere</div>
-          <div style={{ fontWeight: 400, fontSize: 11, color: "#9ca3af", marginTop: 4, letterSpacing: "0.02em", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>Construction Dashboard</div>
+        <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid #1f2937", marginBottom: 4 }}>
+          <div style={{ fontWeight: 600, fontSize: 12, color: "#f9fafb", letterSpacing: "0.04em", lineHeight: 1, textTransform: "uppercase" }}>Camp Forestmere</div>
+          <div style={{ fontWeight: 400, fontSize: 10, color: "#6b7280", marginTop: 5, letterSpacing: "0.06em", textTransform: "uppercase" }}>Construction</div>
         </div>
 
         {/* Nav */}
@@ -3368,24 +3371,25 @@ function AppShell() {
                 onClick={() => setTab(n.id)}
                 style={{
                   width: "100%", textAlign: "left",
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "8px 12px", borderRadius: 8, marginBottom: 2,
-                  background: active ? "#111827" : "transparent",
-                  color: active ? "#ffffff" : "#6b7280",
-                  fontSize: 13, fontWeight: active ? 600 : 500,
+                  display: "flex", alignItems: "center", gap: 9,
+                  padding: "7px 10px", borderRadius: 6, marginBottom: 1,
+                  background: active ? "rgba(255,255,255,0.08)" : "transparent",
+                  color: active ? "#f9fafb" : "#6b7280",
+                  fontSize: 12, fontWeight: active ? 500 : 400,
                   border: "none", cursor: "pointer",
-                  transition: "all 0.12s",
+                  transition: "all 0.1s",
+                  borderLeft: active ? "2px solid #6366f1" : "2px solid transparent",
                 }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.background = "#f3f4f6"; e.currentTarget.style.color = "#111827"; }}
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.color = "#d1d5db"; e.currentTarget.style.background = "rgba(255,255,255,0.04)"; } }}
                 onMouseLeave={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#6b7280"; } }}
               >
-                <span style={{ fontSize: 14, width: 18, textAlign: "center", flexShrink: 0 }}>{n.icon}</span>
+                <span style={{ fontSize: 11, width: 16, textAlign: "center", flexShrink: 0, opacity: 0.7 }}>{n.icon}</span>
                 <span style={{ flex: 1 }}>{n.label}</span>
                 {docsCount && (
                   <span style={{
-                    background: active ? "rgba(255,255,255,0.25)" : "#e5e7eb",
-                    color: active ? "#fff" : "#6b7280",
-                    borderRadius: 10, padding: "1px 7px", fontSize: 11, fontWeight: 600,
+                    background: active ? "rgba(255,255,255,0.15)" : "#1f2937",
+                    color: active ? "#d1d5db" : "#4b5563",
+                    borderRadius: 4, padding: "1px 6px", fontSize: 10, fontWeight: 500,
                   }}>{docsCount}</span>
                 )}
               </button>
@@ -3394,14 +3398,14 @@ function AppShell() {
         </nav>
 
         {/* Footer */}
-        <div style={{ padding: "16px 20px", borderTop: "1px solid #e8eaed" }}>
-          <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 500 }}>JXM / Camp Forestmere Corp.</div>
-          <div style={{ fontSize: 11, color: "#d1d5db", marginTop: 1 }}>Paul Smiths, NY · Mar 2026</div>
+        <div style={{ padding: "14px 16px", borderTop: "1px solid #1f2937" }}>
+          <div style={{ fontSize: 10, color: "#4b5563", fontWeight: 500, letterSpacing: "0.03em" }}>JXM / Camp Forestmere Corp.</div>
+          <div style={{ fontSize: 10, color: "#374151", marginTop: 2, letterSpacing: "0.03em" }}>Paul Smiths, NY</div>
         </div>
       </aside>
 
       {/* ── Main content ───────────────────────────────── */}
-      <div style={{ marginLeft: 200, minHeight: "100vh" }}>
+      <div style={{ marginLeft: 196, minHeight: "100vh" }}>
 
         {/* Page header */}
         <div style={{
@@ -3410,7 +3414,7 @@ function AppShell() {
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <h1 style={{ fontSize: 14, fontWeight: 600, color: "#111827", margin: 0, letterSpacing: "-0.1px", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+              <h1 style={{ fontSize: 14, fontWeight: 600, color: "#111827", margin: 0, letterSpacing: "-0.1px" }}>
                 {page.title}
               </h1>
               <p style={{ fontSize: 12, color: "#b0b7c3", margin: "2px 0 0", fontWeight: 400 }}>
@@ -3422,7 +3426,7 @@ function AppShell() {
         </div>
 
         {/* Page content */}
-        <main style={{ padding: "16px 28px", maxWidth: 1400 }}>
+        <main style={{ padding: "20px 28px 32px", maxWidth: 1360 }}>
           {tab === "dashboard"   && <Dashboard setTab={setTab} />}
           {tab === "totalspend"  && <TotalSpendView />}
           {tab === "phase11"     && <Phase11Shell initialSubTab={tab.startsWith("phase11:") ? tab.split(":")[1] : "landing"} />}
