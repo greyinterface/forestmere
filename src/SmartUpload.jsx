@@ -160,6 +160,8 @@ export function SmartUploadView() {
   const [co, setCo] = useState({ no:"", date:"", code:"", div:"", origBudget:"", amount:"", notes:"" });
   const [parsedAward, setParsedAward] = useState(null);
   const [vend, setVend] = useState({ vendorKey:"ivan", invNum:"", date:"", desc:"", amount:"", status:"Pending" });
+  const [prior, setPrior] = useState({ phase:"road", invNum:"", date:"", vendor:"", description:"", amount:"", notes:"" });
+  const sp = (k) => (e) => setPrior(f => ({...f, [k]: e.target.value}));
 
   const si = (k) => (e) => setInv(f => ({...f, [k]: e.target.value}));
   const sc = (k) => (e) => setCo(f => ({...f, [k]: e.target.value}));
@@ -331,9 +333,39 @@ export function SmartUploadView() {
     setSaving(false);
   };
 
+  const savePriorInvoice = async () => {
+    if (!prior.invNum || !prior.amount || !prior.date) { setError("Invoice #, Date, and Amount are required."); return; }
+    setSaving(true); setError(null);
+    try {
+      const reconKey = prior.phase === "road" ? "prior_phases_road" : "prior_phases_demo";
+      const workPkg  = prior.phase === "road" ? "Road Construction" : "Demolition";
+      const vendor   = prior.vendor || (prior.phase === "road" ? "Luck Builders Inc." : "Mayville Enterprises Inc.");
+      await fetch(API + '/historical-payments', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          stage: 'Construction', work_package: workPkg,
+          payment_date: prior.date, vendor, category: 'Construction',
+          description: prior.description || prior.invNum,
+          amount_usd: parseFloat(prior.amount) || 0,
+          source: 'invoice', notes: prior.notes || null,
+          is_batched: false, reconciled_to: reconKey,
+        }),
+      });
+      if (pendingFile) {
+        const fd = new FormData();
+        fd.append("file", pendingFile); fd.append("name", pendingFile.name);
+        fd.append("type", "Invoice"); fd.append("vendor_key", "taconic");
+        fd.append("vendor_label", workPkg); fd.append("note", prior.invNum);
+        await fetch(API + '/documents', { method: 'POST', body: fd });
+      }
+      setDoneMsg(`${prior.invNum} saved to ${workPkg}.`);
+      setStage("done");
+    } catch(e) { setError(e.message); }
+    setSaving(false);
+  };
+
   const saveVendor = async () => {
     if (!vend.invNum || !vend.amount) { setError("Invoice # and Amount required."); return; }
-    setSaving(true); setError(null);
     try {
       await fetch(API + `/vendors/${vend.vendorKey}/invoices`, { method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ invNum:vend.invNum, date:vend.date, desc:vend.desc, amount:parseFloat(vend.amount)||0, status:vend.status })
@@ -365,7 +397,7 @@ export function SmartUploadView() {
         <h2 className="text-sm font-bold text-gray-900 mb-1">Upload Document</h2>
         <p className="text-xs text-gray-400 mb-5">All document types auto-parse and pre-fill fields from PDF.</p>
         <div className="flex gap-2 mb-5 flex-wrap">
-          {[["taconic_invoice","Taconic Invoice"],["change_order","Change Order"],["vendor_invoice","Vendor Invoice"],["award_letter","Award Letter"]].map(([id,lb]) => (
+          {[["taconic_invoice","Taconic Invoice (Phase 1.1)"],["prior_invoice","Road / Demo Invoice"],["change_order","Change Order"],["vendor_invoice","Vendor Invoice"],["award_letter","Award Letter"]].map(([id,lb]) => (
             <button key={id} onClick={()=>setDocType(id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
               style={{background:docType===id?"#111827":"#f3f4f6",color:docType===id?"#fff":"#6b7280"}}>{lb}</button>
           ))}
@@ -560,6 +592,73 @@ export function SmartUploadView() {
         <div className="flex gap-3">
           <button onClick={reset} className="px-5 py-3 text-sm font-semibold rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50">Cancel</button>
           <button onClick={saveTaconic} disabled={saving||!inv.payId||!inv.invNum||!inv.approved} className="flex-1 py-3 text-sm font-bold rounded-xl text-white" style={{background:saving||!inv.payId||!inv.invNum||!inv.approved?"#e5e7eb":"#111827",color:saving||!inv.payId||!inv.invNum||!inv.approved?"#9ca3af":"#fff"}}>{saving?"Saving...":"Save Invoice + Line Items →"}</button>
+        </div>
+      </div>
+    );
+
+    if (docType === "prior_invoice") return (
+      <div className="space-y-5">
+        <div className={card + " !p-4 flex items-center justify-between"}>
+          <div className="flex items-center gap-3">
+            <span className="text-lg">📄</span>
+            <div>
+              <p className="text-sm font-semibold text-gray-800">{pendingFile?.name}</p>
+              <p className="text-xs text-gray-400 mt-0.5">Road Construction or Demolition invoice</p>
+            </div>
+          </div>
+          <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600">Change file</button>
+        </div>
+        {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
+
+        <div className={card}>
+          <p className={sectionTitle}>Phase</p>
+          <div className="grid grid-cols-2 gap-3">
+            {[["road","Road Construction (C23-101)"],["demolition","Demolition (C25-102)"]].map(([id,lb]) => (
+              <button key={id} onClick={() => setPrior(f => ({...f, phase: id}))}
+                className={`px-4 py-3 rounded-lg border text-sm font-medium transition-colors text-left ${prior.phase === id ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-600 hover:border-gray-400"}`}>
+                {lb}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className={card}>
+          <p className={sectionTitle}>Invoice Details</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={lbl}>Invoice # <span className="text-red-400">*</span></label>
+              <input value={prior.invNum} onChange={sp("invNum")} placeholder="e.g. INV-001" className={inp} />
+            </div>
+            <div>
+              <label className={lbl}>Date <span className="text-red-400">*</span></label>
+              <input value={prior.date} onChange={sp("date")} placeholder="YYYY-MM-DD" className={inp} />
+            </div>
+            <div>
+              <label className={lbl}>Vendor</label>
+              <input value={prior.vendor} onChange={sp("vendor")} placeholder={prior.phase === "road" ? "Luck Builders Inc." : "Mayville Enterprises Inc."} className={inp} />
+            </div>
+            <div>
+              <label className={lbl}>Amount (USD) <span className="text-red-400">*</span></label>
+              <input value={prior.amount} onChange={sp("amount")} placeholder="0.00" className={inp} />
+            </div>
+            <div className="col-span-2">
+              <label className={lbl}>Description</label>
+              <input value={prior.description} onChange={sp("description")} placeholder="Invoice description..." className={inp} />
+            </div>
+            <div className="col-span-2">
+              <label className={lbl}>Notes</label>
+              <input value={prior.notes} onChange={sp("notes")} placeholder="Optional notes..." className={inp} />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <button onClick={reset} className="px-5 py-3 text-sm font-semibold rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50">Cancel</button>
+          <button onClick={savePriorInvoice} disabled={saving || !prior.invNum || !prior.date || !prior.amount}
+            className="flex-1 py-3 text-sm font-bold rounded-xl text-white transition-colors"
+            style={{background: saving||!prior.invNum||!prior.date||!prior.amount ? "#e5e7eb" : "#111827", color: saving||!prior.invNum||!prior.date||!prior.amount ? "#9ca3af" : "#fff"}}>
+            {saving ? "Saving..." : "Save Invoice →"}
+          </button>
         </div>
       </div>
     );
