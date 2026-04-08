@@ -230,6 +230,12 @@ function Dashboard({ setTab }) {
   } = useAppData();
   const [modal, setModal] = useState(null);
   const [reconSummary, setReconSummary] = useState(null);
+  const [spendData, setSpendData] = useState(null);
+
+  useEffect(() => {
+    // Pre-fetch spend data for the Overview modal so it's ready instantly
+    apiFetch('/project-phases').then(d => setSpendData(d)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     apiFetch('/reconciliation').then(r => {
@@ -401,28 +407,67 @@ function Dashboard({ setTab }) {
         </div>
       </div>
 
-      {modal === "spend" && (
-        <Modal title="Total Project Spend" subtitle="Inception to date · all phases · USD" onClose={() => setModal(null)}>
-          <table className="w-full text-xs">
-            <thead><tr><TH>Category / Vendor</TH><TH right>Amount</TH><TH right>% of Total</TH></tr></thead>
-            <tbody>
-              <TR subtle><TD bold colSpan={3} className="text-indigo-600">Pre-Construction</TD></TR>
-              <TR><TD className="pl-6 text-gray-600">Land Acquisition</TD><TD right bold>{$f(inceptionToDateTotal > 0 ? 3634949.67 : 0)}</TD><TD right muted>{inceptionToDateTotal > 0 ? pf(3634949.67/inceptionToDateTotal) : "—"}</TD></TR>
-              <TR><TD className="pl-6 text-gray-600">Design & Permitting (writeup)</TD><TD right bold>{$f(historicalTotal - 3634949.67)}</TD><TD right muted>{inceptionToDateTotal > 0 ? pf((historicalTotal-3634949.67)/inceptionToDateTotal) : "—"}</TD></TR>
-              <TR subtle><TD bold colSpan={3} className="text-indigo-600">Construction</TD></TR>
-              <TR><TD className="pl-6 text-gray-600">Road Construction (C23-101)</TD><TD right bold>{$f(priorPhases.find(p=>p.id==="road")?.total_paid||0)}</TD><TD right muted>{inceptionToDateTotal > 0 ? pf((priorPhases.find(p=>p.id==="road")?.total_paid||0)/inceptionToDateTotal) : "—"}</TD></TR>
-              <TR><TD className="pl-6 text-gray-600">Demolition (C25-102)</TD><TD right bold>{$f(priorPhases.find(p=>p.id==="demolition")?.total_paid||0)}</TD><TD right muted>{inceptionToDateTotal > 0 ? pf((priorPhases.find(p=>p.id==="demolition")?.total_paid||0)/inceptionToDateTotal) : "—"}</TD></TR>
-              <TR subtle><TD bold colSpan={3} className="text-gray-500 pl-4">Phase 1.1</TD></TR>
-              {spendRows.map(v => (
-                <TR key={v.name}><TD className="pl-8 text-gray-600">{v.name}</TD><TD right bold>{$f(v.paid)}</TD><TD right muted>{inceptionToDateTotal > 0 ? pf(v.paid/inceptionToDateTotal) : "—"}</TD></TR>
-              ))}
-            </tbody>
-            <tfoot><TR subtle><TD bold className="text-gray-900">Total Inception to Date</TD><TD right bold className="text-gray-900">{$f(inceptionToDateTotal)}</TD><TD right muted>100%</TD></TR></tfoot>
-          </table>
-          <p className="text-xs text-gray-400 mt-2">* Pre-construction detail from Excel writeups (inception → Feb 2024). See Total Spend tab for full breakdown.</p>
-          <button onClick={() => { setModal(null); setTab("totalspend"); }} className="mt-3 w-full py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold rounded-lg transition-colors">View Full Breakdown in Total Spend →</button>
-        </Modal>
-      )}
+      {modal === "spend" && (() => {
+        const ap = spendData?.allPayments || [];
+        const landAmt    = ap.filter(p => p.work_package === "Land Acquisition").reduce((s,p) => s+p.amount_usd, 0);
+        const designAmt  = ap.filter(p => p.work_package === "Design & Permitting").reduce((s,p) => s+p.amount_usd, 0);
+        const roadAmt    = ap.filter(p => p.work_package === "Road Construction").reduce((s,p) => s+p.amount_usd, 0);
+        const demoAmt    = ap.filter(p => p.work_package === "Demolition").reduce((s,p) => s+p.amount_usd, 0);
+        const ph11Amt    = ap.filter(p => p.work_package === "Phase 1.1").reduce((s,p) => s+p.amount_usd, 0);
+        const grandAmt   = landAmt + designAmt + roadAmt + demoAmt + ph11Amt;
+        const pct = (n) => grandAmt > 0 ? pf(n / grandAmt) : "—";
+        const rows = [
+          { section: "Pre-Construction", items: [
+            { label: "Land Acquisition",    amt: landAmt   },
+            { label: "Design & Permitting", amt: designAmt },
+          ]},
+          { section: "Construction", items: [
+            { label: "Road Construction",   amt: roadAmt   },
+            { label: "Demolition",          amt: demoAmt   },
+            { label: "Phase 1.1",           amt: ph11Amt   },
+          ]},
+        ];
+        return (
+          <Modal title="Total Project Spend" subtitle="Inception to date · all phases · USD" onClose={() => setModal(null)}>
+            {!spendData && <p className="text-xs text-gray-400 text-center py-4">Loading live data...</p>}
+            {spendData && (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr>
+                    <th className="px-3 py-2 text-xs font-semibold text-gray-400 bg-gray-50 text-left tracking-wide">Category</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-gray-400 bg-gray-50 text-right tracking-wide w-32">Amount (USD)</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-gray-400 bg-gray-50 text-right tracking-wide w-20">% Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(({ section, items }) => (
+                    <>
+                      <TR subtle key={section}>
+                        <TD bold colSpan={3} className="text-indigo-700 uppercase tracking-widest text-xs pt-3 pb-1">{section}</TD>
+                      </TR>
+                      {items.map(({ label, amt }) => (
+                        <tr key={label} className="border-b border-gray-50">
+                          <td className="px-4 py-2.5 text-xs text-gray-600 pl-8">{label}</td>
+                          <td className="px-4 py-2.5 text-xs font-semibold text-gray-800 text-right tabular-nums">{$f(amt)}</td>
+                          <td className="px-4 py-2.5 text-xs text-gray-400 text-right tabular-nums">{pct(amt)}</td>
+                        </tr>
+                      ))}
+                    </>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-gray-50 border-t border-gray-200">
+                    <td className="px-4 py-3 text-xs font-bold text-gray-900">Total Inception to Date</td>
+                    <td className="px-4 py-3 text-xs font-bold text-gray-900 text-right tabular-nums">{$f(grandAmt)}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-gray-500 text-right">100%</td>
+                  </tr>
+                </tfoot>
+              </table>
+            )}
+            <button onClick={() => { setModal(null); setTab("totalspend"); }} className="mt-3 w-full py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold rounded-lg transition-colors">View Full Breakdown in Total Spend →</button>
+          </Modal>
+        );
+      })()}
       {modal === "retainage" && (
         <Modal title="Retainage Held" subtitle="10% of completed work — released at substantial completion" onClose={() => setModal(null)}>
           <KVGrid rows={[["Total Retainage Held", $f(retainageHeld)], ["Retainage Rate", "~10% of completed work"], ["Completed Work Retainage", $f(retainageHeld)], ["Stored Material Retainage", "$0.00"], ["Release Trigger", "Substantial Completion"], ["Estimated Release", "April 2027"]]} />
@@ -2501,10 +2546,9 @@ const CAT_COLORS = {
 };
 
 function TotalSpendView() {
-  const { taconicPaid, izPaid, rhPaid, afPaid, priorPhases, changeOrders } = useAppData();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState("stage"); // "stage" | "vendor"
+  const [viewMode, setViewMode] = useState("stage");
   const [expandedStage, setExpandedStage] = useState(null);
   const [expandedVendor, setExpandedVendor] = useState(null);
   const [modal, setModal] = useState(null);
@@ -2519,7 +2563,6 @@ function TotalSpendView() {
     setLoading(true);
     apiFetch('/project-phases').then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
   };
-
   useEffect(() => { load(); }, []);
 
   const savePhaseTag = async (phaseId) => {
@@ -2539,89 +2582,88 @@ function TotalSpendView() {
 
   const { allPayments, vendorPhaseMapping } = data;
 
-  // ── Build spend totals ─────────────────────────────────────────────────────
-  // Historical payments (pre-Zoho writeup)
-  const histByStageWP = {};
-  allPayments.forEach(p => {
-    const key = `${p.stage}||${p.work_package}`;
-    if (!histByStageWP[key]) histByStageWP[key] = { stage: p.stage, work_package: p.work_package, total: 0, payments: [] };
-    histByStageWP[key].total += p.amount_usd;
-    histByStageWP[key].payments.push(p);
-  });
+  // ── Totals from allPayments (single source of truth) ──────────────────────
+  const landAcqTotal    = allPayments.filter(p => p.work_package === "Land Acquisition").reduce((s,p) => s+p.amount_usd, 0);
+  const designPermTotal = allPayments.filter(p => p.work_package === "Design & Permitting").reduce((s,p) => s+p.amount_usd, 0);
+  const roadTotal       = allPayments.filter(p => p.work_package === "Road Construction").reduce((s,p) => s+p.amount_usd, 0);
+  const demoTotal       = allPayments.filter(p => p.work_package === "Demolition").reduce((s,p) => s+p.amount_usd, 0);
+  const phase11Total    = allPayments.filter(p => p.work_package === "Phase 1.1").reduce((s,p) => s+p.amount_usd, 0);
+  const preConTotal     = landAcqTotal + designPermTotal;
+  const conTotal        = roadTotal + demoTotal + phase11Total;
+  const grandTotal      = preConTotal + conTotal;
 
-  // Vendor phases (from Zoho/app — live invoiced amounts)
-  // These are ADDITIVE to historical payments for post-writeup spend
-  // To avoid double-counting: historical payments cover inception → Feb 2024
-  // Vendor phases cover the FULL lifetime invoiced amount
-  // We show vendor phases as the authoritative total per vendor phase, 
-  // and note that historical payments are the source for pre-Feb 2024 detail
-  const vendorByStageWP = {};
-  vendorPhaseMapping.forEach(vp => {
-    if (!vp.stage || !vp.work_package || !vp.invoiced) return;
-    const key = `${vp.stage}||${vp.work_package}`;
-    if (!vendorByStageWP[key]) vendorByStageWP[key] = { stage: vp.stage, work_package: vp.work_package, total: 0, phases: [] };
-    vendorByStageWP[key].total += vp.invoiced;
-    vendorByStageWP[key].phases.push(vp);
-  });
-
-  // ALL totals come from allPayments (Zoho bills + 3 journal entries)
-  // No more mixing with priorPhases, taconicPaid, or vendorPhaseMapping for totals
-  const landAcqTotal = allPayments.filter(p => p.work_package === 'Land Acquisition').reduce((s,p) => s+p.amount_usd, 0);
-  const designPermTotal = allPayments.filter(p => p.work_package === 'Design & Permitting').reduce((s,p) => s+p.amount_usd, 0);
-  const roadTotal = allPayments.filter(p => p.work_package === 'Road Construction').reduce((s,p) => s+p.amount_usd, 0);
-  const demoTotal = allPayments.filter(p => p.work_package === 'Demolition').reduce((s,p) => s+p.amount_usd, 0);
-  const phase11Total = allPayments.filter(p => p.work_package === 'Phase 1.1').reduce((s,p) => s+p.amount_usd, 0);
-
-  const preConTotal = landAcqTotal + designPermTotal;
-  const conTotal = roadTotal + demoTotal + phase11Total;
-  const grandTotal = preConTotal + conTotal;
-
-  // BY VENDOR: group vendor phase mapping by vendor (big 4)
+  // ── By Vendor ─────────────────────────────────────────────────────────────
   const byVendor = {};
   vendorPhaseMapping.forEach(vp => {
-    if (!byVendor[vp.vendor_key]) byVendor[vp.vendor_key] = { name: vp.vendor_full_name || vp.vendor_name, total: 0, phases: [], payments: [] };
+    if (!byVendor[vp.vendor_key]) byVendor[vp.vendor_key] = { name: vp.vendor_full_name || vp.vendor_name, total: 0, phases: [] };
     byVendor[vp.vendor_key].total += vp.invoiced;
     byVendor[vp.vendor_key].phases.push(vp);
   });
-  // Add Taconic as a vendor — totals from allPayments (Zoho source)
   byVendor['taconic'] = {
     name: 'Taconic Builders Inc.',
     total: phase11Total + roadTotal + demoTotal,
     phases: [
-      { phase: 'Road Construction (C23-101)', invoiced: roadTotal, stage: 'Construction', work_package: 'Road Construction', status: 'Complete' },
-      { phase: 'Demolition (C25-102)', invoiced: demoTotal, stage: 'Construction', work_package: 'Demolition', status: 'Complete' },
-      { phase: 'Phase 1.1 (C25-104)', invoiced: phase11Total, stage: 'Construction', work_package: 'Phase 1.1', status: 'In Progress' },
+      { phase: 'Road Construction (C23-101)', invoiced: roadTotal,    stage: 'Construction', work_package: 'Road Construction', status: 'Complete' },
+      { phase: 'Demolition (C25-102)',        invoiced: demoTotal,    stage: 'Construction', work_package: 'Demolition',        status: 'Complete' },
+      { phase: 'Phase 1.1 (C25-104)',         invoiced: phase11Total, stage: 'Construction', work_package: 'Phase 1.1',         status: 'In Progress' },
     ],
-    payments: [],
   };
 
-  // OTHER VENDORS: from historical payments, exclude big 4
   const bigVendorNames = ['Reed Hilderbrand', 'ArchitectureFirm', 'Ivan Zdrahal', 'Taconic', 'Timothy R Smith'];
   const isBigVendor = (v) => bigVendorNames.some(b => v.toLowerCase().includes(b.toLowerCase()) || b.toLowerCase().includes(v.toLowerCase().split(' ')[0]));
 
   const otherVendorMap = {};
   allPayments.forEach(p => {
-    if (isBigVendor(p.vendor)) return; // skip big vendors
-    const key = p.vendor;
-    if (!otherVendorMap[key]) otherVendorMap[key] = { name: p.vendor, total: 0, payments: [] };
-    otherVendorMap[key].total += p.amount_usd;
-    otherVendorMap[key].payments.push(p);
+    if (isBigVendor(p.vendor)) return;
+    if (!otherVendorMap[p.vendor]) otherVendorMap[p.vendor] = { name: p.vendor, total: 0, payments: [] };
+    otherVendorMap[p.vendor].total += p.amount_usd;
+    otherVendorMap[p.vendor].payments.push(p);
   });
 
-  // Land acquisition separate
-  const landAcqVendor = allPayments.filter(p => p.work_package === 'Land Acquisition');
-  const landTotal = landAcqVendor.reduce((s,p) => s+p.amount_usd, 0);
-
-  const bigVendorTotal = Object.values(byVendor).reduce((s,v) => s+v.total, 0);
+  const landAcqVendor    = allPayments.filter(p => p.work_package === "Land Acquisition");
   const otherVendorTotal = Object.values(otherVendorMap).reduce((s,v) => s+v.total, 0);
-  const batchedVendors = allPayments.filter(p => p.is_batched);
-  const batchedVendorTotal = batchedVendors.reduce((s,p) => s+p.amount_usd, 0);
+  const batchedVendors   = allPayments.filter(p => p.is_batched);
+  const batchedTotal     = batchedVendors.reduce((s,p) => s+p.amount_usd, 0);
 
-  const batchedTotal = allPayments.filter(p => p.is_batched).reduce((s,p) => s+p.amount_usd, 0);
   const inp = "bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-400";
+
+  // ── Ledger row helpers ────────────────────────────────────────────────────
+  const LedgerHeader = ({ label, total, pct, color, expanded, onToggle, indent = 0 }) => (
+    <button onClick={onToggle}
+      className={cx("w-full flex items-center text-left transition-colors hover:bg-stone-50 border-b border-stone-100", expanded && "bg-stone-50")}
+      style={{ paddingLeft: 20 + indent * 16, paddingRight: 20, paddingTop: 11, paddingBottom: 11 }}>
+      <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: color }} />
+      <span className="flex-1 text-xs font-semibold text-stone-800 tracking-wide">{label}</span>
+      <span className="text-xs text-stone-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(pct) : "—"}</span>
+      <span className="text-xs font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(total)}</span>
+      <span className="text-stone-300 text-xs w-4 text-center">{expanded ? "▾" : "›"}</span>
+    </button>
+  );
+
+  const LedgerSubRow = ({ label, total, pct, color, onClick, indent = 1 }) => (
+    <div onClick={onClick}
+      className={cx("w-full flex items-center border-b border-stone-50 transition-colors", onClick ? "cursor-pointer hover:bg-indigo-50/40" : "")}
+      style={{ paddingLeft: 20 + indent * 16, paddingRight: 20, paddingTop: 9, paddingBottom: 9 }}>
+      <span className="w-2 h-2 rounded-full shrink-0 mr-3" style={{ background: color || "#cbd5e1" }} />
+      <span className="flex-1 text-xs text-stone-600">{label}</span>
+      <span className="text-xs text-stone-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(pct) : "—"}</span>
+      <span className="text-xs font-semibold text-stone-800 tabular-nums w-28 text-right mr-4">{$f(total)}</span>
+      {onClick ? <span className="text-indigo-400 text-xs w-4 text-center">›</span> : <span className="w-4" />}
+    </div>
+  );
+
+  const LedgerTotal = ({ label, total }) => (
+    <div className="flex items-center border-t-2 border-stone-200 bg-stone-50 px-5 py-3.5">
+      <span className="flex-1 text-xs font-bold text-stone-900 uppercase tracking-widest">{label}</span>
+      <span className="text-xs text-stone-400 tabular-nums w-16 text-right mr-6">100%</span>
+      <span className="text-sm font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(total)}</span>
+      <span className="w-4" />
+    </div>
+  );
 
   return (
     <div className="space-y-5">
+      {/* Zoho banner */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-3">
         <span className="text-blue-500 mt-0.5 shrink-0">ℹ</span>
         <div className="flex-1">
@@ -2642,36 +2684,72 @@ function TotalSpendView() {
         </div>
       )}
 
-      {/* KPI row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-gray-900 rounded-xl px-5 py-4 col-span-2 md:col-span-1">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Total Inception to Date</p>
-          <p className="text-2xl font-bold text-white tabular-nums">{$f(grandTotal)}</p>
-          <p className="text-xs text-gray-500 mt-1">All stages · USD</p>
+      {/* KPI ledger summary */}
+      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="px-5 py-3 border-b border-stone-100 flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Total Project Spend — Inception to Date</span>
         </div>
-        <div className="bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm">
-          <p className="text-xs text-gray-400 mb-1">Pre-Construction</p>
-          <p className="text-lg font-bold text-gray-900 tabular-nums">{$f(preConTotal)}</p>
-          <p className="text-xs text-gray-400 mt-1">Land + Design & Permitting</p>
-        </div>
-        <div className="bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm">
-          <p className="text-xs text-gray-400 mb-1">Construction</p>
-          <p className="text-lg font-bold text-gray-900 tabular-nums">{$f(conTotal)}</p>
-          <p className="text-xs text-gray-400 mt-1">Road + Demo + Phase 1.1</p>
-        </div>
-        <div className="bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm">
-          <p className="text-xs text-gray-400 mb-1">Phase 1.1 to Date</p>
-          <p className="text-lg font-bold text-gray-900 tabular-nums">{$f(phase11Total)}</p>
-          <p className="text-xs text-gray-400 mt-1">Taconic + consultants</p>
+        <div className="divide-y divide-stone-50">
+          {/* Pre-Construction */}
+          <div className="flex items-center px-5 py-3">
+            <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: STAGE_COLORS["Pre-Construction"] }} />
+            <span className="flex-1 text-xs text-stone-500">Pre-Construction</span>
+            <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(preConTotal/grandTotal) : "—"}</span>
+            <span className="text-xs font-semibold text-stone-800 tabular-nums w-28 text-right">{$f(preConTotal)}</span>
+          </div>
+          <div className="flex items-center px-5 py-2 bg-stone-50/50">
+            <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-6" style={{ background: WP_COLORS["Land Acquisition"] }} />
+            <span className="flex-1 text-xs text-stone-400 pl-1">Land Acquisition</span>
+            <span className="text-xs text-stone-300 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(landAcqTotal/grandTotal) : "—"}</span>
+            <span className="text-xs text-stone-500 tabular-nums w-28 text-right">{$f(landAcqTotal)}</span>
+          </div>
+          <div className="flex items-center px-5 py-2 bg-stone-50/50">
+            <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-6" style={{ background: WP_COLORS["Design & Permitting"] }} />
+            <span className="flex-1 text-xs text-stone-400 pl-1">Design & Permitting</span>
+            <span className="text-xs text-stone-300 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(designPermTotal/grandTotal) : "—"}</span>
+            <span className="text-xs text-stone-500 tabular-nums w-28 text-right">{$f(designPermTotal)}</span>
+          </div>
+          {/* Construction */}
+          <div className="flex items-center px-5 py-3">
+            <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: STAGE_COLORS["Construction"] }} />
+            <span className="flex-1 text-xs text-stone-500">Construction</span>
+            <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(conTotal/grandTotal) : "—"}</span>
+            <span className="text-xs font-semibold text-stone-800 tabular-nums w-28 text-right">{$f(conTotal)}</span>
+          </div>
+          <div className="flex items-center px-5 py-2 bg-stone-50/50">
+            <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-6" style={{ background: WP_COLORS["Road Construction"] }} />
+            <span className="flex-1 text-xs text-stone-400 pl-1">Road Construction</span>
+            <span className="text-xs text-stone-300 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(roadTotal/grandTotal) : "—"}</span>
+            <span className="text-xs text-stone-500 tabular-nums w-28 text-right">{$f(roadTotal)}</span>
+          </div>
+          <div className="flex items-center px-5 py-2 bg-stone-50/50">
+            <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-6" style={{ background: WP_COLORS["Demolition"] }} />
+            <span className="flex-1 text-xs text-stone-400 pl-1">Demolition</span>
+            <span className="text-xs text-stone-300 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(demoTotal/grandTotal) : "—"}</span>
+            <span className="text-xs text-stone-500 tabular-nums w-28 text-right">{$f(demoTotal)}</span>
+          </div>
+          <div className="flex items-center px-5 py-2 bg-stone-50/50">
+            <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-6" style={{ background: WP_COLORS["Phase 1.1"] }} />
+            <span className="flex-1 text-xs text-stone-400 pl-1">Phase 1.1</span>
+            <span className="text-xs text-stone-300 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(phase11Total/grandTotal) : "—"}</span>
+            <span className="text-xs text-stone-500 tabular-nums w-28 text-right">{$f(phase11Total)}</span>
+          </div>
+          {/* Grand total */}
+          <div className="flex items-center px-5 py-3.5 bg-stone-100 border-t border-stone-200">
+            <span className="w-3 h-3 shrink-0 mr-3" />
+            <span className="flex-1 text-xs font-bold text-stone-900 uppercase tracking-widest">Total — Inception to Date</span>
+            <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">100%</span>
+            <span className="text-sm font-bold text-stone-900 tabular-nums w-28 text-right">{$f(grandTotal)}</span>
+          </div>
         </div>
       </div>
 
       {/* View toggle */}
-      <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+      <div className="flex items-center gap-1 bg-stone-100 rounded-xl p-1 w-fit">
         {[["stage","By Stage"],["vendor","By Vendor"],["mapping","Phase Mapping"]].map(([id,lbl]) => (
           <button key={id} onClick={() => setViewMode(id)}
             className={cx("px-4 py-2 rounded-lg text-xs font-semibold transition-all",
-              viewMode === id ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700")}>
+              viewMode === id ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700")}>
             {lbl}
           </button>
         ))}
@@ -2682,74 +2760,75 @@ function TotalSpendView() {
         <div className="space-y-3">
           {[
             {
-              stage: "Pre-Construction",
-              total: preConTotal,
-              color: STAGE_COLORS["Pre-Construction"],
-              workPackages: [
-                { name: "Land Acquisition", total: landAcqTotal, color: WP_COLORS["Land Acquisition"],
-                  rows: allPayments.filter(p=>p.work_package==="Land Acquisition") },
-                { name: "Design & Permitting", total: designPermTotal, color: WP_COLORS["Design & Permitting"],
-                  rows: allPayments.filter(p=>p.work_package==="Design & Permitting") },
+              stage: "Pre-Construction", total: preConTotal, color: STAGE_COLORS["Pre-Construction"],
+              phases: [
+                { name: "Land Acquisition",    total: landAcqTotal,    color: WP_COLORS["Land Acquisition"],
+                  description: "Cost of land purchase",
+                  rows: allPayments.filter(p => p.work_package === "Land Acquisition") },
+                { name: "Design & Permitting", total: designPermTotal,  color: WP_COLORS["Design & Permitting"],
+                  description: "Architecture, engineering & permit fees",
+                  rows: allPayments.filter(p => p.work_package === "Design & Permitting") },
               ]
             },
             {
-              stage: "Construction",
-              total: conTotal,
-              color: STAGE_COLORS["Construction"],
-              workPackages: [
-                { name: "Road Construction", total: roadTotal, color: WP_COLORS["Road Construction"],
-                  rows: allPayments.filter(p=>p.work_package==="Road Construction").map(p=>({vendor:p.vendor,amount_usd:p.amount_usd,payment_date:p.payment_date,description:p.description})) },
-                { name: "Demolition", total: demoTotal, color: WP_COLORS["Demolition"],
-                  rows: allPayments.filter(p=>p.work_package==="Demolition").map(p=>({vendor:p.vendor,amount_usd:p.amount_usd,payment_date:p.payment_date,description:p.description})) },
-                { name: "Phase 1.1", total: phase11Total, color: WP_COLORS["Phase 1.1"],
-                  rows: allPayments.filter(p=>p.work_package==="Phase 1.1").map(p=>({vendor:p.vendor,amount_usd:p.amount_usd,payment_date:p.payment_date,description:p.description}))
-                },
+              stage: "Construction", total: conTotal, color: STAGE_COLORS["Construction"],
+              phases: [
+                { name: "Road Construction",   total: roadTotal,   color: WP_COLORS["Road Construction"],
+                  description: "Contract C23-101",
+                  rows: allPayments.filter(p => p.work_package === "Road Construction").map(p => ({vendor:p.vendor,amount_usd:p.amount_usd,payment_date:p.payment_date,description:p.description})) },
+                { name: "Demolition",          total: demoTotal,   color: WP_COLORS["Demolition"],
+                  description: "Contract C25-102",
+                  rows: allPayments.filter(p => p.work_package === "Demolition").map(p => ({vendor:p.vendor,amount_usd:p.amount_usd,payment_date:p.payment_date,description:p.description})) },
+                { name: "Phase 1.1",           total: phase11Total, color: WP_COLORS["Phase 1.1"],
+                  description: "Contract C25-104 — Taconic Builders",
+                  rows: allPayments.filter(p => p.work_package === "Phase 1.1").map(p => ({vendor:p.vendor,amount_usd:p.amount_usd,payment_date:p.payment_date,description:p.description})) },
               ]
             }
           ].map(stageData => (
-            <Card key={stageData.stage} className="overflow-hidden">
+            <div key={stageData.stage} className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+              {/* Stage header row */}
               <button
                 onClick={() => setExpandedStage(expandedStage === stageData.stage ? null : stageData.stage)}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full" style={{ background: stageData.color }} />
-                  <span className="font-semibold text-gray-900 text-sm">{stageData.stage}</span>
-                  <span className="text-xs text-gray-400">{stageData.workPackages.length} work packages</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm font-bold text-gray-900">{$f(stageData.total)}</span>
-                  <span className="text-xs text-gray-400">{grandTotal > 0 ? pf(stageData.total/grandTotal) : "—"}</span>
-                  <span className="text-gray-300 text-sm">{expandedStage === stageData.stage ? "▾" : "›"}</span>
-                </div>
+                className={cx("w-full flex items-center px-5 py-3.5 transition-colors text-left border-b",
+                  expandedStage === stageData.stage ? "bg-stone-50 border-stone-200" : "border-transparent hover:bg-stone-50")}>
+                <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: stageData.color }} />
+                <span className="flex-1 text-xs font-bold text-stone-800 uppercase tracking-widest">{stageData.stage}</span>
+                <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(stageData.total/grandTotal) : "—"}</span>
+                <span className="text-sm font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(stageData.total)}</span>
+                <span className="text-stone-300 text-xs w-4 text-center">{expandedStage === stageData.stage ? "▾" : "›"}</span>
               </button>
               {expandedStage === stageData.stage && (
-                <div className="border-t border-gray-100">
-                  {stageData.workPackages.map(wp => (
-                    <div key={wp.name}>
+                <div>
+                  {stageData.phases.map((ph, idx) => (
+                    <div key={ph.name}>
                       <button
-                        onClick={() => wp.rows && wp.rows.length > 0 ? setModal(wp) : null}
-                        className={cx("w-full flex items-center justify-between px-8 py-3 transition-colors border-b border-gray-50", wp.rows && wp.rows.length > 0 ? "hover:bg-indigo-50 cursor-pointer" : "cursor-default")}>
-                        <div className="flex items-center gap-3">
-                          <div className="w-2 h-2 rounded-full" style={{ background: wp.color }} />
-                          <span className="text-xs font-semibold text-gray-700">{wp.name}</span>
-                          {wp.rows && wp.rows.length > 0 && <span className="text-xs text-indigo-400 font-medium">View {wp.rows.length} {wp.rows.length === 1 ? "vendor" : "vendors"} →</span>}
+                        onClick={() => ph.rows?.length > 0 ? setModal(ph) : null}
+                        className={cx("w-full flex items-center px-5 py-3 border-b border-stone-50 transition-colors text-left",
+                          ph.rows?.length > 0 ? "hover:bg-indigo-50/50 cursor-pointer" : "cursor-default",
+                          idx === stageData.phases.length - 1 ? "border-b-0" : "")}>
+                        <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-4" style={{ background: ph.color }} />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-semibold text-stone-700">{ph.name}</span>
+                          {ph.description && <span className="text-xs text-stone-400 ml-2">— {ph.description}</span>}
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="w-32"><BarFill value={wp.total} max={stageData.total} color={wp.color} /></div>
-                          <span className="text-xs font-bold text-gray-800 w-28 text-right">{$f(wp.total)}</span>
-                        </div>
+                        <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
+                        <span className="text-xs font-semibold text-stone-800 tabular-nums w-28 text-right mr-4">{$f(ph.total)}</span>
+                        {ph.rows?.length > 0
+                          ? <span className="text-indigo-400 text-xs w-4 text-center">›</span>
+                          : <span className="w-4" />}
                       </button>
                     </div>
                   ))}
                 </div>
               )}
-            </Card>
+            </div>
           ))}
-
-          {/* Grand total row */}
-          <div className="flex items-center justify-between px-6 py-4 bg-gray-900 rounded-xl mt-2">
-            <span className="text-sm font-bold text-white tracking-wide">Total Inception to Date</span>
-            <span className="text-xl font-bold text-white tabular-nums">{$f(grandTotal)}</span>
+          {/* Grand total */}
+          <div className="flex items-center px-5 py-3.5 bg-stone-100 border border-stone-200 rounded-xl">
+            <span className="flex-1 text-xs font-bold text-stone-900 uppercase tracking-widest">Total — Inception to Date</span>
+            <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">100%</span>
+            <span className="text-sm font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(grandTotal)}</span>
+            <span className="w-4" />
           </div>
         </div>
       )}
@@ -2758,150 +2837,135 @@ function TotalSpendView() {
       {viewMode === "vendor" && (
         <div className="space-y-3">
 
-          {/* Land Acquisition — separate line */}
-          <Card className="overflow-hidden">
+          {/* Land Acquisition */}
+          <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
             <button onClick={() => setExpandedVendor(expandedVendor === "land" ? null : "land")}
-              className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-indigo-500" />
-                <span className="font-semibold text-gray-900 text-sm">Timothy R Smith — Land Acquisition</span>
-                <span className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-600">Pre-Construction</span>
+              className={cx("w-full flex items-center px-5 py-3.5 transition-colors text-left border-b",
+                expandedVendor === "land" ? "bg-stone-50 border-stone-200" : "border-transparent hover:bg-stone-50")}>
+              <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: WP_COLORS["Land Acquisition"] }} />
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-semibold text-stone-800">Timothy R Smith</span>
+                <span className="ml-2 px-2 py-0.5 rounded text-xs bg-indigo-50 text-indigo-600 font-medium">Pre-Construction</span>
               </div>
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-bold text-gray-900">{$f(landTotal)}</span>
-                <span className="text-xs text-gray-400">{grandTotal > 0 ? pf(landTotal/grandTotal) : "—"}</span>
-                <span className="text-gray-300 text-sm">{expandedVendor === "land" ? "▾" : "›"}</span>
-              </div>
+              <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(landAcqTotal/grandTotal) : "—"}</span>
+              <span className="text-xs font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(landAcqTotal)}</span>
+              <span className="text-stone-300 text-xs w-4 text-center">{expandedVendor === "land" ? "▾" : "›"}</span>
             </button>
             {expandedVendor === "land" && (
-              <div className="border-t border-gray-100">
-                <table className="w-full">
-                  <thead><tr><TH>Date</TH><TH>Description</TH><TH right>Amount</TH></tr></thead>
-                  <tbody>
-                    {landAcqVendor.map((p,i) => (
-                      <TR key={i}><TD muted>{p.payment_date}</TD><TD className="text-gray-600">{p.description}</TD><TD right bold className="text-gray-900">{$f(p.amount_usd)}</TD></TR>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <table className="w-full">
+                <thead><tr>
+                  <TH>Date</TH><TH>Description</TH><TH right>Amount (USD)</TH>
+                </tr></thead>
+                <tbody>
+                  {landAcqVendor.map((p,i) => (
+                    <TR key={i}><TD muted>{p.payment_date}</TD><TD className="text-stone-600">{p.description}</TD><TD right bold className="text-stone-900">{$f(p.amount_usd)}</TD></TR>
+                  ))}
+                </tbody>
+              </table>
             )}
-          </Card>
+          </div>
 
-          {/* Big 4 vendors */}
+          {/* Major vendors */}
           {Object.entries(byVendor).sort((a,b) => b[1].total - a[1].total).map(([key, v]) => (
-            <Card key={key} className="overflow-hidden">
+            <div key={key} className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
               <button onClick={() => setExpandedVendor(expandedVendor === key ? null : key)}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold text-gray-900 text-sm">{v.name}</span>
-                  <span className="text-xs text-gray-400">{v.phases.length} phase{v.phases.length !== 1 ? "s" : ""}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm font-bold text-gray-900">{$f(v.total)}</span>
-                  <span className="text-xs text-gray-400">{grandTotal > 0 ? pf(v.total/grandTotal) : "—"}</span>
-                  <span className="text-gray-300 text-sm">{expandedVendor === key ? "▾" : "›"}</span>
-                </div>
+                className={cx("w-full flex items-center px-5 py-3.5 transition-colors text-left border-b",
+                  expandedVendor === key ? "bg-stone-50 border-stone-200" : "border-transparent hover:bg-stone-50")}>
+                <span className="w-3 h-3 rounded-full shrink-0 mr-3 bg-stone-300" />
+                <span className="flex-1 text-xs font-semibold text-stone-800">{v.name}</span>
+                <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(v.total/grandTotal) : "—"}</span>
+                <span className="text-xs font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(v.total)}</span>
+                <span className="text-stone-300 text-xs w-4 text-center">{expandedVendor === key ? "▾" : "›"}</span>
               </button>
               {expandedVendor === key && (
-                <div className="border-t border-gray-100">
-                  <table className="w-full">
-                    <thead><tr><TH>Phase</TH><TH>Stage</TH><TH>Work Package</TH><TH>Status</TH><TH right>Invoiced</TH></tr></thead>
-                    <tbody>
-                      {v.phases.filter(p => p.invoiced > 0 || p.budget > 0).map((p, i) => (
-                        <TR key={i}>
-                          <TD bold className="text-gray-800">{p.phase}</TD>
-                          <TD>{p.stage && <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (STAGE_COLORS[p.stage]||"#9ca3af")+"20", color: STAGE_COLORS[p.stage]||"#9ca3af" }}>{p.stage}</span>}</TD>
-                          <TD>{p.work_package && <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (WP_COLORS[p.work_package]||"#9ca3af")+"20", color: WP_COLORS[p.work_package]||"#9ca3af" }}>{p.work_package}</span>}</TD>
-                          <TD>{statusTag(p.status)}</TD>
-                          <TD right bold className="text-gray-900">{$f(p.invoiced)}</TD>
-                        </TR>
-                      ))}
-                    </tbody>
-                    <tfoot><TR subtle><TD bold colSpan={4} muted>Total</TD><TD right bold className="text-gray-900">{$f(v.total)}</TD></TR></tfoot>
-                  </table>
-                </div>
+                <table className="w-full">
+                  <thead><tr>
+                    <TH>Phase / Contract</TH><TH>Timeline</TH><TH>Phase</TH><TH>Status</TH><TH right>Invoiced (USD)</TH>
+                  </tr></thead>
+                  <tbody>
+                    {v.phases.filter(p => p.invoiced > 0 || p.budget > 0).map((p, i) => (
+                      <TR key={i}>
+                        <TD bold className="text-stone-800">{p.phase}</TD>
+                        <TD>{p.stage && <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (STAGE_COLORS[p.stage]||"#9ca3af")+"20", color: STAGE_COLORS[p.stage]||"#9ca3af" }}>{p.stage}</span>}</TD>
+                        <TD>{p.work_package && <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (WP_COLORS[p.work_package]||"#9ca3af")+"20", color: WP_COLORS[p.work_package]||"#9ca3af" }}>{p.work_package}</span>}</TD>
+                        <TD>{statusTag(p.status)}</TD>
+                        <TD right bold className="text-stone-900">{$f(p.invoiced)}</TD>
+                      </TR>
+                    ))}
+                  </tbody>
+                  <tfoot><TR subtle><TD bold colSpan={4} muted>Total</TD><TD right bold className="text-stone-900">{$f(v.total)}</TD></TR></tfoot>
+                </table>
               )}
-            </Card>
+            </div>
           ))}
 
-          {/* Other vendors — from historical payments */}
+          {/* Other vendors */}
           {Object.keys(otherVendorMap).length > 0 && (
-            <Card className="overflow-hidden">
+            <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
               <button onClick={() => setExpandedVendor(expandedVendor === "other" ? null : "other")}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-gray-400" />
-                  <span className="font-semibold text-gray-900 text-sm">Other Vendors</span>
-                  <span className="text-xs text-gray-400">{Object.keys(otherVendorMap).length} vendors</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm font-bold text-gray-900">{$f(otherVendorTotal)}</span>
-                  <span className="text-xs text-gray-400">{grandTotal > 0 ? pf(otherVendorTotal/grandTotal) : "—"}</span>
-                  <span className="text-gray-300 text-sm">{expandedVendor === "other" ? "▾" : "›"}</span>
-                </div>
+                className={cx("w-full flex items-center px-5 py-3.5 transition-colors text-left border-b",
+                  expandedVendor === "other" ? "bg-stone-50 border-stone-200" : "border-transparent hover:bg-stone-50")}>
+                <span className="w-3 h-3 rounded-full shrink-0 mr-3 bg-stone-300" />
+                <span className="flex-1 text-xs font-semibold text-stone-800">Other Vendors</span>
+                <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(otherVendorTotal/grandTotal) : "—"}</span>
+                <span className="text-xs font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(otherVendorTotal)}</span>
+                <span className="text-stone-300 text-xs w-4 text-center">{expandedVendor === "other" ? "▾" : "›"}</span>
               </button>
               {expandedVendor === "other" && (
-                <div className="border-t border-gray-100">
-                  <table className="w-full">
-                    <thead><tr><TH>Vendor</TH><TH>Category</TH><TH right>Total</TH><TH right>Payments</TH></tr></thead>
-                    <tbody>
-                      {Object.entries(otherVendorMap).sort((a,b) => b[1].total - a[1].total).map(([vendor, d]) => (
-                        <TR key={vendor} onClick={() => setModal({ name: vendor, total: d.total, rows: d.payments })}>
-                          <TD bold className="text-gray-800">{vendor}</TD>
-                          <TD muted>{d.payments[0]?.category || "—"}</TD>
-                          <TD right bold className="text-gray-900">{$f(d.total)}</TD>
-                          <TD right muted>{d.payments.length} payment{d.payments.length !== 1 ? "s" : ""} →</TD>
-                        </TR>
-                      ))}
-                    </tbody>
-                    <tfoot><TR subtle><TD bold colSpan={2} muted>Total</TD><TD right bold className="text-gray-900">{$f(otherVendorTotal)}</TD><TD/></TR></tfoot>
-                  </table>
-                </div>
+                <table className="w-full">
+                  <thead><tr><TH>Vendor</TH><TH>Category</TH><TH right>Total (USD)</TH></tr></thead>
+                  <tbody>
+                    {Object.entries(otherVendorMap).sort((a,b) => b[1].total - a[1].total).map(([vendor, d]) => (
+                      <TR key={vendor} onClick={() => setModal({ name: vendor, total: d.total, rows: d.payments })}>
+                        <TD bold className="text-stone-800">{vendor}</TD>
+                        <TD muted>{d.payments[0]?.category || "—"}</TD>
+                        <TD right bold className="text-stone-900">{$f(d.total)}</TD>
+                      </TR>
+                    ))}
+                  </tbody>
+                  <tfoot><TR subtle><TD bold colSpan={2} muted>Total</TD><TD right bold className="text-stone-900">{$f(otherVendorTotal)}</TD></TR></tfoot>
+                </table>
               )}
-            </Card>
+            </div>
           )}
 
           {/* Batched / To Be Reconciled */}
           {batchedVendors.length > 0 && (
-            <Card className="overflow-hidden border-amber-200">
+            <div className="bg-white border border-amber-200 rounded-xl overflow-hidden shadow-sm">
               <button onClick={() => setExpandedVendor(expandedVendor === "batched" ? null : "batched")}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-amber-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className="text-amber-500">⚑</span>
-                  <span className="font-semibold text-amber-800 text-sm">Batched Payments — To Be Reconciled</span>
-                  <span className="text-xs text-amber-600">{batchedVendors.length} entries · multiple vendors</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm font-bold text-amber-800">{$f(batchedVendorTotal)}</span>
-                  <span className="text-xs text-amber-500">{grandTotal > 0 ? pf(batchedVendorTotal/grandTotal) : "—"}</span>
-                  <span className="text-amber-300 text-sm">{expandedVendor === "batched" ? "▾" : "›"}</span>
-                </div>
+                className={cx("w-full flex items-center px-5 py-3.5 transition-colors text-left border-b",
+                  expandedVendor === "batched" ? "bg-amber-50 border-amber-200" : "border-transparent hover:bg-amber-50")}>
+                <span className="text-amber-400 text-sm mr-3">⚑</span>
+                <span className="flex-1 text-xs font-semibold text-amber-800">Batched Payments — To Be Reconciled</span>
+                <span className="text-xs text-amber-500 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(batchedTotal/grandTotal) : "—"}</span>
+                <span className="text-xs font-bold text-amber-800 tabular-nums w-28 text-right mr-4">{$f(batchedTotal)}</span>
+                <span className="text-amber-300 text-xs w-4 text-center">{expandedVendor === "batched" ? "▾" : "›"}</span>
               </button>
               {expandedVendor === "batched" && (
-                <div className="border-t border-amber-100">
-                  <table className="w-full">
-                    <thead><tr><TH>Date</TH><TH>Description</TH><TH>Notes</TH><TH right>Amount</TH></tr></thead>
-                    <tbody>
-                      {batchedVendors.map((p,i) => (
-                        <TR key={i}>
-                          <TD muted>{p.payment_date}</TD>
-                          <TD bold className="text-gray-800">{p.vendor}</TD>
-                          <TD muted className="text-amber-600">{p.notes}</TD>
-                          <TD right bold className="text-gray-900">{$f(p.amount_usd)}</TD>
-                        </TR>
-                      ))}
-                    </tbody>
-                    <tfoot><TR subtle><TD bold colSpan={3} muted>Total (pending breakdown)</TD><TD right bold className="text-amber-700">{$f(batchedVendorTotal)}</TD></TR></tfoot>
-                  </table>
-                </div>
+                <table className="w-full">
+                  <thead><tr><TH>Date</TH><TH>Description</TH><TH>Notes</TH><TH right>Amount (USD)</TH></tr></thead>
+                  <tbody>
+                    {batchedVendors.map((p,i) => (
+                      <TR key={i}>
+                        <TD muted>{p.payment_date}</TD>
+                        <TD bold className="text-stone-800">{p.vendor}</TD>
+                        <TD muted className="text-amber-600">{p.notes}</TD>
+                        <TD right bold className="text-stone-900">{$f(p.amount_usd)}</TD>
+                      </TR>
+                    ))}
+                  </tbody>
+                  <tfoot><TR subtle><TD bold colSpan={3} muted>Total (pending breakdown)</TD><TD right bold className="text-amber-700">{$f(batchedTotal)}</TD></TR></tfoot>
+                </table>
               )}
-            </Card>
+            </div>
           )}
 
           {/* Grand total */}
-          <div className="flex items-center justify-between px-6 py-4 bg-gray-900 rounded-xl mt-2">
-            <span className="text-sm font-bold text-white tracking-wide">Total Inception to Date</span>
-            <span className="text-xl font-bold text-white tabular-nums">{$f(grandTotal)}</span>
+          <div className="flex items-center px-5 py-3.5 bg-stone-100 border border-stone-200 rounded-xl">
+            <span className="flex-1 text-xs font-bold text-stone-900 uppercase tracking-widest">Total — Inception to Date</span>
+            <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">100%</span>
+            <span className="text-sm font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(grandTotal)}</span>
+            <span className="w-4" />
           </div>
         </div>
       )}
@@ -2912,7 +2976,7 @@ function TotalSpendView() {
           <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-blue-700">Phase Mapping Reference</p>
-              <p className="text-xs text-blue-600 mt-0.5">Shows how each vendor budget phase is tagged to a project stage and work package. Click Edit to update any assignment.</p>
+              <p className="text-xs text-blue-600 mt-0.5">Shows how each vendor contract phase maps to a timeline and project phase. Click Edit to update any assignment.</p>
             </div>
             <button onClick={async () => {
               try {
@@ -2925,44 +2989,61 @@ function TotalSpendView() {
           </div>
           <Card className="overflow-hidden">
             <table className="w-full">
-              <thead><tr><TH>Vendor</TH><TH>Budget Phase</TH><TH>Stage</TH><TH>Work Package</TH><TH right>Invoiced</TH><TH>Status</TH><TH>Edit</TH></tr></thead>
+              <thead><tr>
+                <TH>Vendor</TH><TH>Contract Phase</TH><TH>Timeline</TH><TH>Phase</TH><TH right>Invoiced (USD)</TH><TH>Status</TH><TH>Edit</TH>
+              </tr></thead>
               <tbody>
                 {vendorPhaseMapping.map((vp, i) => {
                   const isEditing = editingPhase === vp.id;
                   return (
                     <TR key={i}>
-                      <TD muted className="whitespace-nowrap">{vp.vendor_name}</TD>
-                      <TD bold className="text-gray-800 max-w-[180px]">{vp.phase}</TD>
+                      <TD bold className="text-stone-800">{vp.vendor_name}</TD>
+                      <TD className="text-stone-600 max-w-xs truncate">{vp.phase}</TD>
                       <TD>
                         {isEditing ? (
-                          <select value={editForm.stage||""} onChange={e=>setEditForm(f=>({...f,stage:e.target.value}))} className={inp+" w-36"}>
-                            <option value="">— Select —</option>
-                            {STAGES.map(s=><option key={s}>{s}</option>)}
+                          <select value={editForm.stage || ""} onChange={e => setEditForm(f => ({...f, stage: e.target.value}))}
+                            className={inp}>
+                            <option value="">— unassigned —</option>
+                            {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                         ) : (
-                          vp.stage ? <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (STAGE_COLORS[vp.stage]||"#9ca3af")+"20", color: STAGE_COLORS[vp.stage]||"#9ca3af" }}>{vp.stage}</span> : <span className="text-gray-300 text-xs">—</span>
+                          vp.stage
+                            ? <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (STAGE_COLORS[vp.stage]||"#9ca3af")+"20", color: STAGE_COLORS[vp.stage]||"#9ca3af" }}>{vp.stage}</span>
+                            : <span className="text-stone-300 text-xs">—</span>
                         )}
                       </TD>
                       <TD>
                         {isEditing ? (
-                          <select value={editForm.work_package||""} onChange={e=>setEditForm(f=>({...f,work_package:e.target.value}))} className={inp+" w-44"}>
-                            <option value="">— Select —</option>
-                            {WORK_PACKAGES.map(w=><option key={w}>{w}</option>)}
+                          <select value={editForm.work_package || ""} onChange={e => setEditForm(f => ({...f, work_package: e.target.value}))}
+                            className={inp}>
+                            <option value="">— unassigned —</option>
+                            {WORK_PACKAGES.map(w => <option key={w} value={w}>{w}</option>)}
                           </select>
                         ) : (
-                          vp.work_package ? <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (WP_COLORS[vp.work_package]||"#9ca3af")+"20", color: WP_COLORS[vp.work_package]||"#9ca3af" }}>{vp.work_package}</span> : <span className="text-gray-300 text-xs">—</span>
+                          vp.work_package
+                            ? <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (WP_COLORS[vp.work_package]||"#9ca3af")+"20", color: WP_COLORS[vp.work_package]||"#9ca3af" }}>{vp.work_package}</span>
+                            : <span className="text-stone-300 text-xs">—</span>
                         )}
                       </TD>
-                      <TD right bold className="text-gray-900">{$f(vp.invoiced)}</TD>
+                      <TD right bold className="text-stone-900">{$f(vp.invoiced)}</TD>
                       <TD>{statusTag(vp.status)}</TD>
-                      <TD onClick={e=>e.stopPropagation()}>
+                      <TD>
                         {isEditing ? (
                           <div className="flex gap-1">
-                            <button onClick={()=>savePhaseTag(vp.id)} disabled={saving} className="text-xs px-2 py-1 bg-gray-900 text-white rounded">{saving?"…":"✓"}</button>
-                            <button onClick={()=>setEditingPhase(null)} className="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded">✕</button>
+                            <button onClick={() => savePhaseTag(vp.id)} disabled={saving}
+                              className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded transition-colors disabled:opacity-50">
+                              {saving ? "…" : "Save"}
+                            </button>
+                            <button onClick={() => setEditingPhase(null)}
+                              className="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-semibold rounded transition-colors">
+                              ✕
+                            </button>
                           </div>
                         ) : (
-                          <button onClick={()=>{setEditingPhase(vp.id);setEditForm({stage:vp.stage||"",work_package:vp.work_package||""});}} className="text-xs px-2 py-1 border border-gray-200 rounded text-gray-400 hover:text-gray-700 hover:border-gray-400 transition-colors">Edit</button>
+                          <button onClick={() => { setEditingPhase(vp.id); setEditForm({ stage: vp.stage || "", work_package: vp.work_package || "" }); }}
+                            className="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-semibold rounded transition-colors">
+                            Edit
+                          </button>
                         )}
                       </TD>
                     </TR>
@@ -2974,23 +3055,29 @@ function TotalSpendView() {
         </div>
       )}
 
-      {/* Work package detail modal */}
+      {/* ── DRILL-DOWN MODAL ── */}
       {modal && (
-        <Modal title={modal.name} subtitle={`${$f(modal.total)} total`} onClose={() => setModal(null)} wide>
+        <Modal title={modal.name} subtitle={modal.description || "Payment detail"} onClose={() => setModal(null)} wide>
           <table className="w-full text-xs">
-            <thead><tr><TH>Date</TH><TH>Vendor</TH><TH>Description</TH><TH right>Amount</TH>{modal.rows[0]?.is_batched !== undefined && <TH>Flag</TH>}</tr></thead>
+            <thead><tr>
+              <TH>Date</TH><TH>Vendor</TH><TH>Description</TH><TH right>Amount (USD)</TH>
+            </tr></thead>
             <tbody>
-              {[...modal.rows].sort((a,b)=>(a.payment_date||"").localeCompare(b.payment_date||"")).map((p,i)=>(
+              {(modal.rows || []).map((p, i) => (
                 <TR key={i}>
-                  <TD muted>{p.payment_date}</TD>
-                  <TD bold className="text-gray-800">{p.vendor}</TD>
-                  <TD muted className="max-w-xs">{p.description || p.phase}</TD>
-                  <TD right bold className="text-gray-900">{$f(p.amount_usd)}</TD>
-                  {p.is_batched !== undefined && <TD>{p.is_batched && <Tag text="⚑ Batched" color="amber" />}</TD>}
+                  <TD muted className="whitespace-nowrap">{p.payment_date || "—"}</TD>
+                  <TD bold className="text-stone-800">{p.vendor || "—"}</TD>
+                  <TD className="text-stone-600">{p.description || "—"}</TD>
+                  <TD right bold className="text-stone-900">{$f(p.amount_usd)}</TD>
                 </TR>
               ))}
             </tbody>
-            <tfoot><TR subtle><TD bold colSpan={3} muted>Total</TD><TD right bold className="text-gray-900">{$f(modal.rows.reduce((s,p)=>s+(p.amount_usd||0),0))}</TD>{modal.rows[0]?.is_batched !== undefined && <TD/>}</TR></tfoot>
+            <tfoot>
+              <TR subtle>
+                <TD bold colSpan={3} muted>Total</TD>
+                <TD right bold className="text-stone-900">{$f((modal.rows||[]).reduce((s,p) => s+(p.amount_usd||0), 0))}</TD>
+              </TR>
+            </tfoot>
           </table>
         </Modal>
       )}
