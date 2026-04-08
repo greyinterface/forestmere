@@ -1936,8 +1936,8 @@ function TotalSpendView() {
               <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
               <span className="text-sm text-gray-400 ml-2">{ph.desc}</span>
             </div>
-            <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
-            <span className="text-sm font-semibold text-gray-900 tabular-nums w-32 text-right mr-3">{$f(ph.total)}</span>
+            
+            <span className="text-sm font-semibold text-gray-900 tabular-nums w-36 text-right">{$f(ph.total)}</span>
             <span className="text-gray-300 group-hover:text-indigo-400 text-sm transition-colors">›</span>
           </button>
         ))}
@@ -1969,8 +1969,8 @@ function TotalSpendView() {
               <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
               <span className="text-sm text-gray-400 ml-2">{ph.desc}</span>
             </div>
-            <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
-            <span className="text-sm font-semibold text-gray-900 tabular-nums w-32 text-right mr-3">{$f(ph.total)}</span>
+            
+            <span className="text-sm font-semibold text-gray-900 tabular-nums w-36 text-right">{$f(ph.total)}</span>
             <span className="text-gray-300 group-hover:text-indigo-400 text-sm transition-colors">›</span>
           </button>
         ))}
@@ -1985,7 +1985,7 @@ function TotalSpendView() {
 
         {/* Grand total */}
         <div className="px-5 py-3 bg-[#f5f1ea] flex items-center justify-between border-t-2 border-[#d4cfc8]">
-          <span className="text-sm font-bold text-gray-800 uppercase tracking-widest">Total — Inception to Date</span>
+          <span className="text-sm font-bold text-gray-900 uppercase tracking-widest">Total — Inception to Date</span>
           <div className="flex items-center gap-6">
             <span className="text-sm text-gray-400 tabular-nums">100%</span>
             <span className="text-sm font-bold text-white tabular-nums w-32 text-right">{$f(grandTotal)}</span>
@@ -2043,10 +2043,8 @@ function TotalSpendView() {
               <button
                 onClick={() => setExpandedStage(expandedStage === stageData.stage ? null : stageData.stage)}
                 className="w-full flex items-center px-5 py-2.5 hover:bg-[#faf8f5] transition-colors text-left">
-                <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: stageData.color }} />
                 <span className="flex-1 text-sm font-bold text-gray-800">{stageData.stage}</span>
-                <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(stageData.total/grandTotal) : "—"}</span>
-                <span className="text-sm font-bold text-gray-900 tabular-nums w-32 text-right mr-3">{$f(stageData.total)}</span>
+                <span className="text-sm font-bold text-gray-900 tabular-nums w-36 text-right mr-3">{$f(stageData.total)}</span>
                 <span className="text-gray-300 text-sm w-4 text-center">{expandedStage === stageData.stage ? "▾" : "›"}</span>
               </button>
               {expandedStage === stageData.stage && (
@@ -2059,8 +2057,8 @@ function TotalSpendView() {
                         <span className="text-sm font-semibold text-gray-700">{ph.name}</span>
                         {ph.desc && <span className="text-sm text-gray-400 ml-2">— {ph.desc}</span>}
                       </div>
-                      <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
-                      <span className="text-sm font-semibold text-gray-900 tabular-nums w-32 text-right mr-3">{$f(ph.total)}</span>
+                      
+                      <span className="text-sm font-semibold text-gray-900 tabular-nums w-36 text-right">{$f(ph.total)}</span>
                       <span className="text-gray-300 group-hover:text-indigo-400 text-sm w-4 text-center transition-colors">›</span>
                     </button>
                   ))}
@@ -2088,13 +2086,11 @@ function TotalSpendView() {
             <div key={v.key} className="bg-white border border-[#ede9e3] rounded-lg overflow-hidden">
               <button onClick={() => setExpandedVendor(expandedVendor === v.key ? null : v.key)}
                 className="w-full flex items-center px-5 py-2.5 hover:bg-[#faf8f5] transition-colors text-left">
-                <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: v.color }} />
                 <div className="flex-1 min-w-0 flex items-center gap-3">
                   <span className="text-sm font-semibold text-gray-800">{v.name}</span>
                   {v.tag && <span className="text-sm font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">{v.tag}</span>}
                 </div>
-                <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(v.total/grandTotal) : "—"}</span>
-                <span className="text-sm font-bold text-gray-900 tabular-nums w-32 text-right mr-3">{$f(v.total)}</span>
+                <span className="text-sm font-bold text-gray-900 tabular-nums w-36 text-right mr-3">{$f(v.total)}</span>
                 <span className="text-gray-300 text-sm w-4 text-center">{expandedVendor === v.key ? "▾" : "›"}</span>
               </button>
               {expandedVendor === v.key && (
@@ -2128,7 +2124,7 @@ function TotalSpendView() {
                 className="w-full flex items-center px-5 py-2.5 hover:bg-[#faf8f5] transition-colors text-left">
                 <span className="w-3 h-3 rounded-full shrink-0 mr-3 bg-gray-300" />
                 <span className="flex-1 text-sm font-semibold text-gray-800">Other Vendors</span>
-                <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(Object.entries(otherVendorMap).filter(([k])=>!isExcluded(k)).reduce((s,[,v])=>s+v.total,0)/grandTotal) : "—"}</span>
+                
                 <span className="text-sm font-bold text-gray-900 tabular-nums w-32 text-right mr-3">{$f(Object.entries(otherVendorMap).filter(([k])=>!isExcluded(k)).reduce((s,[,v])=>s+v.total,0))}</span>
                 <span className="text-gray-300 text-sm w-4 text-center">{expandedVendor === "other" ? "▾" : "›"}</span>
               </button>
@@ -3305,13 +3301,13 @@ const NAV = [
 ];
 
 const PAGE_TITLES = {
-  dashboard:   { title: "Project Overview",         sub: "Camp Forestmere · JXM / Camp Forestmere Corp." },
-  totalspend:  { title: "Total Spend",              sub: "Inception to date · All phases · USD" },
-  phase11:     { title: "Phase 1.1 — Construction", sub: "Taconic Builders · C25-104 · Jun 2025 – Apr 2027" },
-  designeng:   { title: "Design & Engineering",     sub: "ArchitectureFirm · Reed Hilderbrand · Ivan Zdrahal PE" },
+  dashboard:   { title: "PROJECT OVERVIEW",         sub: "Camp Forestmere" },
+  totalspend:  { title: "TOTAL SPEND",              sub: "Inception to date · All phases · USD" },
+  phase11:     { title: "PHASE 1.1 — CONSTRUCTION", sub: "Taconic Builders · C25-104 · Jun 2025 – Apr 2027" },
+  designeng:   { title: "DESIGN & ENGINEERING",     sub: "ArchitectureFirm · Reed Hilderbrand · Ivan Zdrahal PE" },
   road:        { title: "Road Construction",            sub: "Taconic Builders · C23-101 · Jan 2024 – Jun 2024 · Complete" },
   demolition:  { title: "Demolition",                   sub: "Taconic Builders / Mayville Enterprises · C25-102 · Jan 2025 – May 2025 · Complete" },
-  uploads:     { title: "Documents",                sub: "Upload & parse invoices, COs, award letters" },
+  uploads:     { title: "DOCUMENTS",               sub: "Upload & parse invoices, COs, award letters" },
 };
 
 function AppShell() {
@@ -3414,7 +3410,7 @@ function AppShell() {
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <h1 style={{ fontSize: 14, fontWeight: 600, color: "#111827", margin: 0, letterSpacing: "-0.1px" }}>
+              <h1 style={{ fontSize: 13, fontWeight: 500, color: "#111827", margin: 0, letterSpacing: "0.06em" }}>
                 {page.title}
               </h1>
               <p style={{ fontSize: 12, color: "#b0b7c3", margin: "2px 0 0", fontWeight: 400 }}>
