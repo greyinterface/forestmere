@@ -761,8 +761,9 @@ app.get('/api/data', async (req, res) => {
 
     let historicalTotal = 0;
     try {
-      // Exclude Taconic Phase 1.1 bills (reconciled_to='invoices') — those are tracked in invoices table
-      const histR = await pool.query("SELECT COALESCE(SUM(amount_usd),0) as total FROM historical_payments WHERE reconciled_to IS DISTINCT FROM 'invoices'");
+      // historicalTotal = ALL Zoho bills + 3 journal entries = complete inception to date spend
+      // This is the single source of truth. Taconic Phase 1.1 included here from Zoho.
+      const histR = await pool.query('SELECT COALESCE(SUM(amount_usd),0) as total FROM historical_payments');
       historicalTotal = parseFloat(histR.rows[0]?.total || 0);
     } catch(e) { historicalTotal = 0; }
 
@@ -1314,7 +1315,7 @@ app.get('/api/project-phases', async (req, res) => {
   try {
     const [phasesR, paymentsR, vendorPhasesR] = await Promise.all([
       pool.query('SELECT * FROM project_phases ORDER BY sort_order'),
-      pool.query("SELECT * FROM historical_payments WHERE reconciled_to IS DISTINCT FROM 'invoices' ORDER BY payment_date ASC"),
+      pool.query('SELECT * FROM historical_payments ORDER BY payment_date ASC'),
       pool.query('SELECT vp.*, v.name as vendor_name, v.full_name as vendor_full_name FROM vendor_phases vp JOIN vendors v ON v.key = vp.vendor_key ORDER BY vp.vendor_key, vp.sort_order'),
     ]);
     const allPayments = paymentsR.rows.map(p => ({ ...p, amount_usd: parseFloat(p.amount_usd) }));
