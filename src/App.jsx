@@ -1470,165 +1470,207 @@ function CashFlowView() {
 }
 
 // ─── PRIOR PHASES ─────────────────────────────────────────────────────────────
-function PriorPhasesView() {
+function PriorPhaseShell({ phaseId }) {
   const { priorPhases } = useAppData();
-  const [selected, setSelected] = useState(null);
-  const totalPriorPaid = priorPhases.reduce((s, p) => s + parseFloat(p.total_paid), 0);
-  const totalOriginal = priorPhases.reduce((s, p) => s + parseFloat(p.original_contract), 0);
-  const totalFinal = priorPhases.reduce((s, p) => s + parseFloat(p.final_contract), 0);
+  const phase = priorPhases.find(p => p.id === phaseId);
+  const [subTab, setSubTab] = useState("summary");
 
-  const PHASE_COLORS = { road: "#f59e0b", demolition: "#ef4444" };
+  const PHASE_META = {
+    road: {
+      color: "#f59e0b",
+      contract: "C23-101",
+      label: "Road Construction",
+      dateRange: "Jan 2024 – Jun 2024",
+    },
+    demolition: {
+      color: "#ef4444",
+      contract: "C25-102",
+      label: "Demolition",
+      dateRange: "Jan 2025 – May 2025",
+    },
+  };
+  const meta = PHASE_META[phaseId] || {};
+
+  const SUB_TABS = [
+    { id: "summary",        label: "Summary"        },
+    { id: "budget",         label: "Budget"         },
+    { id: "cos",            label: "Change Orders"  },
+  ];
+
+  if (!phase) return (
+    <div className="text-center py-20 text-gray-400 text-sm">Phase data not found.</div>
+  );
+
+  const variance = phase.final_contract - phase.original_contract;
 
   return (
     <div className="space-y-5">
-      {/* KPI row */}
-      <div className="grid grid-cols-3 gap-4">
-        <Stat label="Total Paid" value={$f(totalPriorPaid)} sub="Road Construction + Demolition" accent />
-        <Stat label="Final Contract Value" value={$f(totalFinal)} sub="After change orders" />
-        <Stat label="Status" value="Complete" sub="Both phases closed out" />
+      {/* Sub-tab nav */}
+      <div className="flex gap-1 border-b border-gray-200 -mt-2">
+        {SUB_TABS.map(t => (
+          <button key={t.id} onClick={() => setSubTab(t.id)}
+            className={cx("px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
+              subTab === t.id ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600")}>
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Phase cards */}
-      {priorPhases.map(phase => (
-        <Card key={phase.id} className="overflow-hidden">
-          {/* Header */}
-          <button onClick={() => setSelected(selected?.id === phase.id ? null : phase)}
-            className="w-full flex items-center justify-between px-6 py-5 hover:bg-gray-50 transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="w-1 h-12 rounded-full" style={{ background: PHASE_COLORS[phase.id] || "#6366f1" }} />
-              <div className="text-left">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="font-bold text-gray-900 text-sm">{phase.name}</p>
-                  <Tag text="Complete" color="green" />
-                </div>
-                <p className="text-xs text-gray-400">{phase.job_num} · GC: {phase.gc} · {phase.start_date} – {phase.end_date}</p>
-                {phase.subcontractor && <p className="text-xs text-gray-400">Sub: {phase.subcontractor}</p>}
-              </div>
+      {/* ── SUMMARY ── */}
+      {subTab === "summary" && (
+        <div className="space-y-5">
+          {/* Status banner */}
+          <div className="flex items-center gap-3 px-5 py-3.5 rounded-xl border" style={{ background: meta.color + "10", borderColor: meta.color + "40" }}>
+            <span className="w-3 h-3 rounded-full shrink-0" style={{ background: meta.color }} />
+            <div className="flex-1">
+              <p className="text-xs font-bold text-stone-800">{meta.label} — {meta.contract}</p>
+              <p className="text-xs text-stone-500 mt-0.5">{phase.gc}{phase.subcontractor ? ` · Sub: ${phase.subcontractor}` : ""} · {phase.start_date} – {phase.end_date}</p>
             </div>
-            <div className="flex items-center gap-8">
-              <div className="text-right">
-                <p className="text-xs text-gray-400">Original</p>
-                <p className="text-sm font-semibold text-gray-600">{$f(phase.original_contract)}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-400">Final Contract</p>
-                <p className="text-sm font-semibold text-gray-700">{$f(phase.final_contract)}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-400">Total Paid</p>
-                <p className="text-base font-bold text-gray-900">{$f(phase.total_paid)}</p>
-              </div>
-              <span className="text-gray-300 text-sm">{selected?.id === phase.id ? "▾" : "›"}</span>
+            <Tag text="Complete" color="green" />
+          </div>
+
+          {/* KPI cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Stat label="Original Contract" value={$f(phase.original_contract)} sub={meta.contract} />
+            <Stat label="Approved COs"      value={$f(phase.approved_cos)}      sub={phase.cos?.length > 0 ? `${phase.cos.length} change order${phase.cos.length !== 1 ? "s" : ""}` : "No change orders"} />
+            <Stat label="Final Contract"    value={$f(phase.final_contract)}    sub={variance !== 0 ? (variance > 0 ? `+${$f(variance)} over original` : `-${$f(-variance)} under original`) : "Equals original"} />
+            <Stat label="Total Paid"        value={$f(phase.total_paid)}        sub="Fully paid · phase closed" accent />
+          </div>
+
+          {/* Scope */}
+          {phase.scope && (
+            <Card className="p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">Scope of Work</p>
+              <p className="text-xs text-stone-600 leading-relaxed">{phase.scope}</p>
+            </Card>
+          )}
+
+          {/* Notes */}
+          {phase.notes && (
+            <Card className="p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">Notes</p>
+              <p className="text-xs text-stone-500 leading-relaxed">{phase.notes}</p>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* ── BUDGET ── */}
+      {subTab === "budget" && (
+        <div className="space-y-4">
+          {/* Contract summary ledger */}
+          <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="px-5 py-3 border-b border-stone-100">
+              <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Contract Summary</span>
             </div>
-          </button>
-
-          {/* Expanded detail */}
-          {selected?.id === phase.id && (
-            <div className="border-t border-gray-100 px-6 py-5 space-y-5">
-              {/* Scope */}
-              {phase.scope && (
-                <div className="bg-gray-50 rounded-xl px-4 py-3">
-                  <p className="text-xs font-semibold text-gray-500 mb-1">Scope</p>
-                  <p className="text-xs text-gray-600">{phase.scope}</p>
+            <div className="divide-y divide-stone-50">
+              {[
+                ["Original Contract",  $f(phase.original_contract),  "text-stone-800"],
+                ["Approved COs",       $f(phase.approved_cos),       variance > 0 ? "text-amber-600" : "text-emerald-600"],
+                ["Final Contract",     $f(phase.final_contract),     "text-stone-900 font-bold"],
+                ["Total Paid",         $f(phase.total_paid),         "text-indigo-600 font-bold"],
+              ].map(([label, val, cls]) => (
+                <div key={label} className="flex items-center px-5 py-3">
+                  <span className="flex-1 text-xs text-stone-500">{label}</span>
+                  <span className={cx("text-xs tabular-nums", cls)}>{val}</span>
                 </div>
-              )}
+              ))}
+            </div>
+          </div>
 
-              {/* Contract summary */}
-              <div className="grid grid-cols-4 gap-3">
-                {[
-                  ["Original Contract", $f(phase.original_contract)],
-                  ["Approved COs", $f(phase.approved_cos)],
-                  ["Final Contract", $f(phase.final_contract)],
-                  ["Total Paid", $f(phase.total_paid)],
-                ].map(([k,v]) => (
-                  <div key={k} className="bg-gray-50 rounded-xl px-4 py-3">
-                    <p className="text-xs text-gray-400 mb-1">{k}</p>
-                    <p className="text-sm font-bold text-gray-900">{v}</p>
-                  </div>
-                ))}
+          {/* Line items */}
+          {phase.lineItems?.length > 0 && (
+            <Card className="overflow-hidden">
+              <div className="px-5 py-3 border-b border-stone-100">
+                <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Budget Line Items</span>
               </div>
-
-              {/* Line items */}
-              {phase.lineItems?.length > 0 && (
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Line Items</p>
-                  <table className="w-full">
-                    <thead><tr><TH>Code</TH><TH>Description</TH><TH right>Budget</TH><TH right>Paid</TH><TH right>Variance</TH></tr></thead>
-                    <tbody>
-                      {phase.lineItems.map(li => {
-                        const variance = li.paid - li.budget;
-                        return (
-                          <TR key={li.code}>
-                            <TD mono muted>{li.code}</TD>
-                            <TD className="text-gray-700">{li.description}</TD>
-                            <TD right muted>{$f(li.budget)}</TD>
-                            <TD right bold className="text-gray-900">{$f(li.paid)}</TD>
-                            <TD right className={variance > 0 ? "text-red-500 font-semibold" : variance < 0 ? "text-emerald-600 font-semibold" : "text-gray-300"}>
-                              {variance > 0 ? `+${$f(variance)}` : variance < 0 ? `-${$f(-variance)}` : "—"}
-                            </TD>
-                          </TR>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <TR subtle>
-                        <TD bold colSpan={2} muted>Total</TD>
-                        <TD right muted>{$f(phase.lineItems.reduce((s,l)=>s+l.budget,0))}</TD>
-                        <TD right bold className="text-gray-900">{$f(phase.lineItems.reduce((s,l)=>s+l.paid,0))}</TD>
-                        <TD />
+              <table className="w-full">
+                <thead><tr>
+                  <TH>Code</TH><TH>Description</TH><TH right>Budget</TH><TH right>Paid</TH><TH right>Variance</TH>
+                </tr></thead>
+                <tbody>
+                  {phase.lineItems.map(li => {
+                    const v = li.paid - li.budget;
+                    return (
+                      <TR key={li.code}>
+                        <TD muted className="font-mono text-xs">{li.code}</TD>
+                        <TD className="text-stone-700">{li.description}</TD>
+                        <TD right muted>{$f(li.budget)}</TD>
+                        <TD right bold className="text-stone-900">{$f(li.paid)}</TD>
+                        <TD right className={v > 0 ? "text-red-500 font-semibold" : v < 0 ? "text-emerald-600 font-semibold" : "text-stone-300"}>
+                          {v > 0 ? `+${$f(v)}` : v < 0 ? `-${$f(-v)}` : "—"}
+                        </TD>
                       </TR>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <TR subtle>
+                    <TD bold colSpan={2} muted>Total</TD>
+                    <TD right muted>{$f(phase.lineItems.reduce((s,l) => s+l.budget, 0))}</TD>
+                    <TD right bold className="text-stone-900">{$f(phase.lineItems.reduce((s,l) => s+l.paid, 0))}</TD>
+                    <TD />
+                  </TR>
+                </tfoot>
+              </table>
+            </Card>
+          )}
+        </div>
+      )}
 
-              {/* Change orders */}
-              {phase.cos?.length > 0 && (
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Change Orders</p>
-                  <div className="space-y-1.5">
-                    {phase.cos.map(co => (
-                      <div key={co.no} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
-                        <span className="text-xs font-bold text-gray-500 w-16">{co.no}</span>
-                        <span className="text-xs text-gray-600 flex-1">{co.description}</span>
-                        <span className={cx("text-xs font-bold tabular-nums ml-4", co.amount < 0 ? "text-emerald-600" : "text-amber-600")}>
-                          {co.amount < 0 ? `-${$f(-co.amount)}` : `+${$f(co.amount)}`}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+      {/* ── CHANGE ORDERS ── */}
+      {subTab === "cos" && (
+        <div className="space-y-4">
+          {phase.cos?.length > 0 ? (
+            <>
+              {/* CO summary */}
+              <div className="grid grid-cols-3 gap-3">
+                <Stat label="Original Contract" value={$f(phase.original_contract)} sub="Pre-CO baseline" />
+                <Stat label="Net CO Impact"     value={(phase.approved_cos >= 0 ? "+" : "") + $f(phase.approved_cos)} sub={`${phase.cos.length} change order${phase.cos.length !== 1 ? "s" : ""}`} />
+                <Stat label="Final Contract"    value={$f(phase.final_contract)}    sub="Original + all COs" accent />
+              </div>
+              <Card className="overflow-hidden">
+                <div className="px-5 py-3 border-b border-stone-100">
+                  <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Change Orders</span>
                 </div>
-              )}
+                <table className="w-full">
+                  <thead><tr>
+                    <TH>CO #</TH><TH>Description</TH><TH right>Amount (USD)</TH>
+                  </tr></thead>
+                  <tbody>
+                    {phase.cos.map(co => (
+                      <TR key={co.no}>
+                        <TD bold className="text-stone-700 font-mono text-xs">{co.no}</TD>
+                        <TD className="text-stone-600">{co.description}</TD>
+                        <TD right bold className={co.amount < 0 ? "text-emerald-600" : "text-amber-600"}>
+                          {co.amount < 0 ? `-${$f(-co.amount)}` : `+${$f(co.amount)}`}
+                        </TD>
+                      </TR>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <TR subtle>
+                      <TD bold colSpan={2} muted>Net Total</TD>
+                      <TD right bold className={phase.approved_cos < 0 ? "text-emerald-600" : "text-amber-600"}>
+                        {phase.approved_cos < 0 ? `-${$f(-phase.approved_cos)}` : `+${$f(phase.approved_cos)}`}
+                      </TD>
+                    </TR>
+                  </tfoot>
+                </table>
+              </Card>
+            </>
+          ) : (
+            <div className="text-center py-16 text-stone-400">
+              <p className="text-sm font-semibold text-stone-500 mb-1">No Change Orders</p>
+              <p className="text-xs">This phase had no change orders.</p>
             </div>
           )}
-        </Card>
-      ))}
-
-      {/* Project timeline context */}
-      <Card className="p-6">
-        <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">Project Timeline Context</p>
-        <div className="relative pl-8">
-          <div className="absolute left-3 top-1 bottom-1 w-0.5 bg-gray-200 rounded-full" />
-          {[
-            { label: "Land Acquisition", date: "Jun 2022", color: "#6366f1", sub: "$3.63M · Timothy R Smith" },
-            { label: "Design & Permitting", date: "2022–2025", color: "#8b5cf6", sub: "Architecture, landscape, civil, permits" },
-            { label: "Road Construction", date: "Jan–Jun 2024", color: "#f59e0b", sub: `${$f(priorPhases.find(p=>p.id==="road")?.total_paid||0)} paid · C23-101` },
-            { label: "Demolition", date: "Jan–May 2025", color: "#ef4444", sub: `${$f(priorPhases.find(p=>p.id==="demolition")?.total_paid||0)} paid · C25-102` },
-            { label: "Phase 1.1 — Construction", date: "Jun 2025 – Apr 2027", color: "#10b981", sub: "Taconic Builders · C25-104 · In Progress" },
-          ].map((item, i) => (
-            <div key={i} className="flex items-start gap-4 mb-4 relative">
-              <div className="absolute -left-5 top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm" style={{ background: item.color }} />
-              <div>
-                <p className="text-xs font-semibold text-gray-800">{item.label}</p>
-                <p className="text-xs text-gray-400">{item.date} · {item.sub}</p>
-              </div>
-            </div>
-          ))}
         </div>
-      </Card>
+      )}
     </div>
   );
 }
+
 
 // ─── VENDORS HUB ──────────────────────────────────────────────────────────────
 function VendorsView() {
@@ -4099,7 +4141,8 @@ const NAV = [
   { id: "totalspend",  label: "Total Spend",           icon: "∑" },
   { id: "phase11",     label: "Phase 1.1",             icon: "◉" },
   { id: "designeng",   label: "Design & Engineering",  icon: "⬡" },
-  { id: "priorphases", label: "Prior Phases",          icon: "◷" },
+  { id: "road",        label: "Road Construction",     icon: "◷" },
+  { id: "demolition",  label: "Demolition",            icon: "◈" },
   { id: "uploads",     label: "Documents",             icon: "⊕" },
 ];
 
@@ -4108,7 +4151,8 @@ const PAGE_TITLES = {
   totalspend:  { title: "Total Spend",              sub: "Inception to date · All phases · USD" },
   phase11:     { title: "Phase 1.1 — Construction", sub: "Taconic Builders · C25-104 · Jun 2025 – Apr 2027" },
   designeng:   { title: "Design & Engineering",     sub: "ArchitectureFirm · Reed Hilderbrand · Ivan Zdrahal PE" },
-  priorphases: { title: "Prior Phases",             sub: "Road Construction (C23-101) · Demolition (C25-102)" },
+  road:        { title: "Road Construction",            sub: "Taconic Builders · C23-101 · Jan 2024 – Jun 2024 · Complete" },
+  demolition:  { title: "Demolition",                   sub: "Taconic Builders / Mayville Enterprises · C25-102 · Jan 2025 – May 2025 · Complete" },
   uploads:     { title: "Documents",                sub: "Upload & parse invoices, COs, award letters" },
 };
 
@@ -4118,7 +4162,7 @@ function AppShell() {
   // Persist active tab in URL hash so refresh keeps you on the same page
   const getInitialTab = () => {
     const hash = window.location.hash.replace("#", "");
-    const validTabs = ["dashboard","totalspend","phase11","designeng","priorphases","uploads"];
+    const validTabs = ["dashboard","totalspend","phase11","designeng","road","demolition","uploads"];
     // Handle phase11:subtab format
     if (hash.startsWith("phase11:")) return hash;
     return validTabs.includes(hash) ? hash : "dashboard";
@@ -4226,7 +4270,8 @@ function AppShell() {
           {tab === "phase11"     && <Phase11Shell initialSubTab={tab.startsWith("phase11:") ? tab.split(":")[1] : "landing"} />}
           {tab.startsWith("phase11:") && <Phase11Shell initialSubTab={tab.split(":")[1]} />}
           {tab === "designeng"   && <DesignEngShell />}
-          {tab === "priorphases" && <PriorPhasesView />}
+          {tab === "road"        && <PriorPhaseShell phaseId="road" />}
+          {tab === "demolition"  && <PriorPhaseShell phaseId="demolition" />}
           {tab === "uploads"     && <DocumentsView />}
         </main>
       </div>
