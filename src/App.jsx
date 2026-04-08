@@ -576,7 +576,7 @@ function PriorPhaseShell({ phaseId }) {
       {subTab === "summary" && (
         <div className="space-y-4">
           {/* Status banner */}
-          <div className="flex items-center gap-3 px-5 py-3.5 rounded-lg border" style={{ background: meta.color + "10", borderColor: meta.color + "40" }}>
+          <div className="flex items-center gap-3 px-5 py-3.5 rounded-lg border border-[#ede9e3] bg-white">
             <span className="w-3 h-3 rounded-full shrink-0" style={{ background: meta.color }} />
             <div className="flex-1">
               <p className="text-sm font-bold text-gray-800">{meta.label} — {meta.contract}</p>
