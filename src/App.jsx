@@ -1427,114 +1427,160 @@ function CashFlowView() {
 // ─── PRIOR PHASES ─────────────────────────────────────────────────────────────
 function PriorPhasesView() {
   const { priorPhases } = useAppData();
-  const [modal, setModal] = useState(null);
+  const [selected, setSelected] = useState(null);
   const totalPriorPaid = priorPhases.reduce((s, p) => s + parseFloat(p.total_paid), 0);
+  const totalOriginal = priorPhases.reduce((s, p) => s + parseFloat(p.original_contract), 0);
+  const totalFinal = priorPhases.reduce((s, p) => s + parseFloat(p.final_contract), 0);
+
+  const PHASE_COLORS = { road: "#f59e0b", demolition: "#ef4444" };
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="Prior Phases" value="2" sub="Demolition + Road Construction" onClick={() => setModal("summary")} />
-        <Stat label="Total Paid" value={$f(totalPriorPaid)} sub="Both phases complete" accent onClick={() => setModal("summary")} />
-        <Stat label="Status" value="Complete" sub="All prior work closed out" />
+      {/* KPI row */}
+      <div className="grid grid-cols-3 gap-4">
+        <Stat label="Total Paid" value={$f(totalPriorPaid)} sub="Road Construction + Demolition" accent />
+        <Stat label="Final Contract Value" value={$f(totalFinal)} sub="After change orders" />
+        <Stat label="Status" value="Complete" sub="Both phases closed out" />
       </div>
-      <Card className="p-5">
-        <SectionTitle>Project Timeline</SectionTitle>
-        <div className="relative pl-6">
-          <div className="absolute left-2 top-2 bottom-2 w-px bg-gray-200" />
+
+      {/* Phase cards */}
+      {priorPhases.map(phase => (
+        <Card key={phase.id} className="overflow-hidden">
+          {/* Header */}
+          <button onClick={() => setSelected(selected?.id === phase.id ? null : phase)}
+            className="w-full flex items-center justify-between px-6 py-5 hover:bg-gray-50 transition-colors">
+            <div className="flex items-center gap-4">
+              <div className="w-1 h-12 rounded-full" style={{ background: PHASE_COLORS[phase.id] || "#6366f1" }} />
+              <div className="text-left">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="font-bold text-gray-900 text-sm">{phase.name}</p>
+                  <Tag text="Complete" color="green" />
+                </div>
+                <p className="text-xs text-gray-400">{phase.job_num} · GC: {phase.gc} · {phase.start_date} – {phase.end_date}</p>
+                {phase.subcontractor && <p className="text-xs text-gray-400">Sub: {phase.subcontractor}</p>}
+              </div>
+            </div>
+            <div className="flex items-center gap-8">
+              <div className="text-right">
+                <p className="text-xs text-gray-400">Original</p>
+                <p className="text-sm font-semibold text-gray-600">{$f(phase.original_contract)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-400">Final Contract</p>
+                <p className="text-sm font-semibold text-gray-700">{$f(phase.final_contract)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-400">Total Paid</p>
+                <p className="text-base font-bold text-gray-900">{$f(phase.total_paid)}</p>
+              </div>
+              <span className="text-gray-300 text-sm">{selected?.id === phase.id ? "▾" : "›"}</span>
+            </div>
+          </button>
+
+          {/* Expanded detail */}
+          {selected?.id === phase.id && (
+            <div className="border-t border-gray-100 px-6 py-5 space-y-5">
+              {/* Scope */}
+              {phase.scope && (
+                <div className="bg-gray-50 rounded-xl px-4 py-3">
+                  <p className="text-xs font-semibold text-gray-500 mb-1">Scope</p>
+                  <p className="text-xs text-gray-600">{phase.scope}</p>
+                </div>
+              )}
+
+              {/* Contract summary */}
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  ["Original Contract", $f(phase.original_contract)],
+                  ["Approved COs", $f(phase.approved_cos)],
+                  ["Final Contract", $f(phase.final_contract)],
+                  ["Total Paid", $f(phase.total_paid)],
+                ].map(([k,v]) => (
+                  <div key={k} className="bg-gray-50 rounded-xl px-4 py-3">
+                    <p className="text-xs text-gray-400 mb-1">{k}</p>
+                    <p className="text-sm font-bold text-gray-900">{v}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Line items */}
+              {phase.lineItems?.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Line Items</p>
+                  <table className="w-full">
+                    <thead><tr><TH>Code</TH><TH>Description</TH><TH right>Budget</TH><TH right>Paid</TH><TH right>Variance</TH></tr></thead>
+                    <tbody>
+                      {phase.lineItems.map(li => {
+                        const variance = li.paid - li.budget;
+                        return (
+                          <TR key={li.code}>
+                            <TD mono muted>{li.code}</TD>
+                            <TD className="text-gray-700">{li.description}</TD>
+                            <TD right muted>{$f(li.budget)}</TD>
+                            <TD right bold className="text-gray-900">{$f(li.paid)}</TD>
+                            <TD right className={variance > 0 ? "text-red-500 font-semibold" : variance < 0 ? "text-emerald-600 font-semibold" : "text-gray-300"}>
+                              {variance > 0 ? `+${$f(variance)}` : variance < 0 ? `-${$f(-variance)}` : "—"}
+                            </TD>
+                          </TR>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <TR subtle>
+                        <TD bold colSpan={2} muted>Total</TD>
+                        <TD right muted>{$f(phase.lineItems.reduce((s,l)=>s+l.budget,0))}</TD>
+                        <TD right bold className="text-gray-900">{$f(phase.lineItems.reduce((s,l)=>s+l.paid,0))}</TD>
+                        <TD />
+                      </TR>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+
+              {/* Change orders */}
+              {phase.cos?.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Change Orders</p>
+                  <div className="space-y-1.5">
+                    {phase.cos.map(co => (
+                      <div key={co.no} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+                        <span className="text-xs font-bold text-gray-500 w-16">{co.no}</span>
+                        <span className="text-xs text-gray-600 flex-1">{co.description}</span>
+                        <span className={cx("text-xs font-bold tabular-nums ml-4", co.amount < 0 ? "text-emerald-600" : "text-amber-600")}>
+                          {co.amount < 0 ? `-${$f(-co.amount)}` : `+${$f(co.amount)}`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      ))}
+
+      {/* Project timeline context */}
+      <Card className="p-6">
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">Project Timeline Context</p>
+        <div className="relative pl-8">
+          <div className="absolute left-3 top-1 bottom-1 w-0.5 bg-gray-200 rounded-full" />
           {[
-            { label: "Road Construction", date: "Jan–Mid 2024", color: "#fb923c", amount: "$457,500", phase: priorPhases.find(p => p.id === "road") },
-            { label: "Demolition",        date: "Jan–May 2025", color: "#f87171", amount: `${$f(priorPhases.find(p => p.id === "demolition")?.total_paid)} paid`, phase: priorPhases.find(p => p.id === "demolition") },
-            { label: "Phase 1.1 (GC)",    date: "Jun 23, 2025", color: "#d97706", amount: "Ongoing" },
-            { label: "Est. Completion",   date: "April 2027",   color: "#9ca3af", amount: "—" },
+            { label: "Land Acquisition", date: "Jun 2022", color: "#6366f1", sub: "$3.63M · Timothy R Smith" },
+            { label: "Design & Permitting", date: "2022–2025", color: "#8b5cf6", sub: "Architecture, landscape, civil, permits" },
+            { label: "Road Construction", date: "Jan–Jun 2024", color: "#f59e0b", sub: `${$f(priorPhases.find(p=>p.id==="road")?.total_paid||0)} paid · C23-101` },
+            { label: "Demolition", date: "Jan–May 2025", color: "#ef4444", sub: `${$f(priorPhases.find(p=>p.id==="demolition")?.total_paid||0)} paid · C25-102` },
+            { label: "Phase 1.1 — Construction", date: "Jun 2025 – Apr 2027", color: "#10b981", sub: "Taconic Builders · C25-104 · In Progress" },
           ].map((item, i) => (
-            <div key={i} onClick={() => item.phase && setModal(item.phase)} className={cx("flex items-start gap-4 mb-5 relative", item.phase && "cursor-pointer group")}>
-              <div className="absolute -left-4 top-1.5 w-3 h-3 rounded-full border-2 border-white" style={{ background: item.color }} />
+            <div key={i} className="flex items-start gap-4 mb-4 relative">
+              <div className="absolute -left-5 top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm" style={{ background: item.color }} />
               <div>
-                <p className={cx("text-xs font-semibold text-gray-800", item.phase && "group-hover:text-indigo-600 transition-colors")}>
-                  {item.label}{item.phase && <span className="ml-1 opacity-50">→</span>}
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">{item.date} · {item.amount}</p>
+                <p className="text-xs font-semibold text-gray-800">{item.label}</p>
+                <p className="text-xs text-gray-400">{item.date} · {item.sub}</p>
               </div>
             </div>
           ))}
         </div>
       </Card>
-      {priorPhases.map(phase => (
-        <Card key={phase.id} className="overflow-hidden cursor-pointer hover:border-indigo-300 transition-colors" onClick={() => setModal(phase)}>
-          <div className="px-5 py-4 flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-gray-800">{phase.name}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{phase.job_num} · {phase.gc} · {phase.start_date}–{phase.end_date}</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="font-bold text-gray-900">{$f(phase.total_paid)}</p>
-                <p className="text-xs text-gray-400">Total paid</p>
-              </div>
-              <Tag text="Complete" color="green" />
-              <span className="text-gray-300">›</span>
-            </div>
-          </div>
-        </Card>
-      ))}
-      {modal && typeof modal === "object" && modal.id && (
-        <Modal title={modal.name} subtitle={`${modal.job_num} · ${modal.gc}`} onClose={() => setModal(null)}>
-          <KVGrid rows={[
-            ["Job Number", modal.job_num], ["General Contractor", modal.gc],
-            ["Subcontractor", modal.subcontractor], ["Dates", `${modal.start_date} – ${modal.end_date}`],
-            ["Original Contract", $f(modal.original_contract)], ["Approved COs", $f(modal.approved_cos)],
-            ["Final Contract", $f(modal.final_contract)], ["Total Paid", $f(modal.total_paid)],
-          ]} />
-          <div className="bg-[#f5f6f8] rounded-lg px-3 py-2.5 text-xs text-gray-500 italic">{modal.scope}</div>
-          <SectionTitle>Line Items</SectionTitle>
-          <table className="w-full text-xs">
-            <thead><tr><TH>Code</TH><TH>Description</TH><TH right>Budget</TH><TH right>Paid</TH></tr></thead>
-            <tbody>
-              {modal.lineItems.map(li => (
-                <TR key={li.code}>
-                  <TD mono muted>{li.code}</TD>
-                  <TD className="text-gray-600">{li.description}</TD>
-                  <TD right muted>{$f(li.budget)}</TD>
-                  <TD right bold className="text-gray-900">{$f(li.paid)}</TD>
-                </TR>
-              ))}
-            </tbody>
-          </table>
-          {modal.cos.length > 0 && (
-            <>
-              <SectionTitle>Change Orders</SectionTitle>
-              {modal.cos.map(co => (
-                <div key={co.no} className="flex justify-between items-center bg-[#f5f6f8] rounded-lg px-3 py-2.5 mb-1.5 text-xs">
-                  <span className="text-indigo-600 mr-3 font-semibold">{co.no}</span>
-                  <span className="text-gray-400 flex-1">{co.description}</span>
-                  <span className={cx("tabular-nums font-bold ml-4", co.amount < 0 ? "text-emerald-600" : "text-indigo-600")}>
-                    {co.amount < 0 ? `-${$f(-co.amount)}` : `+${$f(co.amount)}`}
-                  </span>
-                </div>
-              ))}
-            </>
-          )}
-          {modal.notes && <p className="text-xs text-gray-400 italic border-t border-gray-100 pt-3">{modal.notes}</p>}
-        </Modal>
-      )}
-      {modal === "summary" && (
-        <Modal title="Prior Phases Summary" onClose={() => setModal(null)}>
-          <table className="w-full text-xs">
-            <thead><tr><TH>Phase</TH><TH>Subcontractor</TH><TH right>Final Contract</TH><TH right>Total Paid</TH><TH>Status</TH></tr></thead>
-            <tbody>
-              {priorPhases.map(p => (
-                <TR key={p.id}>
-                  <TD bold className="text-gray-800">{p.name}</TD>
-                  <TD muted>{p.subcontractor}</TD>
-                  <TD right muted>{$f(p.final_contract)}</TD>
-                  <TD right bold className="text-gray-900">{$f(p.total_paid)}</TD>
-                  <TD><Tag text="Complete" color="green" /></TD>
-                </TR>
-              ))}
-            </tbody>
-          </table>
-        </Modal>
-      )}
     </div>
   );
 }
@@ -2455,20 +2501,35 @@ function TotalSpendView() {
       )}
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Total Inception to Date" value={$f(grandTotal)} sub="All stages · USD" accent />
-        <Stat label="Pre-Construction" value={$f(preConTotal)} sub="Land + Design & Permitting" />
-        <Stat label="Construction" value={$f(conTotal)} sub="Road + Demo + Phase 1.1" />
-        <Stat label="Phase 1.1 to Date" value={$f(phase11Total)} sub="Taconic + consultants" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-gray-900 rounded-xl px-5 py-4 col-span-2 md:col-span-1">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Total Inception to Date</p>
+          <p className="text-2xl font-bold text-white tabular-nums">{$f(grandTotal)}</p>
+          <p className="text-xs text-gray-500 mt-1">All stages · USD</p>
+        </div>
+        <div className="bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm">
+          <p className="text-xs text-gray-400 mb-1">Pre-Construction</p>
+          <p className="text-lg font-bold text-gray-900 tabular-nums">{$f(preConTotal)}</p>
+          <p className="text-xs text-gray-400 mt-1">Land + Design & Permitting</p>
+        </div>
+        <div className="bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm">
+          <p className="text-xs text-gray-400 mb-1">Construction</p>
+          <p className="text-lg font-bold text-gray-900 tabular-nums">{$f(conTotal)}</p>
+          <p className="text-xs text-gray-400 mt-1">Road + Demo + Phase 1.1</p>
+        </div>
+        <div className="bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm">
+          <p className="text-xs text-gray-400 mb-1">Phase 1.1 to Date</p>
+          <p className="text-lg font-bold text-gray-900 tabular-nums">{$f(phase11Total)}</p>
+          <p className="text-xs text-gray-400 mt-1">Taconic + consultants</p>
+        </div>
       </div>
 
       {/* View toggle */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-400 font-medium">View by:</span>
+      <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit">
         {[["stage","By Stage"],["vendor","By Vendor"],["mapping","Phase Mapping"]].map(([id,lbl]) => (
           <button key={id} onClick={() => setViewMode(id)}
-            className={cx("px-4 py-2 rounded-lg text-xs font-semibold transition-all border",
-              viewMode === id ? "bg-gray-900 text-white border-gray-900" : "bg-white border-gray-200 text-gray-500 hover:text-gray-800")}>
+            className={cx("px-4 py-2 rounded-lg text-xs font-semibold transition-all",
+              viewMode === id ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700")}>
             {lbl}
           </button>
         ))}
@@ -2544,9 +2605,9 @@ function TotalSpendView() {
           ))}
 
           {/* Grand total row */}
-          <div className="flex items-center justify-between px-5 py-4 bg-gray-900 rounded-xl">
-            <span className="text-sm font-bold text-white">Total Inception to Date</span>
-            <span className="text-lg font-bold text-white">{$f(grandTotal)}</span>
+          <div className="flex items-center justify-between px-6 py-4 bg-gray-900 rounded-xl mt-2">
+            <span className="text-sm font-bold text-white tracking-wide">Total Inception to Date</span>
+            <span className="text-xl font-bold text-white tabular-nums">{$f(grandTotal)}</span>
           </div>
         </div>
       )}
@@ -2696,9 +2757,9 @@ function TotalSpendView() {
           )}
 
           {/* Grand total */}
-          <div className="flex items-center justify-between px-5 py-4 bg-gray-900 rounded-xl">
-            <span className="text-sm font-bold text-white">Total Inception to Date</span>
-            <span className="text-lg font-bold text-white">{$f(grandTotal)}</span>
+          <div className="flex items-center justify-between px-6 py-4 bg-gray-900 rounded-xl mt-2">
+            <span className="text-sm font-bold text-white tracking-wide">Total Inception to Date</span>
+            <span className="text-xl font-bold text-white tabular-nums">{$f(grandTotal)}</span>
           </div>
         </div>
       )}
