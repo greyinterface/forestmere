@@ -91,11 +91,10 @@ function DataProvider({ children }) {
   // historical payments (writeup, pre-Feb 2024) + prior phases (road+demo) + Phase 1.1 all vendors
   const priorPhasesTotal = priorPhases.reduce((s, p) => s + parseFloat(p.total_paid), 0);
 
-  // inceptionToDateTotal:
-  // historicalTotal = all Zoho bills + 3 journal entries (from historical_payments after sync)
-  // + taconicPaid = Phase 1.1 pay apps (invoices table — not in Zoho bills)
-  // Taconic road/demo are in Zoho bills so already in historicalTotal — no double counting
-  const inceptionToDateTotal = historicalTotal + taconicPaid;
+  // inceptionToDateTotal = Zoho bills + 3 journal entries = everything
+  // Taconic Phase 1.1 is in Zoho bills so no need to add taconicPaid separately
+  // The invoices table is for detailed tracking/reconciliation only — not for totals
+  const inceptionToDateTotal = historicalTotal;
 
   const value = {
     budget, awards, changeOrders, invoices, lineItems, vendors, priorPhases, cashFlow, documents,
