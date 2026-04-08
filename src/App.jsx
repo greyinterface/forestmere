@@ -1988,6 +1988,148 @@ function DocumentsView() {
 
 
 // ─── RECONCILE VIEW ───────────────────────────────────────────────────────────
+// ─── ZOHO RECONCILIATION VIEW ─────────────────────────────────────────────────
+function ZohoReconcileView() {
+  const { invoices } = useAppData();
+  const [zohoTaconic, setZohoTaconic] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiFetch('/project-phases').then(d => {
+      const taconic = (d.allPayments || [])
+        .filter(p => p.vendor && p.vendor.toLowerCase().includes('taconic'))
+        .sort((a,b) => a.payment_date.localeCompare(b.payment_date));
+      setZohoTaconic(taconic);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" /></div>;
+
+  // Match Zoho bills to app invoices by amount proximity
+  const matchInvoice = (zohoAmt) => {
+    return invoices.find(inv => Math.abs(parseFloat(inv.job_total||0) - zohoAmt) < 100);
+  };
+
+  const roadBills = zohoTaconic.filter(p => p.reconciled_to === 'prior_phases_road');
+  const demoBills = zohoTaconic.filter(p => p.reconciled_to === 'prior_phases_demo');
+  const phase11Bills = zohoTaconic.filter(p => p.reconciled_to === 'invoices');
+
+  const roadTotal = roadBills.reduce((s,p) => s+p.amount_usd, 0);
+  const demoTotal = demoBills.reduce((s,p) => s+p.amount_usd, 0);
+  const phase11Total = phase11Bills.reduce((s,p) => s+p.amount_usd, 0);
+  const grandTotal = roadTotal + demoTotal + phase11Total;
+
+  const BillRow = ({ bill, inv }) => (
+    <tr className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+      <TD muted>{bill.payment_date}</TD>
+      <TD muted className="font-mono text-xs">{bill.description || '—'}</TD>
+      <TD right bold className="text-gray-900">{$f(bill.amount_usd)}</TD>
+      <TD>
+        {inv ? (
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+            <span className="text-xs font-semibold text-emerald-700">{inv.inv_num}</span>
+          </div>
+        ) : bill.reconciled_to === 'prior_phases_road' ? (
+          <span className="text-xs text-amber-600 font-medium">Road Construction C23-101</span>
+        ) : bill.reconciled_to === 'prior_phases_demo' ? (
+          <span className="text-xs text-red-500 font-medium">Demolition C25-102</span>
+        ) : (
+          <span className="text-xs text-gray-400">—</span>
+        )}
+      </TD>
+      <TD>
+        {bill.reconciled_to === 'invoices' && (
+          inv ? <Tag text="✓ Matched" color="green" /> : <Tag text="⚠ Unmatched" color="amber" />
+        )}
+        {bill.reconciled_to === 'prior_phases_road' && <Tag text="Prior Phase" color="gray" />}
+        {bill.reconciled_to === 'prior_phases_demo' && <Tag text="Prior Phase" color="gray" />}
+      </TD>
+    </tr>
+  );
+
+  return (
+    <div className="space-y-5">
+      {/* Summary KPIs */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4">
+          <p className="text-xs font-semibold text-amber-600 mb-1">Road Construction</p>
+          <p className="text-lg font-bold text-gray-900">{$f(roadTotal)}</p>
+          <p className="text-xs text-amber-500 mt-1">{roadBills.length} Zoho bills · C23-101</p>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-4">
+          <p className="text-xs font-semibold text-red-500 mb-1">Demolition</p>
+          <p className="text-lg font-bold text-gray-900">{$f(demoTotal)}</p>
+          <p className="text-xs text-red-400 mt-1">{demoBills.length} Zoho bills · C25-102</p>
+        </div>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-4">
+          <p className="text-xs font-semibold text-emerald-600 mb-1">Phase 1.1</p>
+          <p className="text-lg font-bold text-gray-900">{$f(phase11Total)}</p>
+          <p className="text-xs text-emerald-500 mt-1">{phase11Bills.length} Zoho bills · C25-104</p>
+        </div>
+      </div>
+
+      {/* Road Construction */}
+      {roadBills.length > 0 && (
+        <Card className="overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+              <span className="text-xs font-bold text-gray-700">Road Construction — C23-101</span>
+            </div>
+            <span className="text-sm font-bold text-gray-900">{$f(roadTotal)}</span>
+          </div>
+          <table className="w-full"><thead><tr><TH>Date</TH><TH>Zoho Bill #</TH><TH right>Amount</TH><TH>Reconciles To</TH><TH>Status</TH></tr></thead>
+            <tbody>{roadBills.map((b,i) => <BillRow key={i} bill={b} inv={null} />)}</tbody>
+          </table>
+        </Card>
+      )}
+
+      {/* Demolition */}
+      {demoBills.length > 0 && (
+        <Card className="overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+              <span className="text-xs font-bold text-gray-700">Demolition — C25-102</span>
+            </div>
+            <span className="text-sm font-bold text-gray-900">{$f(demoTotal)}</span>
+          </div>
+          <table className="w-full"><thead><tr><TH>Date</TH><TH>Zoho Bill #</TH><TH right>Amount</TH><TH>Reconciles To</TH><TH>Status</TH></tr></thead>
+            <tbody>{demoBills.map((b,i) => <BillRow key={i} bill={b} inv={null} />)}</tbody>
+          </table>
+        </Card>
+      )}
+
+      {/* Phase 1.1 */}
+      {phase11Bills.length > 0 && (
+        <Card className="overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+              <span className="text-xs font-bold text-gray-700">Phase 1.1 — C25-104</span>
+              <span className="text-xs text-gray-400">Matched to uploaded pay applications</span>
+            </div>
+            <span className="text-sm font-bold text-gray-900">{$f(phase11Total)}</span>
+          </div>
+          <table className="w-full"><thead><tr><TH>Date</TH><TH>Zoho Bill #</TH><TH right>Amount</TH><TH>App Invoice</TH><TH>Status</TH></tr></thead>
+            <tbody>{phase11Bills.map((b,i) => <BillRow key={i} bill={b} inv={matchInvoice(b.amount_usd)} />)}</tbody>
+            <tfoot><TR subtle><TD bold colSpan={2} muted>Total</TD><TD right bold className="text-gray-900">{$f(phase11Total)}</TD><TD colSpan={2}/></TR></tfoot>
+          </table>
+        </Card>
+      )}
+
+      {/* Grand total */}
+      <div className="flex items-center justify-between px-5 py-4 bg-gray-900 rounded-xl">
+        <span className="text-sm font-bold text-white">Total Taconic — All Phases</span>
+        <span className="text-lg font-bold text-white tabular-nums">{$f(grandTotal)}</span>
+      </div>
+    </div>
+  );
+}
+
+
 function ReconcileView({ setTab }) {
   const { invoices, changeOrders, lineItems, budget, refresh } = useAppData();
   const [recon, setRecon]   = useState(null);
@@ -2867,13 +3009,14 @@ function Phase11Shell({ initialSubTab = 'landing' }) {
   const [subTab, setSubTab] = useState(initialSubTab || "landing");
 
   const SUB_TABS = [
-    { id: "landing",   label: "Summary"         },
-    { id: "budget",    label: "Control Budget"   },
-    { id: "awards",    label: "Awards"           },
-    { id: "cos",       label: "Change Orders"    },
-    { id: "invoices",  label: "Invoices"         },
-    { id: "lineitem",  label: "Line Item Billing"},
-    { id: "reconcile", label: "Reconcile"        },
+    { id: "landing",        label: "Summary"           },
+    { id: "budget",         label: "Control Budget"    },
+    { id: "awards",         label: "Awards"            },
+    { id: "cos",            label: "Change Orders"     },
+    { id: "invoices",       label: "Invoices"          },
+    { id: "lineitem",       label: "Line Item Billing" },
+    { id: "reconcile",      label: "Reconcile"         },
+    { id: "zoho-recon",     label: "Zoho Reconciliation"},
   ];
 
   return (
@@ -2955,6 +3098,7 @@ function Phase11Shell({ initialSubTab = 'landing' }) {
       {subTab === "invoices"  && <InvoicesView />}
       {subTab === "lineitem"  && <LineItemView />}
       {subTab === "reconcile" && <ReconcileView setTab={(t) => setSubTab(t)} />}
+      {subTab === "zoho-recon" && <ZohoReconcileView />}
     </div>
   );
 }
