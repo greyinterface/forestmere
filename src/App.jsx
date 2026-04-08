@@ -2376,25 +2376,13 @@ function TotalSpendView() {
     vendorByStageWP[key].phases.push(vp);
   });
 
-  // Phase 1.1 live Taconic total
-  const tacPhase11 = taconicPaid;
-  const priorRoad = priorPhases.find(p => p.id === 'road');
-  const priorDemo = priorPhases.find(p => p.id === 'demolition');
-
-  // Build the BY STAGE view
-  // Pre-Construction: Land Acquisition + Design & Permitting (from historical payments)
+  // ALL totals come from allPayments (Zoho bills + 3 journal entries)
+  // No more mixing with priorPhases, taconicPaid, or vendorPhaseMapping for totals
   const landAcqTotal = allPayments.filter(p => p.work_package === 'Land Acquisition').reduce((s,p) => s+p.amount_usd, 0);
   const designPermTotal = allPayments.filter(p => p.work_package === 'Design & Permitting').reduce((s,p) => s+p.amount_usd, 0);
-  
-  // Construction work packages
-  const roadTotal = (priorRoad?.total_paid || 0);
-  const demoTotal = (priorDemo?.total_paid || 0);
-  
-  // Phase 1.1: Taconic + vendor CA/CM phases tagged to Phase 1.1
-  const phase11VendorTotal = vendorPhaseMapping
-    .filter(vp => vp.work_package === 'Phase 1.1' && vp.vendor_key !== 'taconic')
-    .reduce((s, vp) => s + vp.invoiced, 0);
-  const phase11Total = tacPhase11 + phase11VendorTotal;
+  const roadTotal = allPayments.filter(p => p.work_package === 'Road Construction').reduce((s,p) => s+p.amount_usd, 0);
+  const demoTotal = allPayments.filter(p => p.work_package === 'Demolition').reduce((s,p) => s+p.amount_usd, 0);
+  const phase11Total = allPayments.filter(p => p.work_package === 'Phase 1.1').reduce((s,p) => s+p.amount_usd, 0);
 
   const preConTotal = landAcqTotal + designPermTotal;
   const conTotal = roadTotal + demoTotal + phase11Total;
@@ -2507,16 +2495,11 @@ function TotalSpendView() {
               color: STAGE_COLORS["Construction"],
               workPackages: [
                 { name: "Road Construction", total: roadTotal, color: WP_COLORS["Road Construction"],
-                  rows: roadTotal > 0 ? [{ vendor: "Taconic Builders (GC)", amount_usd: roadTotal, payment_date: "2024", description: "Road Construction C23-101 — total paid" }] : [] },
+                  rows: allPayments.filter(p=>p.work_package==="Road Construction").map(p=>({vendor:p.vendor,amount_usd:p.amount_usd,payment_date:p.payment_date,description:p.description})) },
                 { name: "Demolition", total: demoTotal, color: WP_COLORS["Demolition"],
-                  rows: demoTotal > 0 ? [{ vendor: "Taconic Builders (GC)", amount_usd: demoTotal, payment_date: "2025", description: "Demolition C25-102 — total paid" }] : [] },
+                  rows: allPayments.filter(p=>p.work_package==="Demolition").map(p=>({vendor:p.vendor,amount_usd:p.amount_usd,payment_date:p.payment_date,description:p.description})) },
                 { name: "Phase 1.1", total: phase11Total, color: WP_COLORS["Phase 1.1"],
-                  rows: [
-                    { vendor: "Taconic Builders (GC)", amount_usd: tacPhase11, payment_date: "Live", description: "Phase 1.1 GC payments to date" },
-                    ...vendorPhaseMapping.filter(vp=>vp.work_package==="Phase 1.1"&&vp.invoiced>0).map(vp=>({
-                      vendor: vp.vendor_full_name || vp.vendor_name, amount_usd: vp.invoiced, payment_date: "Live", description: vp.phase
-                    }))
-                  ]
+                  rows: allPayments.filter(p=>p.work_package==="Phase 1.1").map(p=>({vendor:p.vendor,amount_usd:p.amount_usd,payment_date:p.payment_date,description:p.description}))
                 },
               ]
             }
