@@ -2084,7 +2084,7 @@ function TotalSpendView() {
                 className="w-full flex items-center px-5 py-2.5 hover:bg-[#faf8f5] transition-colors text-left">
                 <div className="flex-1 min-w-0 flex items-center gap-3">
                   <span className="text-sm font-semibold text-gray-800">{v.name}</span>
-                  {v.tag && <span className="text-sm font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">{v.tag}</span>}
+
                 </div>
                 <span className="text-sm font-bold text-gray-900 tabular-nums w-36 text-right mr-3">{$f(v.total)}</span>
                 <span className="text-gray-300 text-sm w-4 text-center">{expandedVendor === v.key ? "▾" : "›"}</span>
@@ -2096,17 +2096,17 @@ function TotalSpendView() {
                       <TH>Phase / Contract</TH><TH>Timeline</TH><TH>Phase</TH><TH>Status</TH><TH right>Invoiced</TH>
                     </tr></thead>
                     <tbody>
-                      {v.phases.filter(p => p.invoiced > 0 || p.budget > 0).map((p, i) => (
+                      {v.phases.filter(p => (p.invoiced||0) > 0 || (p.budget||0) > 0).map((p, i) => (
                         <TR key={i}>
-                          <TD bold>{p.phase}</TD>
-                          <TD>{p.stage && <span className="text-sm font-semibold px-2 py-0.5 rounded-full" style={{ background: (STAGE_COLORS[p.stage]||"#9ca3af")+"18", color: STAGE_COLORS[p.stage]||"#9ca3af" }}>{p.stage}</span>}</TD>
-                          <TD>{p.work_package && <span className="text-sm font-semibold px-2 py-0.5 rounded-full" style={{ background: (WP_COLORS[p.work_package]||"#9ca3af")+"18", color: WP_COLORS[p.work_package]||"#9ca3af" }}>{p.work_package}</span>}</TD>
-                          <TD>{statusTag(p.status)}</TD>
-                          <TD right bold>{$f(p.invoiced)}</TD>
+                          <td className="px-4 py-2 text-xs font-medium text-gray-800">{p.phase}</td>
+                          <td className="px-4 py-2 text-xs">{p.stage && <span className="text-xs font-medium px-2 py-0.5 rounded" style={{ background: (STAGE_COLORS[p.stage]||"#9ca3af")+"15", color: STAGE_COLORS[p.stage]||"#9ca3af" }}>{p.stage}</span>}</td>
+                          <td className="px-4 py-2 text-xs">{p.work_package && <span className="text-xs font-medium px-2 py-0.5 rounded" style={{ background: (WP_COLORS[p.work_package]||"#9ca3af")+"15", color: WP_COLORS[p.work_package]||"#9ca3af" }}>{p.work_package}</span>}</td>
+                          <td className="px-4 py-2 text-xs">{statusTag(p.status)}</td>
+                          <td className="px-4 py-2 text-xs font-semibold text-gray-900 text-right tabular-nums">{$f(p.invoiced)}</td>
                         </TR>
                       ))}
                     </tbody>
-                    <tfoot><TR subtle><TD bold colSpan={4} muted>Total</TD><TD right bold>{$f(v.total)}</TD></TR></tfoot>
+                    <tfoot><tr className="bg-gray-50/60 border-t border-gray-100"><td className="px-4 py-1.5 text-xs font-semibold text-gray-400" colSpan={4}>Total</td><td className="px-4 py-1.5 text-xs font-semibold text-gray-900 text-right tabular-nums">{$f(v.total)}</td></tr></tfoot>
                   </table>
                 </div>
               )}
@@ -2118,24 +2118,26 @@ function TotalSpendView() {
             <div className="bg-white border border-[#ede9e3] rounded-lg overflow-hidden">
               <button onClick={() => setExpandedVendor(expandedVendor === "other" ? null : "other")}
                 className="w-full flex items-center px-5 py-2.5 hover:bg-[#faf8f5] transition-colors text-left">
-                <span className="w-3 h-3 rounded-full shrink-0 mr-3 bg-gray-300" />
                 <span className="flex-1 text-sm font-semibold text-gray-800">Other Vendors</span>
-                
-                <span className="text-sm font-bold text-gray-900 tabular-nums w-32 text-right mr-3">{$f(Object.entries(otherVendorMap).filter(([k])=>!isExcluded(k)).reduce((s,[,v])=>s+v.total,0))}</span>
+                <span className="text-sm font-bold text-gray-900 tabular-nums w-36 text-right mr-3">{$f(Object.entries(otherVendorMap).filter(([k])=>!isExcluded(k)).reduce((s,[,v])=>s+v.total,0))}</span>
                 <span className="text-gray-300 text-sm w-4 text-center">{expandedVendor === "other" ? "▾" : "›"}</span>
               </button>
               {expandedVendor === "other" && (
                 <div className="border-t border-gray-100">
                   <table className="w-full">
-                    <thead><tr><TH>Vendor</TH><TH>Category</TH><TH right>Total</TH></tr></thead>
+                    <thead><tr><TH>Vendor</TH><TH>Date</TH><TH>Timeline</TH><TH>Phase</TH><TH right>Amount</TH></tr></thead>
                     <tbody>
-                      {Object.entries(otherVendorMap).filter(([k]) => !isExcluded(k)).sort((a,b) => b[1].total - a[1].total).map(([vendor, d]) => (
-                        <TR key={vendor} onClick={() => setModal({ name: vendor, total: d.total, rows: d.payments })}>
-                          <TD bold>{vendor}</TD>
-                          <TD muted>{d.payments[0]?.category || "—"}</TD>
-                          <TD right bold>{$f(d.total)}</TD>
-                        </TR>
-                      ))}
+                      {Object.entries(otherVendorMap).filter(([k]) => !isExcluded(k)).sort((a,b) => b[1].total - a[1].total).flatMap(([vendor, d]) =>
+                        d.payments.map((p, i) => (
+                          <tr key={vendor+i} className="border-b border-[#f0f0ee] hover:bg-[#faf8f5] transition-colors">
+                            <td className="px-4 py-2 text-xs font-medium text-gray-800">{vendor}</td>
+                            <td className="px-4 py-2 text-xs text-gray-400">{p.payment_date || "—"}</td>
+                            <td className="px-4 py-2 text-xs">{p.stage ? <span className="text-xs font-medium px-2 py-0.5 rounded" style={{ background: (STAGE_COLORS[p.stage]||"#9ca3af")+"15", color: STAGE_COLORS[p.stage]||"#9ca3af" }}>{p.stage}</span> : <span className="text-xs text-gray-300">—</span>}</td>
+                            <td className="px-4 py-2 text-xs">{p.work_package ? <span className="text-xs font-medium px-2 py-0.5 rounded" style={{ background: (WP_COLORS[p.work_package]||"#9ca3af")+"15", color: WP_COLORS[p.work_package]||"#9ca3af" }}>{p.work_package}</span> : <span className="text-xs text-gray-300">—</span>}</td>
+                            <td className="px-4 py-2 text-xs font-semibold text-gray-900 text-right tabular-nums">{$f(p.amount_usd)}</td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
