@@ -593,40 +593,22 @@ function PriorPhaseShell({ phaseId }) {
             <Stat label="Total Paid"        value={$f(phase.total_paid)}        sub="Fully paid · phase closed" accent />
           </div>
 
-          {/* Compact contract details */}
-          <div className="border border-[#ede9e3] rounded-lg overflow-hidden">
-            <div className="px-4 py-2 border-b border-[#ede9e3] bg-[#faf8f5]">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Contract Details</span>
-            </div>
-            <div className="grid grid-cols-4 divide-x divide-[#f0f0ee]">
-              {[
-                ["GC", phase.gc],
-                ["Subcontractor", phase.subcontractor || "—"],
-                ["Contract #", meta.contract],
-                ["Period", `${phase.start_date} – ${phase.end_date}`],
-              ].map(([k,v]) => (
-                <div key={k} className="px-4 py-2.5">
-                  <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">{k}</div>
-                  <div className="text-xs font-medium text-gray-700">{v}</div>
+          {/* Scope + Notes — inline, no card wrapper */}
+          {(phase.scope || phase.notes) && (
+            <div className="space-y-3">
+              {phase.scope && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Scope of Work</p>
+                  <p className="text-sm text-gray-500 leading-relaxed">{phase.scope}</p>
                 </div>
-              ))}
+              )}
+              {phase.notes && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Notes</p>
+                  <p className="text-sm text-gray-500 leading-relaxed">{phase.notes}</p>
+                </div>
+              )}
             </div>
-          </div>
-
-          {/* Scope */}
-          {phase.scope && (
-            <Card className="p-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Scope of Work</p>
-              <p className="text-sm text-gray-600 leading-relaxed">{phase.scope}</p>
-            </Card>
-          )}
-
-          {/* Notes */}
-          {phase.notes && (
-            <Card className="p-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Notes</p>
-              <p className="text-sm text-gray-500 leading-relaxed">{phase.notes}</p>
-            </Card>
           )}
         </div>
       )}
@@ -2365,19 +2347,14 @@ function Phase11Shell({ initialSubTab = 'landing' }) {
             ))}
           </div>
 
-          {/* Contract details — compact reference */}
-          <div className="border border-[#ede9e3] rounded-lg overflow-hidden">
-            <div className="px-4 py-2 border-b border-[#ede9e3] bg-[#faf8f5]">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Contract Details</span>
-            </div>
-            <div className="grid grid-cols-4 divide-x divide-[#f0f0ee]">
-              {[["GC","Taconic Builders Inc."],["Contract #","C25-104"],["Start","Jun 23, 2025"],["Est. Completion","April 2027"]].map(([k,v]) => (
-                <div key={k} className="px-4 py-2.5">
-                  <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">{k}</div>
-                  <div className="text-xs font-medium text-gray-700">{v}</div>
-                </div>
-              ))}
-            </div>
+          {/* Contract details — single compact inline line */}
+          <div className="flex gap-8 pt-1">
+            {[["GC","Taconic Builders Inc."],["Contract #","C25-104"],["Start","Jun 23, 2025"],["Est. Completion","April 2027"]].map(([k,v]) => (
+              <div key={k}>
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-0.5">{k}</div>
+                <div className="text-xs text-gray-500">{v}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
