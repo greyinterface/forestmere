@@ -2441,14 +2441,14 @@ function TotalSpendView() {
     byVendor[vp.vendor_key].total += vp.invoiced;
     byVendor[vp.vendor_key].phases.push(vp);
   });
-  // Add Taconic as a vendor
+  // Add Taconic as a vendor — totals from allPayments (Zoho source)
   byVendor['taconic'] = {
     name: 'Taconic Builders Inc.',
-    total: tacPhase11 + roadTotal + demoTotal,
+    total: phase11Total + roadTotal + demoTotal,
     phases: [
       { phase: 'Road Construction (C23-101)', invoiced: roadTotal, stage: 'Construction', work_package: 'Road Construction', status: 'Complete' },
       { phase: 'Demolition (C25-102)', invoiced: demoTotal, stage: 'Construction', work_package: 'Demolition', status: 'Complete' },
-      { phase: 'Phase 1.1 (C25-104)', invoiced: tacPhase11, stage: 'Construction', work_package: 'Phase 1.1', status: 'In Progress' },
+      { phase: 'Phase 1.1 (C25-104)', invoiced: phase11Total, stage: 'Construction', work_package: 'Phase 1.1', status: 'In Progress' },
     ],
     payments: [],
   };
