@@ -181,8 +181,8 @@ const SectionTitle = ({ children }) => (
 
 const Stat = ({ label, value, sub, accent, onClick }) => (
   <div onClick={onClick} className={cx(
-    "bg-white rounded-xl px-5 py-4 border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.05)] transition-all select-none",
-    onClick && "cursor-pointer hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)] hover:border-gray-200 active:scale-[0.99]"
+    "bg-white rounded-xl px-4 py-3.5 border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.05)] transition-all select-none",
+    onClick && "cursor-pointer hover:shadow-[0_4px_12px_rgba(0,0,0,0.07)] hover:border-gray-200 active:scale-[0.99]"
   )}>
     <div className={cx(T.label, "mb-2")}>{label}</div>
     <div className={accent ? T.statValAccent : T.statVal}>{value}</div>
@@ -288,7 +288,7 @@ function Dashboard({ setTab }) {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
 
       {/* ── Alert banners — only show when needed ── */}
       {reconSummary?.failed > 0 && (
@@ -3247,14 +3247,14 @@ function AppShell() {
         {/* Page header */}
         <div style={{
           background: "#ffffff", borderBottom: "1px solid #e8eaed",
-          padding: "20px 32px 18px", position: "sticky", top: 0, zIndex: 20,
+          padding: "14px 32px 12px", position: "sticky", top: 0, zIndex: 20,
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <h1 style={{ fontSize: 18, fontWeight: 700, color: "#111827", margin: 0, letterSpacing: "-0.3px", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+              <h1 style={{ fontSize: 16, fontWeight: 600, color: "#111827", margin: 0, letterSpacing: "-0.2px", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
                 {page.title}
               </h1>
-              <p style={{ fontSize: 12, color: "#9ca3af", margin: "3px 0 0", fontWeight: 500 }}>
+              <p style={{ fontSize: 12, color: "#b0b7c3", margin: "2px 0 0", fontWeight: 400 }}>
                 {page.sub}
               </p>
             </div>
@@ -3263,7 +3263,7 @@ function AppShell() {
         </div>
 
         {/* Page content */}
-        <main style={{ padding: "28px 32px", maxWidth: 1280 }}>
+        <main style={{ padding: "20px 32px", maxWidth: 1280 }}>
           {tab === "dashboard"   && <Dashboard setTab={setTab} />}
           {tab === "totalspend"  && <TotalSpendView />}
           {tab === "phase11"     && <Phase11Shell initialSubTab={tab.startsWith("phase11:") ? tab.split(":")[1] : "landing"} />}
