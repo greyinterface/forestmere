@@ -3320,8 +3320,8 @@ const PAGE_TITLES = {
   "phase11:reconcile":{ title: "PHASE 1.1 — CONSTRUCTION", sub: "Reconcile" },
   "phase11:zoho-recon":{ title: "PHASE 1.1 — CONSTRUCTION", sub: "Zoho Reconciliation" },
   designeng:   { title: "DESIGN & ENGINEERING",     sub: "ArchitectureFirm · Reed Hilderbrand · Ivan Zdrahal PE" },
-  road:        { title: "Road Construction",            sub: "Taconic Builders · C23-101 · Jan 2024 – Jun 2024 · Complete" },
-  demolition:  { title: "Demolition",                   sub: "Taconic Builders / Mayville Enterprises · C25-102 · Jan 2025 – May 2025 · Complete" },
+  road:        { title: "ROAD CONSTRUCTION",            sub: "Taconic Builders · C23-101 · Jan 2024 – Jun 2024 · Complete" },
+  demolition:  { title: "DEMOLITION",                   sub: "Taconic Builders / Mayville Enterprises · C25-102 · Jan 2025 – May 2025 · Complete" },
   uploads:     { title: "DOCUMENTS",               sub: "Upload & parse invoices, COs, award letters" },
 };
 
