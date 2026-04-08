@@ -1689,8 +1689,31 @@ async function getAllZohoBills() {
 // Test connection
 app.get('/api/zoho/test', async (req, res) => {
   try {
-    const data = await zohoGet('/organizations');
-    res.json({ ok: true, org: data.organizations?.[0]?.name });
+    // Get all orgs
+    const token = await getZohoAccessToken();
+    const orgR = await fetch(`https://www.zohoapis.${ZOHO_REGION}/books/v3/organizations`, {
+      headers: { Authorization: `Zoho-oauthtoken ${token}` },
+    });
+    const orgData = await orgR.json();
+    const orgs = orgData.organizations || [];
+    const targetOrg = orgs.find(o => String(o.organization_id) === String(ZOHO_ORG_ID));
+    
+    // Try to get one bill from the target org
+    const billR = await fetch(`https://www.zohoapis.${ZOHO_REGION}/books/v3/bills?per_page=1&organization_id=${ZOHO_ORG_ID}`, {
+      headers: { Authorization: `Zoho-oauthtoken ${token}` },
+    });
+    const billData = await billR.json();
+    
+    res.json({
+      ok: true,
+      all_orgs: orgs.map(o => ({ id: o.organization_id, name: o.name })),
+      target_org_id: ZOHO_ORG_ID,
+      target_org_found: targetOrg ? targetOrg.name : 'NOT FOUND',
+      bills_response_code: billData.code,
+      bills_message: billData.message,
+      bills_count: billData.bills?.length || 0,
+      first_bill: billData.bills?.[0] ? { vendor: billData.bills[0].vendor_name, date: billData.bills[0].date, total: billData.bills[0].total } : null,
+    });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
