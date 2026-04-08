@@ -129,8 +129,8 @@ const T = {
   cellMuted: "text-sm text-gray-400",
   cellBold:  "text-sm font-semibold text-gray-900",
   // Stat card value
-  statVal: "text-xl font-bold tabular-nums tracking-tight text-gray-900",
-  statValAccent: "text-xl font-bold tabular-nums tracking-tight text-indigo-600",
+  statVal: "text-base font-bold tabular-nums tracking-tight text-gray-900",
+  statValAccent: "text-base font-bold tabular-nums tracking-tight text-indigo-600",
   // Sub-tab label
   subLabel: "text-sm font-semibold",
 };
@@ -197,10 +197,10 @@ const Card = ({ children, className = "" }) => (
 
 // Table primitives — text-sm throughout, generous row height
 const TH = ({ children, right, className = "" }) => (
-  <th className={cx("px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-50 whitespace-nowrap border-b border-gray-100", right ? "text-right" : "text-left", className)}>{children}</th>
+  <th className={cx("px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-50 whitespace-nowrap border-b border-gray-100", right ? "text-right" : "text-left", className)}>{children}</th>
 );
 const TD = ({ children, right, muted, bold, colSpan, className = "" }) => (
-  <td colSpan={colSpan} className={cx("px-4 py-3.5 text-sm", right && "text-right tabular-nums", muted ? "text-gray-400" : "text-gray-700", bold && "font-semibold text-gray-900", className)}>{children}</td>
+  <td colSpan={colSpan} className={cx("px-4 py-3 text-sm", right && "text-right tabular-nums", muted ? "text-gray-400" : "text-gray-700", bold && "font-semibold text-gray-900", className)}>{children}</td>
 );
 const TR = ({ children, onClick, subtle }) => (
   <tr onClick={onClick} className={cx("border-b border-gray-100 transition-colors", onClick && "cursor-pointer hover:bg-indigo-50/60", subtle && "bg-gray-50/60")}>{children}</tr>
@@ -215,7 +215,7 @@ function Modal({ title, subtitle, onClose, children, wide }) {
         className={cx("bg-white border border-gray-200 rounded-2xl flex flex-col shadow-2xl w-full", wide ? "max-w-4xl" : "max-w-2xl")}
         style={{ maxHeight: "90vh" }}
       >
-        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 shrink-0">
+        <div className="flex items-start justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div>
             <p className="text-base font-semibold text-gray-900">{title}</p>
             {subtitle && <p className={cx(T.muted, "mt-0.5")}>{subtitle}</p>}
@@ -279,7 +279,7 @@ function Dashboard({ setTab }) {
   // Section header helper — consistent across whole Dashboard
   const SectionHeader = ({ label, action, actionLabel }) => (
     <div className="flex items-center gap-3 mb-4">
-      <span className="text-xs font-bold uppercase tracking-widest text-gray-400 whitespace-nowrap">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-widest text-gray-400 whitespace-nowrap">{label}</span>
       <div className="flex-1 h-px bg-gray-100" />
       {action && (
         <button onClick={action} className="text-sm font-semibold text-indigo-500 hover:text-indigo-700 transition-colors whitespace-nowrap">{actionLabel} →</button>
@@ -292,21 +292,21 @@ function Dashboard({ setTab }) {
 
       {/* ── Alert banners — only show when needed ── */}
       {reconSummary?.failed > 0 && (
-        <button onClick={() => setTab("phase11:reconcile")} className="w-full text-left flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-5 py-3.5 hover:bg-red-100 transition-colors">
+        <button onClick={() => setTab("phase11:reconcile")} className="w-full text-left flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 hover:bg-red-100 transition-colors">
           <span className="text-red-500">✕</span>
           <p className="text-sm font-semibold text-red-700 flex-1">Reconciliation errors detected — {reconSummary.failed} check{reconSummary.failed > 1 ? "s" : ""} failing</p>
           <span className="text-red-400">→</span>
         </button>
       )}
       {reconSummary?.failed === 0 && reconSummary?.total > 0 && (
-        <button onClick={() => setTab("phase11:reconcile")} className="w-full text-left flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3.5 hover:bg-emerald-100 transition-colors">
+        <button onClick={() => setTab("phase11:reconcile")} className="w-full text-left flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 hover:bg-emerald-100 transition-colors">
           <span className="text-emerald-500 text-sm">✓</span>
           <p className="text-sm font-semibold text-emerald-700 flex-1">All {reconSummary.total} reconciliation checks passing</p>
           <span className="text-emerald-400">→</span>
         </button>
       )}
       {pendingInvs.length > 0 && (
-        <button onClick={() => setTab("phase11:invoices")} className="w-full text-left flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-3.5 hover:bg-amber-100 transition-colors">
+        <button onClick={() => setTab("phase11:invoices")} className="w-full text-left flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 hover:bg-amber-100 transition-colors">
           <span className="text-amber-500">⚠</span>
           <div className="flex-1">
             <p className="text-sm font-semibold text-amber-800">Payment action required</p>
@@ -320,10 +320,10 @@ function Dashboard({ setTab }) {
       <div>
         <SectionHeader label="Total Project Spend" action={() => setTab("totalspend")} actionLabel="Full breakdown" />
         <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-5 border-b border-gray-50">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
             <div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Inception to Date · All Phases</p>
-              <p className="text-3xl font-bold text-gray-900 tabular-nums">{$f(inceptionToDateTotal)}</p>
+              <p className="text-xl font-bold text-gray-900 tabular-nums">{$f(inceptionToDateTotal)}</p>
             </div>
             <button onClick={() => setModal("spend")}
               className="px-5 py-2.5 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold rounded-xl transition-colors">
@@ -338,7 +338,7 @@ function Dashboard({ setTab }) {
             ].map(([label, val, sub]) => (
               <div key={label} className="px-5 py-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">{label}</p>
-                <p className="text-lg font-bold text-gray-900 tabular-nums">{val}</p>
+                <p className="text-sm font-bold text-gray-900 tabular-nums">{val}</p>
                 <p className="text-sm text-gray-400 mt-0.5">{sub}</p>
               </div>
             ))}
@@ -382,7 +382,7 @@ function Dashboard({ setTab }) {
             ))}
             <div className="flex justify-between items-center border-t border-gray-100 pt-3 mt-2">
               <span className="text-sm font-semibold text-gray-500">Phase 1.1 Total</span>
-              <span className="text-base font-bold text-gray-900 tabular-nums">{$f(phase11GrandTotal)}</span>
+              <span className="text-sm font-bold text-gray-900 tabular-nums">{$f(phase11GrandTotal)}</span>
             </div>
           </div>
         </Card>
@@ -420,7 +420,7 @@ function Dashboard({ setTab }) {
                 ["Contract Start",     "Jun 23, 2025"],
                 ["Contract Duration",  "22 months"],
               ].map(([k, v]) => (
-                <div key={k} className="flex items-center justify-between px-5 py-3.5">
+                <div key={k} className="flex items-center justify-between px-5 py-2.5">
                   <span className="text-sm text-gray-400">{k}</span>
                   <span className="text-sm font-semibold text-gray-800 text-right ml-4">{v}</span>
                 </div>
@@ -435,7 +435,7 @@ function Dashboard({ setTab }) {
                 ["Civil Engineer",  "Ivan Zdrahal PE"],
                 ["Project #",       "C25-104"],
               ].map(([k, v]) => (
-                <div key={k} className="flex items-center justify-between px-5 py-3.5">
+                <div key={k} className="flex items-center justify-between px-5 py-2.5">
                   <span className="text-sm text-gray-400">{k}</span>
                   <span className="text-sm font-semibold text-gray-800 text-right ml-4">{v}</span>
                 </div>
@@ -565,7 +565,7 @@ function PriorPhaseShell({ phaseId }) {
       <div className="flex gap-1 border-b border-gray-200 -mt-2">
         {SUB_TABS.map(t => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
-            className={cx("px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
+            className={cx("px-3 py-2 text-xs font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
               subTab === t.id ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600")}>
             {t.label}
           </button>
@@ -965,7 +965,7 @@ function VendorsView() {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-base font-bold text-gray-900">{vendor.full_name}</h2>
+            <h2 className="text-sm font-bold text-gray-900">{vendor.full_name}</h2>
             <p className="text-sm text-gray-400 mt-0.5">{vendor.role}</p>
           </div>
           <Tag text="Active" color="amber" />
@@ -1355,17 +1355,17 @@ function ZohoReconcileView() {
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4">
           <p className="text-sm font-semibold text-amber-600 mb-1">Road Construction</p>
-          <p className="text-lg font-bold text-gray-900">{$f(roadTotal)}</p>
+          <p className="text-sm font-bold text-gray-900">{$f(roadTotal)}</p>
           <p className="text-sm text-amber-500 mt-1">{roadBills.length} Zoho bills · C23-101</p>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-4">
           <p className="text-sm font-semibold text-red-500 mb-1">Demolition</p>
-          <p className="text-lg font-bold text-gray-900">{$f(demoTotal)}</p>
+          <p className="text-sm font-bold text-gray-900">{$f(demoTotal)}</p>
           <p className="text-sm text-red-400 mt-1">{demoBills.length} Zoho bills · C25-102</p>
         </div>
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-4">
           <p className="text-sm font-semibold text-emerald-600 mb-1">Phase 1.1</p>
-          <p className="text-lg font-bold text-gray-900">{$f(phase11Total)}</p>
+          <p className="text-sm font-bold text-gray-900">{$f(phase11Total)}</p>
           <p className="text-sm text-emerald-500 mt-1">{phase11Bills.length} Zoho bills · C25-104</p>
         </div>
       </div>
@@ -1421,9 +1421,9 @@ function ZohoReconcileView() {
       )}
 
       {/* Grand total */}
-      <div className="flex items-center justify-between px-5 py-4 bg-gray-900 rounded-xl">
+      <div className="flex items-center justify-between px-5 py-3 bg-gray-900 rounded-xl">
         <span className="text-sm font-bold text-white">Total Taconic — All Phases</span>
-        <span className="text-lg font-bold text-white tabular-nums">{$f(grandTotal)}</span>
+        <span className="text-sm font-bold text-white tabular-nums">{$f(grandTotal)}</span>
       </div>
     </div>
   );
@@ -1532,7 +1532,7 @@ function ReconcileView({ setTab }) {
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <span className={`text-2xl font-bold ${issues.length === 0 ? 'text-emerald-600' : 'text-gray-900'}`}>
+              <span className={`text-sm font-bold ${issues.length === 0 ? 'text-emerald-600' : 'text-gray-900'}`}>
                 {issues.length === 0 ? '✓ Books Balanced' : `${issues.length} Item${issues.length > 1 ? 's' : ''} Need Attention`}
               </span>
             </div>
@@ -1573,7 +1573,7 @@ function ReconcileView({ setTab }) {
         <div className="space-y-3">
           {issues.length === 0 ? (
             <Card className="p-8 text-center">
-              <div className="text-3xl mb-2">✓</div>
+              <div className="text-xl mb-2">✓</div>
               <p className="font-semibold text-emerald-600">No issues found</p>
               <p className="text-sm text-gray-400 mt-1">All reconciliation checks are passing</p>
             </Card>
@@ -1908,19 +1908,19 @@ function TotalSpendView() {
       {/* ── SPEND SUMMARY (clickable rows = the drill-down) ── */}
       <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <div>
             <p className="text-sm font-bold text-gray-900">Total Project Spend</p>
             <p className="text-sm text-gray-400 mt-0.5">Inception to date · All phases · USD</p>
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-0.5">Grand Total</p>
-            <p className="text-2xl font-bold text-gray-900 tabular-nums">{$f(grandTotal)}</p>
+            <p className="text-base font-bold text-gray-900 tabular-nums">{$f(grandTotal)}</p>
           </div>
         </div>
 
         {/* Section: Pre-Construction */}
-        <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
+        <div className="px-5 py-1.5 bg-gray-50 border-b border-gray-100">
           <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Pre-Construction</span>
         </div>
         {[
@@ -1930,7 +1930,7 @@ function TotalSpendView() {
             rows: allPayments.filter(p => p.work_package === "Design & Permitting") },
         ].map(ph => (
           <button key={ph.name} onClick={() => setModal(ph)}
-            className="w-full flex items-center px-5 py-4 border-b border-gray-50 hover:bg-indigo-50/40 transition-colors text-left group">
+            className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-indigo-50/40 transition-colors text-left group">
             <span className="w-2.5 h-2.5 rounded-full shrink-0 mr-4" style={{ background: ph.color }} />
             <div className="flex-1 min-w-0">
               <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
@@ -1941,7 +1941,7 @@ function TotalSpendView() {
             <span className="text-gray-300 group-hover:text-indigo-400 text-sm transition-colors">›</span>
           </button>
         ))}
-        <div className="px-5 py-3 bg-gray-50 flex items-center justify-between border-b border-gray-100">
+        <div className="px-5 py-2 bg-gray-50 flex items-center justify-between border-b border-gray-100">
           <span className="text-sm font-semibold text-gray-500">Pre-Construction subtotal</span>
           <div className="flex items-center gap-6">
             <span className="text-sm text-gray-400 tabular-nums">{grandTotal > 0 ? pf(preConTotal/grandTotal) : "—"}</span>
@@ -1951,7 +1951,7 @@ function TotalSpendView() {
         </div>
 
         {/* Section: Construction */}
-        <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
+        <div className="px-5 py-1.5 bg-gray-50 border-b border-gray-100">
           <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Construction</span>
         </div>
         {[
@@ -1963,7 +1963,7 @@ function TotalSpendView() {
             rows: allPayments.filter(p => p.work_package === "Phase 1.1") },
         ].map(ph => (
           <button key={ph.name} onClick={() => setModal(ph)}
-            className="w-full flex items-center px-5 py-4 border-b border-gray-50 hover:bg-indigo-50/40 transition-colors text-left group">
+            className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-indigo-50/40 transition-colors text-left group">
             <span className="w-2.5 h-2.5 rounded-full shrink-0 mr-4" style={{ background: ph.color }} />
             <div className="flex-1 min-w-0">
               <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
@@ -1974,7 +1974,7 @@ function TotalSpendView() {
             <span className="text-gray-300 group-hover:text-indigo-400 text-sm transition-colors">›</span>
           </button>
         ))}
-        <div className="px-5 py-3 bg-gray-50 flex items-center justify-between border-b border-gray-100">
+        <div className="px-5 py-2 bg-gray-50 flex items-center justify-between border-b border-gray-100">
           <span className="text-sm font-semibold text-gray-500">Construction subtotal</span>
           <div className="flex items-center gap-6">
             <span className="text-sm text-gray-400 tabular-nums">{grandTotal > 0 ? pf(conTotal/grandTotal) : "—"}</span>
@@ -1984,11 +1984,11 @@ function TotalSpendView() {
         </div>
 
         {/* Grand total */}
-        <div className="px-5 py-4 bg-gray-900 flex items-center justify-between">
+        <div className="px-5 py-3 bg-gray-900 flex items-center justify-between">
           <span className="text-sm font-bold text-white uppercase tracking-widest">Total — Inception to Date</span>
           <div className="flex items-center gap-6">
             <span className="text-sm text-gray-400 tabular-nums">100%</span>
-            <span className="text-lg font-bold text-white tabular-nums w-32 text-right">{$f(grandTotal)}</span>
+            <span className="text-sm font-bold text-white tabular-nums w-32 text-right">{$f(grandTotal)}</span>
             <span className="w-4" />
           </div>
         </div>
@@ -2042,7 +2042,7 @@ function TotalSpendView() {
             <div key={stageData.stage} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
               <button
                 onClick={() => setExpandedStage(expandedStage === stageData.stage ? null : stageData.stage)}
-                className="w-full flex items-center px-5 py-4 hover:bg-gray-50 transition-colors text-left">
+                className="w-full flex items-center px-5 py-2.5 hover:bg-gray-50 transition-colors text-left">
                 <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: stageData.color }} />
                 <span className="flex-1 text-sm font-bold text-gray-800">{stageData.stage}</span>
                 <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(stageData.total/grandTotal) : "—"}</span>
@@ -2053,7 +2053,7 @@ function TotalSpendView() {
                 <div className="border-t border-gray-100">
                   {stageData.phases.map((ph) => (
                     <button key={ph.name} onClick={() => setModal(ph)}
-                      className="w-full flex items-center px-5 py-3.5 border-b border-gray-50 hover:bg-indigo-50/40 transition-colors text-left group">
+                      className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-indigo-50/40 transition-colors text-left group">
                       <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-4" style={{ background: ph.color }} />
                       <div className="flex-1 min-w-0">
                         <span className="text-sm font-semibold text-gray-700">{ph.name}</span>
@@ -2087,7 +2087,7 @@ function TotalSpendView() {
           ].map(v => (
             <div key={v.key} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
               <button onClick={() => setExpandedVendor(expandedVendor === v.key ? null : v.key)}
-                className="w-full flex items-center px-5 py-4 hover:bg-gray-50 transition-colors text-left">
+                className="w-full flex items-center px-5 py-2.5 hover:bg-gray-50 transition-colors text-left">
                 <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: v.color }} />
                 <div className="flex-1 min-w-0 flex items-center gap-3">
                   <span className="text-sm font-semibold text-gray-800">{v.name}</span>
@@ -2125,7 +2125,7 @@ function TotalSpendView() {
           {Object.keys(otherVendorMap).filter(k => !isExcluded(k)).length > 0 && (
             <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
               <button onClick={() => setExpandedVendor(expandedVendor === "other" ? null : "other")}
-                className="w-full flex items-center px-5 py-4 hover:bg-gray-50 transition-colors text-left">
+                className="w-full flex items-center px-5 py-2.5 hover:bg-gray-50 transition-colors text-left">
                 <span className="w-3 h-3 rounded-full shrink-0 mr-3 bg-gray-300" />
                 <span className="flex-1 text-sm font-semibold text-gray-800">Other Vendors</span>
                 <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(Object.entries(otherVendorMap).filter(([k])=>!isExcluded(k)).reduce((s,[,v])=>s+v.total,0)/grandTotal) : "—"}</span>
@@ -2312,7 +2312,7 @@ function Phase11Shell({ initialSubTab = 'landing' }) {
       <div className="flex gap-1 border-b border-gray-200 -mt-2">
         {SUB_TABS.map(t => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
-            className={cx("px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
+            className={cx("px-3 py-2 text-xs font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
               subTab === t.id ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600")}>
             {t.label}
           </button>
@@ -2348,7 +2348,7 @@ function Phase11Shell({ initialSubTab = 'landing' }) {
             ].map(card => (
               <button key={card.id} onClick={() => setSubTab(card.id)}
                 className="bg-white border border-gray-100 rounded-xl p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all shadow-sm group">
-                <div className="text-xl mb-3 text-gray-300 group-hover:text-indigo-400 transition-colors">{card.icon}</div>
+                <div className="text-sm mb-3 text-gray-300 group-hover:text-indigo-400 transition-colors">{card.icon}</div>
                 <div className="text-sm font-semibold text-gray-800 mb-1">{card.label}</div>
                 <div className="text-sm text-gray-400">{card.desc}</div>
               </button>
@@ -2419,7 +2419,7 @@ function DesignEngShell() {
       <div className="flex gap-1 border-b border-gray-200 -mt-2">
         {VENDOR_TABS.map(t => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
-            className={cx("px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
+            className={cx("px-3 py-2 text-xs font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
               subTab === t.id ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600")}>
             {t.label}
           </button>
@@ -3101,7 +3101,7 @@ function VendorsViewSingle({ vendorKey }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-bold text-gray-900">{vendor.full_name}</h2>
+          <h2 className="text-sm font-bold text-gray-900">{vendor.full_name}</h2>
           <p className="text-sm text-gray-400 mt-0.5">{vendor.role}</p>
         </div>
         <Tag text="Active" color="amber" />
@@ -3410,7 +3410,7 @@ function AppShell() {
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <h1 style={{ fontSize: 16, fontWeight: 600, color: "#111827", margin: 0, letterSpacing: "-0.2px", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+              <h1 style={{ fontSize: 14, fontWeight: 600, color: "#111827", margin: 0, letterSpacing: "-0.1px", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
                 {page.title}
               </h1>
               <p style={{ fontSize: 12, color: "#b0b7c3", margin: "2px 0 0", fontWeight: 400 }}>
@@ -3422,7 +3422,7 @@ function AppShell() {
         </div>
 
         {/* Page content */}
-        <main style={{ padding: "20px 32px", maxWidth: 1280 }}>
+        <main style={{ padding: "16px 28px", maxWidth: 1400 }}>
           {tab === "dashboard"   && <Dashboard setTab={setTab} />}
           {tab === "totalspend"  && <TotalSpendView />}
           {tab === "phase11"     && <Phase11Shell initialSubTab={tab.startsWith("phase11:") ? tab.split(":")[1] : "landing"} />}
