@@ -593,6 +593,26 @@ function PriorPhaseShell({ phaseId }) {
             <Stat label="Total Paid"        value={$f(phase.total_paid)}        sub="Fully paid · phase closed" accent />
           </div>
 
+          {/* Compact contract details */}
+          <div className="border border-[#ede9e3] rounded-lg overflow-hidden">
+            <div className="px-4 py-2 border-b border-[#ede9e3] bg-[#faf8f5]">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Contract Details</span>
+            </div>
+            <div className="grid grid-cols-4 divide-x divide-[#f0f0ee]">
+              {[
+                ["GC", phase.gc],
+                ["Subcontractor", phase.subcontractor || "—"],
+                ["Contract #", meta.contract],
+                ["Period", `${phase.start_date} – ${phase.end_date}`],
+              ].map(([k,v]) => (
+                <div key={k} className="px-4 py-2.5">
+                  <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">{k}</div>
+                  <div className="text-xs font-medium text-gray-700">{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Scope */}
           {phase.scope && (
             <Card className="p-5">
@@ -2351,23 +2371,16 @@ function Phase11Shell({ initialSubTab = 'landing' }) {
             ))}
           </div>
 
-          {/* Project details */}
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-5 py-2.5 border-b border-[#e8e8e6]">
-              <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Contract Details</span>
+          {/* Contract details — compact reference */}
+          <div className="border border-[#ede9e3] rounded-lg overflow-hidden">
+            <div className="px-4 py-2 border-b border-[#ede9e3] bg-[#faf8f5]">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Contract Details</span>
             </div>
-            <div className="grid grid-cols-2 divide-x divide-[#f0f0ee]">
-              {[
-                [["General Contractor","Taconic Builders Inc."],["Contract #","C25-104"],["Contract Start","Jun 23, 2025"],["Est. Completion","April 2027"]],
-                [["Project Manager","Joseph Hamilton"],["Architect","ArchitectureFirm"],["Landscape Arch.","Reed Hilderbrand"],["Civil Engineer","Ivan Zdrahal PE"]],
-              ].map((col, ci) => (
-                <div key={ci} className="divide-y divide-[#f0f0ee]">
-                  {col.map(([k,v]) => (
-                    <div key={k} className="flex items-center justify-between px-5 py-3">
-                      <span className="text-sm text-gray-400">{k}</span>
-                      <span className="text-sm font-semibold text-gray-800">{v}</span>
-                    </div>
-                  ))}
+            <div className="grid grid-cols-4 divide-x divide-[#f0f0ee]">
+              {[["GC","Taconic Builders Inc."],["Contract #","C25-104"],["Start","Jun 23, 2025"],["Est. Completion","April 2027"]].map(([k,v]) => (
+                <div key={k} className="px-4 py-2.5">
+                  <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">{k}</div>
+                  <div className="text-xs font-medium text-gray-700">{v}</div>
                 </div>
               ))}
             </div>
@@ -3293,10 +3306,10 @@ function VendorsViewSingle({ vendorKey }) {
 const NAV = [
   { id: "dashboard",   label: "Overview",              icon: "◈" },
   { id: "totalspend",  label: "Total Spend",           icon: "∑" },
+  { id: "demolition",  label: "Demolition",            icon: "◈" },
+  { id: "road",        label: "Road Construction",     icon: "◷" },
   { id: "phase11",     label: "Phase 1.1",             icon: "◉" },
   { id: "designeng",   label: "Design & Engineering",  icon: "⬡" },
-  { id: "road",        label: "Road Construction",     icon: "◷" },
-  { id: "demolition",  label: "Demolition",            icon: "◈" },
   { id: "uploads",     label: "Documents",             icon: "⊕" },
 ];
 
@@ -3304,6 +3317,14 @@ const PAGE_TITLES = {
   dashboard:   { title: "PROJECT OVERVIEW",         sub: "Camp Forestmere" },
   totalspend:  { title: "TOTAL SPEND",              sub: "Inception to date · All phases · USD" },
   phase11:     { title: "PHASE 1.1 — CONSTRUCTION", sub: "Taconic Builders · C25-104 · Jun 2025 – Apr 2027" },
+  "phase11:landing":  { title: "PHASE 1.1 — CONSTRUCTION", sub: "Taconic Builders · C25-104 · Jun 2025 – Apr 2027" },
+  "phase11:budget":   { title: "PHASE 1.1 — CONSTRUCTION", sub: "Control Budget" },
+  "phase11:awards":   { title: "PHASE 1.1 — CONSTRUCTION", sub: "Awards" },
+  "phase11:cos":      { title: "PHASE 1.1 — CONSTRUCTION", sub: "Change Orders" },
+  "phase11:invoices": { title: "PHASE 1.1 — CONSTRUCTION", sub: "Invoices" },
+  "phase11:lineitem": { title: "PHASE 1.1 — CONSTRUCTION", sub: "Line Item Billing" },
+  "phase11:reconcile":{ title: "PHASE 1.1 — CONSTRUCTION", sub: "Reconcile" },
+  "phase11:zoho-recon":{ title: "PHASE 1.1 — CONSTRUCTION", sub: "Zoho Reconciliation" },
   designeng:   { title: "DESIGN & ENGINEERING",     sub: "ArchitectureFirm · Reed Hilderbrand · Ivan Zdrahal PE" },
   road:        { title: "Road Construction",            sub: "Taconic Builders · C23-101 · Jan 2024 – Jun 2024 · Complete" },
   demolition:  { title: "Demolition",                   sub: "Taconic Builders / Mayville Enterprises · C25-102 · Jan 2025 – May 2025 · Complete" },
@@ -3317,7 +3338,6 @@ function AppShell() {
   const getInitialTab = () => {
     const hash = window.location.hash.replace("#", "");
     const validTabs = ["dashboard","totalspend","phase11","designeng","road","demolition","uploads"];
-    // Handle phase11:subtab format
     if (hash.startsWith("phase11:")) return hash;
     return validTabs.includes(hash) ? hash : "dashboard";
   };
@@ -3425,8 +3445,7 @@ function AppShell() {
         <main style={{ padding: "20px 28px 32px", maxWidth: 1360 }}>
           {tab === "dashboard"   && <Dashboard setTab={setTab} />}
           {tab === "totalspend"  && <TotalSpendView />}
-          {tab === "phase11"     && <Phase11Shell initialSubTab={tab.startsWith("phase11:") ? tab.split(":")[1] : "landing"} />}
-          {tab.startsWith("phase11:") && <Phase11Shell initialSubTab={tab.split(":")[1]} />}
+          {(tab === "phase11" || tab.startsWith("phase11:")) && <Phase11Shell initialSubTab={tab.startsWith("phase11:") ? tab.split(":")[1] : "landing"} />}
           {tab === "designeng"   && <DesignEngShell />}
           {tab === "road"        && <PriorPhaseShell phaseId="road" />}
           {tab === "demolition"  && <PriorPhaseShell phaseId="demolition" />}
