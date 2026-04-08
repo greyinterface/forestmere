@@ -1513,6 +1513,35 @@ app.delete('/api/submitted-invoices/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+
+// ─── REPLACE WRITEUP WITH JOURNAL ENTRIES ONLY ───────────────────────────────
+// Since Zoho has all bills, we only need the 3 journal entries from writeup
+// (land purchase, $500 entry, JXM deposit) — everything else is in Zoho bills
+app.post('/api/admin/clean-writeup', async (req, res) => {
+  try {
+    // Delete all writeup entries
+    await pool.query("DELETE FROM historical_payments WHERE source='writeup'");
+
+    // Re-insert only the 3 journal entries that aren't in Zoho bills
+    const journalEntries = [
+      ['Pre-Construction', 'Land Acquisition', '2022-06-01', 'Timothy R Smith', 'Land & Property Acquisition', 'Land purchase — Camp Forestmere, 8927 Route 30, Paul Smiths NY', 3634949.67],
+      ['Pre-Construction', 'Design & Permitting', '2022-11-10', 'Journal Entry', 'Other', 'To record Land Held for Development', 500.00],
+      ['Pre-Construction', 'Design & Permitting', '2023-02-28', 'JXM Inc.', 'Other', 'Initial deposit given by JXM on behalf of Camp Forestmere for land held for development', 187515.00],
+    ];
+
+    for (const [stage, wp, date, vendor, cat, desc, amount] of journalEntries) {
+      await pool.query(
+        `INSERT INTO historical_payments (stage,work_package,payment_date,vendor,category,description,amount_usd,source,notes,is_batched)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'writeup',NULL,FALSE)`,
+        [stage, wp, date, vendor, cat, desc, amount]
+      );
+    }
+
+    // Verify new totals
+    const r = await pool.query("SELECT source, COUNT(*) as count, SUM(amount_usd) as total FROM historical_payments GROUP BY source");
+    res.json({ ok: true, message: 'Writeup cleaned — only 3 journal entries remain', totals: r.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 // ─── ADMIN: MIGRATE VENDOR PHASE TAGS ────────────────────────────────────────
 app.post('/api/admin/migrate-phase-tags', async (req, res) => {
   try {
@@ -1824,7 +1853,7 @@ app.post('/api/zoho/sync', async (req, res) => {
     const preview = [];
 
     // Clear existing zoho-sourced records
-    await pool.query("DELETE FROM historical_payments WHERE source='zoho'");
+    await pool.query("DELETE FROM historical_payments");
 
     // Pull bills from Zoho (covers LHD + Motor Boat + all vendors)
     const allBills = await getAllZohoBills();
@@ -1858,6 +1887,21 @@ app.post('/api/zoho/sync', async (req, res) => {
       );
       inserted++;
       preview.push({ vendor: vname, date: bill.date, amount, category: cat, reconciled_to: reconciledTo });
+    }
+
+    // Add the 3 Zoho journal entries not captured in bills
+    const journalEntries = [
+      ['Pre-Construction','Land Acquisition','2022-06-01','Camp Forestmere Corp.','Land & Property Acquisition','To record Land Held for Development — Land Purchase',3634949.67,'zoho',null,false,'land_acquisition',null],
+      ['Pre-Construction','Land Acquisition','2022-11-10','Camp Forestmere Corp.','Land & Property Acquisition','To record Land Held for Development',500.00,'zoho',null,false,'land_acquisition',null],
+      ['Pre-Construction','Design & Permitting','2023-02-28','JXM Inc.','Land & Property Acquisition','To record initial deposit given by JXM on behalf of Camp Forestmere',187515.00,'zoho',null,false,null,null],
+    ];
+    for (const j of journalEntries) {
+      await pool.query(
+        `INSERT INTO historical_payments (stage,work_package,payment_date,vendor,category,description,amount_usd,source,notes,is_batched,reconciled_to,zoho_bill_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        j
+      );
+      inserted++;
     }
 
     // Record last sync time
@@ -1921,6 +1965,19 @@ app.post('/api/zoho/auto-sync', async (req, res) => {
       await pool.query(
         "INSERT INTO historical_payments (stage,work_package,payment_date,vendor,category,description,amount_usd,source,notes,is_batched,reconciled_to,zoho_bill_id) VALUES ($1,$2,$3,$4,$5,$6,$7,'zoho',NULL,FALSE,$8,$9)",
         [stage, wp, bill.date, vname, cat, bill.bill_number || '', amount, reconciledTo, bill.bill_id || null]
+      );
+      inserted++;
+    }
+    // Add the 3 Zoho journal entries
+    const journals = [
+      ['Pre-Construction','Land Acquisition','2022-06-01','Camp Forestmere Corp.','Land & Property Acquisition','Land purchase — To record Land Held for Development',3634949.67,'zoho',null,false,'land_acquisition',null],
+      ['Pre-Construction','Land Acquisition','2022-11-10','Camp Forestmere Corp.','Land & Property Acquisition','To record Land Held for Development',500.00,'zoho',null,false,'land_acquisition',null],
+      ['Pre-Construction','Design & Permitting','2023-02-28','JXM Inc.','Land & Property Acquisition','JXM initial deposit on behalf of Camp Forestmere',187515.00,'zoho',null,false,null,null],
+    ];
+    for (const j of journals) {
+      await pool.query(
+        "INSERT INTO historical_payments (stage,work_package,payment_date,vendor,category,description,amount_usd,source,notes,is_batched,reconciled_to,zoho_bill_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",
+        j
       );
       inserted++;
     }
