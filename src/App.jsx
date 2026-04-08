@@ -90,7 +90,12 @@ function DataProvider({ children }) {
   // True inception-to-date grand total
   // historical payments (writeup, pre-Feb 2024) + prior phases (road+demo) + Phase 1.1 all vendors
   const priorPhasesTotal = priorPhases.reduce((s, p) => s + parseFloat(p.total_paid), 0);
-  const inceptionToDateTotal = historicalTotal + priorPhasesTotal + taconicPaid + izPaid + rhPaid + afPaid;
+
+  // inceptionToDateTotal:
+  // historicalTotal = all Zoho bills + 3 journal entries (from historical_payments after sync)
+  // + taconicPaid = Phase 1.1 pay apps (invoices table — not in Zoho bills)
+  // Taconic road/demo are in Zoho bills so already in historicalTotal — no double counting
+  const inceptionToDateTotal = historicalTotal + taconicPaid;
 
   const value = {
     budget, awards, changeOrders, invoices, lineItems, vendors, priorPhases, cashFlow, documents,
@@ -255,16 +260,12 @@ function Dashboard({ setTab }) {
         </button>
       )}
       {/* Prior phases now tracked in Total Spend tab */}
-      {/* Reconciliation pending warning */}
+      {/* Zoho source of truth banner */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-3">
-        <span className="text-blue-500 mt-0.5 shrink-0">⚠</span>
+        <span className="text-blue-500 mt-0.5 shrink-0">ℹ</span>
         <div>
-          <p className="text-xs font-semibold text-blue-700">Total Project Spend — Reconciliation Pending</p>
-          <p className="text-xs text-blue-600 mt-0.5">
-            Pre-construction spend for Reed Hilderbrand, ArchitectureFirm and Ivan Zdrahal is currently counted in both the historical writeup data (inception → Feb 2024) and their vendor phase invoiced totals. 
-            This will cause slight overstatement until vendor invoices are fully reconciled to Zoho. 
-            All other figures are accurate.
-          </p>
+          <p className="text-xs font-semibold text-blue-700">Zoho is the source of truth</p>
+          <p className="text-xs text-blue-600 mt-0.5">All spend data pulled directly from Camp Forestmere Zoho Books. Go to Total Spend tab to force sync.</p>
         </div>
       </div>
       {reconSummary?.failed === 0 && reconSummary?.total > 0 && (
@@ -2446,15 +2447,11 @@ function TotalSpendView() {
 
   return (
     <div className="space-y-5">
-      {/* Reconciliation pending warning */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-3">
-        <span className="text-blue-500 mt-0.5 shrink-0">⚠</span>
-        <div>
-          <p className="text-xs font-semibold text-blue-700">Reconciliation Pending — Total may be slightly overstated</p>
-          <p className="text-xs text-blue-600 mt-0.5">
-            Reed Hilderbrand, ArchitectureFirm and Ivan Zdrahal pre-Feb 2024 spend appears in both the historical writeup data and vendor phase totals. 
-            Full reconciliation to Zoho in progress — will be resolved once vendor invoices are matched to accounting records.
-          </p>
+        <span className="text-blue-500 mt-0.5 shrink-0">ℹ</span>
+        <div className="flex-1">
+          <p className="text-xs font-semibold text-blue-700">Zoho is the source of truth — syncing live from Camp Forestmere Books</p>
+          <p className="text-xs text-blue-600 mt-0.5">All bills pulled directly from Zoho CF. Phase 1.1 Taconic pay apps tracked separately in the invoices table.</p>
           <ZohoSyncButton onSynced={load} />
         </div>
       </div>
