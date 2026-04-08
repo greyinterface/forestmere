@@ -1951,12 +1951,12 @@ function TotalSpendView() {
         ].map(ph => (
           <button key={ph.name} onClick={() => setModal(ph)}
             className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-[#f5f1ea] transition-colors text-left group">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0 mr-4" style={{ background: ph.color }} />
             <div className="flex-1 min-w-0">
               <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
               <span className="text-sm text-gray-400 ml-2">{ph.desc}</span>
             </div>
             
+            <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-4">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
             <span className="text-sm font-semibold text-gray-900 tabular-nums w-36 text-right">{$f(ph.total)}</span>
             <span className="text-gray-300 group-hover:text-indigo-400 text-sm transition-colors">›</span>
           </button>
@@ -1982,12 +1982,12 @@ function TotalSpendView() {
         ].map(ph => (
           <button key={ph.name} onClick={() => setModal(ph)}
             className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-[#f5f1ea] transition-colors text-left group">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0 mr-4" style={{ background: ph.color }} />
             <div className="flex-1 min-w-0">
               <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
               <span className="text-sm text-gray-400 ml-2">{ph.desc}</span>
             </div>
             
+            <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-4">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
             <span className="text-sm font-semibold text-gray-900 tabular-nums w-36 text-right">{$f(ph.total)}</span>
             <span className="text-gray-300 group-hover:text-indigo-400 text-sm transition-colors">›</span>
           </button>
@@ -2002,6 +2002,7 @@ function TotalSpendView() {
         {/* Grand total */}
         <div className="px-5 py-3 bg-[#1c2b3a] flex items-center border-t-2 border-[#1c2b3a]">
           <span className="flex-1 text-sm font-semibold text-white uppercase tracking-widest">Total — Inception to Date</span>
+          <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-4">100%</span>
           <span className="text-sm font-bold text-white tabular-nums w-36 text-right">{$f(grandTotal)}</span>
           <span className="w-4" />
         </div>
