@@ -44,7 +44,7 @@ function DataProvider({ children }) {
     <div className="min-h-screen flex items-center justify-center" style={{ background: "#f5f6f8" }}>
       <div className="text-center max-w-sm">
         <p className="text-red-500 font-semibold mb-2">Failed to connect to database</p>
-        <p className="text-xs text-gray-400 mb-4">{error}</p>
+        <p className="text-sm text-gray-400 mb-4">{error}</p>
         <button onClick={refresh} className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-semibold hover:bg-gray-800">Retry</button>
       </div>
     </div>
@@ -187,7 +187,7 @@ const Stat = ({ label, value, sub, accent, onClick }) => (
     <div className={cx(T.label, "mb-2")}>{label}</div>
     <div className={accent ? T.statValAccent : T.statVal}>{value}</div>
     {sub && <div className={cx(T.muted, "mt-1.5 leading-snug")}>{sub}</div>}
-    {onClick && <div className="text-xs text-indigo-400 mt-2 font-semibold">View detail →</div>}
+    {onClick && <div className="text-sm text-indigo-400 mt-2 font-semibold">View detail →</div>}
   </div>
 );
 
@@ -255,7 +255,6 @@ function Dashboard({ setTab }) {
   const [spendData, setSpendData] = useState(null);
 
   useEffect(() => {
-    // Pre-fetch spend data for the Overview modal so it's ready instantly
     apiFetch('/project-phases').then(d => setSpendData(d)).catch(() => {});
   }, []);
 
@@ -270,117 +269,136 @@ function Dashboard({ setTab }) {
   budget.forEach(b => { catBudget[b.cat] = (catBudget[b.cat] || 0) + parseFloat(b.budget); });
 
   const spendRows = [
-    { name: "Taconic Builders (GC)", paid: taconicPaid, color: "#4f46e5" },
-    { name: "Architecturefirm",                paid: afPaid,      color: "#0891b2" },
-    { name: "Reed Hilderbrand",                paid: rhPaid,      color: "#059669" },
-    { name: "Ivan Zdrahal PE",                 paid: izPaid,      color: "#7c3aed" },
+    { name: "Taconic Builders (GC)", paid: taconicPaid, color: "#10b981" },
+    { name: "Architecturefirm",      paid: afPaid,      color: "#0891b2" },
+    { name: "Reed Hilderbrand",      paid: rhPaid,      color: "#059669" },
+    { name: "Ivan Zdrahal PE",       paid: izPaid,      color: "#7c3aed" },
   ];
   const phase11GrandTotal = taconicPaid + izPaid + rhPaid + afPaid;
 
+  // Section header helper — consistent across whole Dashboard
+  const SectionHeader = ({ label, action, actionLabel }) => (
+    <div className="flex items-center gap-3 mb-4">
+      <span className="text-xs font-bold uppercase tracking-widest text-gray-400 whitespace-nowrap">{label}</span>
+      <div className="flex-1 h-px bg-gray-100" />
+      {action && (
+        <button onClick={action} className="text-sm font-semibold text-indigo-500 hover:text-indigo-700 transition-colors whitespace-nowrap">{actionLabel} →</button>
+      )}
+    </div>
+  );
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+
+      {/* ── Alert banners — only show when needed ── */}
       {reconSummary?.failed > 0 && (
-        <button onClick={() => setTab("phase11:reconcile")} className="w-full text-left flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 hover:bg-red-100 transition-colors">
-          <span className="text-red-500 text-xs">✕</span>
-          <p className="text-xs font-semibold text-red-700 flex-1">Reconciliation Errors Detected — {reconSummary.failed} check{reconSummary.failed > 1 ? "s" : ""} failing · click to review</p>
-          <span className="text-red-400 text-xs">→</span>
+        <button onClick={() => setTab("phase11:reconcile")} className="w-full text-left flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-5 py-3.5 hover:bg-red-100 transition-colors">
+          <span className="text-red-500">✕</span>
+          <p className="text-sm font-semibold text-red-700 flex-1">Reconciliation errors detected — {reconSummary.failed} check{reconSummary.failed > 1 ? "s" : ""} failing</p>
+          <span className="text-red-400">→</span>
         </button>
       )}
-      {/* Prior phases now tracked in Total Spend tab */}
-
-      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-3">
-        <span className="text-blue-500 mt-0.5 shrink-0">ℹ</span>
-        <div>
-
-        </div>
-      </div>
       {reconSummary?.failed === 0 && reconSummary?.total > 0 && (
-        <button onClick={() => setTab("phase11:reconcile")} className="w-full text-left flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 hover:bg-emerald-100 transition-colors">
-          <span className="text-emerald-500 text-xs">✓</span>
-          <p className="text-xs font-semibold text-emerald-700 flex-1">All {reconSummary.total} reconciliation checks passing — books balanced</p>
-          <span className="text-emerald-400 text-xs">→</span>
+        <button onClick={() => setTab("phase11:reconcile")} className="w-full text-left flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3.5 hover:bg-emerald-100 transition-colors">
+          <span className="text-emerald-500 text-sm">✓</span>
+          <p className="text-sm font-semibold text-emerald-700 flex-1">All {reconSummary.total} reconciliation checks passing</p>
+          <span className="text-emerald-400">→</span>
         </button>
       )}
       {pendingInvs.length > 0 && (
-        <button onClick={() => setTab("phase11:invoices")} className="w-full text-left flex items-start gap-3 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 hover:bg-indigo-100 transition-colors">
-          <span className="text-indigo-500 mt-0.5">⚠</span>
+        <button onClick={() => setTab("phase11:invoices")} className="w-full text-left flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-3.5 hover:bg-amber-100 transition-colors">
+          <span className="text-amber-500">⚠</span>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-indigo-700">Payment Action Required</p>
-            <p className="text-xs text-indigo-600/70 mt-0.5">
-              {pendingInvs.length} invoice{pendingInvs.length > 1 ? "s" : ""} pending: {pendingInvs.map(i => i.inv_num).join(", ")} — total {$f(taconicPending)}
-            </p>
+            <p className="text-sm font-semibold text-amber-800">Payment action required</p>
+            <p className="text-sm text-amber-600 mt-0.5">{pendingInvs.length} invoice{pendingInvs.length > 1 ? "s" : ""} pending: {pendingInvs.map(i => i.inv_num).join(", ")} — {$f(taconicPending)}</p>
           </div>
-          <span className="text-indigo-500 text-sm mt-0.5">→</span>
+          <span className="text-amber-500">→</span>
         </button>
       )}
 
-      {/* ── TOTAL PROJECT SPEND ── */}
-      <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-indigo-400 mb-0.5">Total Project Spend — Inception to Date</p>
-          <p className="text-2xl font-bold text-indigo-700 tabular-nums">{$f(inceptionToDateTotal)}</p>
-          <p className="text-xs text-indigo-500 mt-0.5">Land acquisition + pre-construction + road + demo + Phase 1.1</p>
+      {/* ── Total Project Spend ── */}
+      <div>
+        <SectionHeader label="Total Project Spend" action={() => setTab("totalspend")} actionLabel="Full breakdown" />
+        <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-gray-50">
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Inception to Date · All Phases</p>
+              <p className="text-3xl font-bold text-gray-900 tabular-nums">{$f(inceptionToDateTotal)}</p>
+            </div>
+            <button onClick={() => setModal("spend")}
+              className="px-5 py-2.5 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold rounded-xl transition-colors">
+              View Breakdown →
+            </button>
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-gray-50">
+            {[
+              ["Land & Pre-Construction", "$3,963,000+", "Land acquisition + design"],
+              ["Road & Demolition",       "$900,000+",   "Prior completed phases"],
+              ["Phase 1.1",              $f(phase11GrandTotal), "Active construction"],
+            ].map(([label, val, sub]) => (
+              <div key={label} className="px-5 py-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+                <p className="text-lg font-bold text-gray-900 tabular-nums">{val}</p>
+                <p className="text-sm text-gray-400 mt-0.5">{sub}</p>
+              </div>
+            ))}
+          </div>
         </div>
-        <button onClick={() => setModal("spend")} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors shrink-0">View Breakdown →</button>
       </div>
 
-      {/* ── PHASE 1.1 SECTION ── */}
+      {/* ── Phase 1.1 — Construction ── */}
       <div>
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Phase 1.1 — Construction (Taconic Builders)</span>
-          <div className="flex-1 h-px bg-gray-200" />
-          <button onClick={() => setTab("phase11")} className="text-xs text-indigo-500 font-semibold hover:text-indigo-700">View Phase 1.1 →</button>
-        </div>
+        <SectionHeader label="Phase 1.1 — Construction (Taconic Builders)" action={() => setTab("phase11")} actionLabel="View Phase 1.1" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Stat label="Revised Contract" value={$f(revisedContractTotal)} sub={`Original $13,093,419 + ${$f(revisedContractTotal - 13093419.47)} COs`} onClick={() => setTab("phase11:budget")} />
-          <Stat label="GC Awarded" value={$f(totalAwarded)} sub={pf(totalAwarded / revisedContractTotal) + " of revised contract"} onClick={() => setTab("phase11:awards")} />
-          <Stat label="GC Paid to Date" value={$f(taconicPaid)} sub={pf(taconicPaid / totalAwarded) + " of awarded"} accent onClick={() => setTab("phase11:invoices")} />
-          <Stat label="GC Balance to Finish" value={$f(balanceToFinish)} sub="Revised contract less completed to date" onClick={() => setTab("phase11:lineitem")} />
+          <Stat label="Revised Contract"   value={$f(revisedContractTotal)} sub={`Original $13,093,419 + ${$f(revisedContractTotal - 13093419.47)} COs`} onClick={() => setTab("phase11:budget")} />
+          <Stat label="GC Awarded"         value={$f(totalAwarded)}         sub={pf(totalAwarded / revisedContractTotal) + " of revised contract"} onClick={() => setTab("phase11:awards")} />
+          <Stat label="GC Paid to Date"    value={$f(taconicPaid)}          sub={pf(taconicPaid / totalAwarded) + " of awarded"} accent onClick={() => setTab("phase11:invoices")} />
+          <Stat label="Balance to Finish"  value={$f(balanceToFinish)}      sub="Revised contract less completed to date" onClick={() => setTab("phase11:lineitem")} />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-          <Stat label="Approved COs" value={$f(totalCOs)} sub={changeOrders.length + " change orders"} onClick={() => setTab("phase11:cos")} />
-          <Stat label="Retainage Held" value={$f(retainageHeld)} sub="Released at substantial completion" onClick={() => setModal("retainage")} />
-          <Stat label="GC Pending" value={$f(taconicPending)} accent sub={pendingInvs.length + " invoices outstanding"} onClick={() => setTab("phase11:invoices")} />
-          <Stat label="% Complete" value={pf(taconicPaid / revisedContractTotal)} sub="Based on paid to date" />
+          <Stat label="Approved COs"       value={$f(totalCOs)}             sub={changeOrders.length + " change orders"} onClick={() => setTab("phase11:cos")} />
+          <Stat label="Retainage Held"     value={$f(retainageHeld)}        sub="Released at substantial completion" onClick={() => setModal("retainage")} />
+          <Stat label="GC Pending"         value={$f(taconicPending)}       sub={pendingInvs.length + " invoices outstanding"} accent onClick={() => setTab("phase11:invoices")} />
+          <Stat label="% Complete"         value={pf(taconicPaid / revisedContractTotal)} sub="Based on paid to date" />
         </div>
       </div>
 
-      {/* ── PHASE 1.1 CHARTS ── */}
+      {/* ── Phase 1.1 charts ── */}
       <div className="grid md:grid-cols-2 gap-5">
-        <Card className="p-5">
-          <SectionTitle>Phase 1.1 — Spend by Vendor</SectionTitle>
-          <p className="text-xs text-gray-400 -mt-3 mb-3">Phase 1.1 only · click vendor for detail</p>
+        <Card className="p-6">
+          <SectionHeader label="Phase 1.1 — Spend by Vendor" />
+          <p className="text-sm text-gray-400 -mt-3 mb-4">Phase 1.1 only · click for detail</p>
           <div className="space-y-3">
             {spendRows.map(v => (
               <button key={v.name} onClick={() => {
                 if (v.name.includes("Taconic")) setTab("phase11:invoices");
                 else setTab("designeng");
-              }} className="w-full flex items-center gap-3 text-xs text-left hover:bg-[#f5f6f8] rounded-lg px-1 py-1 transition-colors">
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: v.color }} />
-                <span className="text-gray-500 w-44 shrink-0 truncate">{v.name}</span>
+              }} className="w-full flex items-center gap-3 text-left hover:bg-gray-50 rounded-xl px-2 py-2 transition-colors">
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: v.color }} />
+                <span className="text-sm text-gray-600 w-48 shrink-0 truncate">{v.name}</span>
                 <div className="flex-1"><BarFill value={v.paid} max={phase11GrandTotal} color={v.color} /></div>
-                <span className="text-gray-800 font-semibold tabular-nums w-24 text-right">{$f(v.paid)}</span>
+                <span className="text-sm font-semibold text-gray-900 tabular-nums w-28 text-right">{$f(v.paid)}</span>
               </button>
             ))}
-            <div className="flex justify-between items-center border-t border-gray-100 pt-2 mt-1">
-              <span className="text-xs font-semibold text-gray-400">Phase 1.1 Total</span>
-              <span className="text-sm font-bold text-gray-900 tabular-nums">{$f(phase11GrandTotal)}</span>
+            <div className="flex justify-between items-center border-t border-gray-100 pt-3 mt-2">
+              <span className="text-sm font-semibold text-gray-500">Phase 1.1 Total</span>
+              <span className="text-base font-bold text-gray-900 tabular-nums">{$f(phase11GrandTotal)}</span>
             </div>
           </div>
         </Card>
 
-        <Card className="p-5">
-          <SectionTitle>Phase 1.1 — Budget vs. Awarded by Category</SectionTitle>
-          <p className="text-xs text-gray-400 -mt-3 mb-3">Taconic control budget · click for detail</p>
-          <div className="space-y-2">
+        <Card className="p-6">
+          <SectionHeader label="Phase 1.1 — Budget vs. Awarded by Category" />
+          <p className="text-sm text-gray-400 -mt-3 mb-4">Taconic control budget · click for detail</p>
+          <div className="space-y-2.5">
             {Object.entries(catBudget).sort((a, b) => b[1] - a[1]).map(([cat, bud]) => {
               const awd = awards.filter(a => budget.find(b => b.code === a.code)?.cat === cat).reduce((s, a) => s + parseFloat(a.current_amount), 0);
               return (
-                <button key={cat} onClick={() => setModal({ type: "catDetail", cat })} className="w-full flex items-center gap-3 text-xs text-left hover:bg-[#f5f6f8] rounded-lg px-1 py-1 transition-colors">
-                  <span className="text-gray-400 w-20 shrink-0">{cat}</span>
+                <button key={cat} onClick={() => setModal({ type: "catDetail", cat })} className="w-full flex items-center gap-3 text-left hover:bg-gray-50 rounded-xl px-2 py-1.5 transition-colors">
+                  <span className="text-sm text-gray-500 w-24 shrink-0">{cat}</span>
                   <div className="flex-1"><BarFill value={awd} max={bud} /></div>
-                  <span className="text-gray-400 tabular-nums w-20 text-right">{$f(bud)}</span>
-                  <span className="text-gray-400 w-12 text-right">{awd > 0 ? pf(awd / bud) : "—"}</span>
+                  <span className="text-sm text-gray-500 tabular-nums w-24 text-right">{$f(bud)}</span>
+                  <span className="text-sm text-gray-400 w-14 text-right">{awd > 0 ? pf(awd / bud) : "—"}</span>
                 </button>
               );
             })}
@@ -388,126 +406,112 @@ function Dashboard({ setTab }) {
         </Card>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Project Details</span>
-        </div>
-        <div className="grid grid-cols-2 divide-x divide-gray-50">
-          {/* Left column */}
-          <div className="divide-y divide-gray-50">
-            {[
-              ["Project",            "Camp Forestmere"],
-              ["Owner",              "JXM / Camp Forestmere Corp."],
-              ["Location",           "Paul Smiths, NY 12970"],
-              ["General Contractor", "Taconic Builders Inc."],
-              ["Contract Start",     "Jun 23, 2025"],
-              ["Contract Duration",  "22 months"],
-            ].map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between px-5 py-3">
-                <span className="text-xs text-gray-400">{k}</span>
-                <span className="text-xs font-semibold text-gray-800 text-right ml-4">{v}</span>
-              </div>
-            ))}
+      {/* ── Project Details ── */}
+      <div>
+        <SectionHeader label="Project Details" />
+        <Card className="overflow-hidden">
+          <div className="grid grid-cols-2 divide-x divide-gray-50">
+            <div className="divide-y divide-gray-50">
+              {[
+                ["Project",            "Camp Forestmere"],
+                ["Owner",              "JXM / Camp Forestmere Corp."],
+                ["Location",           "Paul Smiths, NY 12970"],
+                ["General Contractor", "Taconic Builders Inc."],
+                ["Contract Start",     "Jun 23, 2025"],
+                ["Contract Duration",  "22 months"],
+              ].map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between px-5 py-3.5">
+                  <span className="text-sm text-gray-400">{k}</span>
+                  <span className="text-sm font-semibold text-gray-800 text-right ml-4">{v}</span>
+                </div>
+              ))}
+            </div>
+            <div className="divide-y divide-gray-50">
+              {[
+                ["Est. Completion",  "April 2027"],
+                ["Project Manager", "Joseph Hamilton"],
+                ["Architect",       "Architecturefirm"],
+                ["Landscape Arch.", "Reed Hilderbrand"],
+                ["Civil Engineer",  "Ivan Zdrahal PE"],
+                ["Project #",       "C25-104"],
+              ].map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between px-5 py-3.5">
+                  <span className="text-sm text-gray-400">{k}</span>
+                  <span className="text-sm font-semibold text-gray-800 text-right ml-4">{v}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          {/* Right column */}
-          <div className="divide-y divide-gray-50">
-            {[
-              ["Est. Completion",    "April 2027"],
-              ["Project Manager",    "Joseph Hamilton"],
-              ["Architect",          "Architecturefirm"],
-              ["Landscape Arch.",    "Reed Hilderbrand"],
-              ["Civil Engineer",     "Ivan Zdrahal PE"],
-              ["Project #",          "C25-104"],
-            ].map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between px-5 py-3">
-                <span className="text-xs text-gray-400">{k}</span>
-                <span className="text-xs font-semibold text-gray-800 text-right ml-4">{v}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        </Card>
       </div>
 
+      {/* ── Modals ── */}
       {modal === "spend" && (() => {
         const ap = spendData?.allPayments || [];
-        const landAmt    = ap.filter(p => p.work_package === "Land Acquisition").reduce((s,p) => s+p.amount_usd, 0);
-        const designAmt  = ap.filter(p => p.work_package === "Design & Permitting").reduce((s,p) => s+p.amount_usd, 0);
-        const roadAmt    = ap.filter(p => p.work_package === "Road Construction").reduce((s,p) => s+p.amount_usd, 0);
-        const demoAmt    = ap.filter(p => p.work_package === "Demolition").reduce((s,p) => s+p.amount_usd, 0);
-        const ph11Amt    = ap.filter(p => p.work_package === "Phase 1.1").reduce((s,p) => s+p.amount_usd, 0);
-        const grandAmt   = landAmt + designAmt + roadAmt + demoAmt + ph11Amt;
+        const landAmt   = ap.filter(p => p.work_package === "Land Acquisition").reduce((s,p) => s+p.amount_usd, 0);
+        const designAmt = ap.filter(p => p.work_package === "Design & Permitting").reduce((s,p) => s+p.amount_usd, 0);
+        const roadAmt   = ap.filter(p => p.work_package === "Road Construction").reduce((s,p) => s+p.amount_usd, 0);
+        const demoAmt   = ap.filter(p => p.work_package === "Demolition").reduce((s,p) => s+p.amount_usd, 0);
+        const ph11Amt   = ap.filter(p => p.work_package === "Phase 1.1").reduce((s,p) => s+p.amount_usd, 0);
+        const grandAmt  = landAmt + designAmt + roadAmt + demoAmt + ph11Amt;
         const pct = (n) => grandAmt > 0 ? pf(n / grandAmt) : "—";
-        const rows = [
-          { section: "Pre-Construction", items: [
-            { label: "Land Acquisition",    amt: landAmt   },
-            { label: "Design & Permitting", amt: designAmt },
-          ]},
-          { section: "Construction", items: [
-            { label: "Road Construction",   amt: roadAmt   },
-            { label: "Demolition",          amt: demoAmt   },
-            { label: "Phase 1.1",           amt: ph11Amt   },
-          ]},
-        ];
         return (
           <Modal title="Total Project Spend" subtitle="Inception to date · all phases · USD" onClose={() => setModal(null)}>
-            {!spendData && <p className="text-xs text-gray-400 text-center py-4">Loading live data...</p>}
+            {!spendData && <p className="text-sm text-gray-400 text-center py-4">Loading…</p>}
             {spendData && (
-              <table className="w-full text-xs">
+              <table className="w-full">
                 <thead>
                   <tr>
-                    <th className="px-3 py-2 text-xs font-semibold text-gray-400 bg-gray-50 text-left tracking-wide">Category</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-gray-400 bg-gray-50 text-right tracking-wide w-32">Amount (USD)</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-gray-400 bg-gray-50 text-right tracking-wide w-20">% Total</th>
+                    <TH>Category</TH>
+                    <TH right>Amount (USD)</TH>
+                    <TH right>% of Total</TH>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(({ section, items }) => (
-                    <>
-                      <TR subtle key={section}>
-                        <TD bold colSpan={3} className="text-indigo-700 uppercase tracking-widest text-xs pt-3 pb-1">{section}</TD>
-                      </TR>
-                      {items.map(({ label, amt }) => (
-                        <tr key={label} className="border-b border-gray-50">
-                          <td className="px-4 py-2.5 text-xs text-gray-600 pl-8">{label}</td>
-                          <td className="px-4 py-2.5 text-xs font-semibold text-gray-800 text-right tabular-nums">{$f(amt)}</td>
-                          <td className="px-4 py-2.5 text-xs text-gray-400 text-right tabular-nums">{pct(amt)}</td>
-                        </tr>
-                      ))}
-                    </>
+                  <TR subtle><TD bold colSpan={3} className="text-indigo-700 uppercase tracking-wider text-xs">Pre-Construction</TD></TR>
+                  {[["Land Acquisition", landAmt], ["Design & Permitting", designAmt]].map(([label, amt]) => (
+                    <TR key={label}><TD className="pl-8">{label}</TD><TD right bold>{$f(amt)}</TD><TD right muted>{pct(amt)}</TD></TR>
+                  ))}
+                  <TR subtle><TD bold colSpan={3} className="text-indigo-700 uppercase tracking-wider text-xs">Construction</TD></TR>
+                  {[["Road Construction", roadAmt], ["Demolition", demoAmt], ["Phase 1.1", ph11Amt]].map(([label, amt]) => (
+                    <TR key={label}><TD className="pl-8">{label}</TD><TD right bold>{$f(amt)}</TD><TD right muted>{pct(amt)}</TD></TR>
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-gray-50 border-t border-gray-200">
-                    <td className="px-4 py-3 text-xs font-bold text-gray-900">Total Inception to Date</td>
-                    <td className="px-4 py-3 text-xs font-bold text-gray-900 text-right tabular-nums">{$f(grandAmt)}</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-gray-500 text-right">100%</td>
-                  </tr>
+                  <TR subtle>
+                    <TD bold className="text-gray-900">Total Inception to Date</TD>
+                    <TD right bold className="text-gray-900">{$f(grandAmt)}</TD>
+                    <TD right muted>100%</TD>
+                  </TR>
                 </tfoot>
               </table>
             )}
-            <button onClick={() => { setModal(null); setTab("totalspend"); }} className="mt-3 w-full py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold rounded-lg transition-colors">View Full Breakdown in Total Spend →</button>
+            <button onClick={() => { setModal(null); setTab("totalspend"); }} className="mt-3 w-full py-3 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-xl transition-colors">View Full Breakdown in Total Spend →</button>
           </Modal>
         );
       })()}
       {modal === "retainage" && (
         <Modal title="Retainage Held" subtitle="10% of completed work — released at substantial completion" onClose={() => setModal(null)}>
-          <KVGrid rows={[["Total Retainage Held", $f(retainageHeld)], ["Retainage Rate", "~10% of completed work"], ["Completed Work Retainage", $f(retainageHeld)], ["Stored Material Retainage", "$0.00"], ["Release Trigger", "Substantial Completion"], ["Estimated Release", "April 2027"]]} />
+          <KVGrid rows={[["Total Retainage Held", $f(retainageHeld)], ["Retainage Rate", "~10% of completed work"], ["Release Trigger", "Substantial Completion"], ["Estimated Release", "April 2027"]]} />
         </Modal>
       )}
       {modal?.type === "catDetail" && (
         <Modal title={`${modal.cat} — Budget Detail`} subtitle="Awards within this category" onClose={() => setModal(null)} wide>
-          <table className="w-full text-xs">
+          <table className="w-full">
             <thead><tr><TH>Code</TH><TH>Division</TH><TH right>Budget</TH><TH right>Awarded</TH><TH right>Variance</TH></tr></thead>
             <tbody>
               {budget.filter(b => b.cat === modal.cat).map(b => {
                 const awd = awardedByCode[b.code] || 0;
+                const variance = awd - parseFloat(b.budget);
                 return (
                   <TR key={b.code}>
-                    <TD mono muted>{b.code}</TD>
-                    <TD className="text-gray-600">{b.name}</TD>
+                    <TD muted className="font-mono text-xs">{b.code}</TD>
+                    <TD bold>{b.div}</TD>
                     <TD right muted>{$f(b.budget)}</TD>
-                    <TD right bold className={awd ? "text-gray-900" : "text-gray-300"}>{awd ? $f(awd) : "—"}</TD>
-                    <TD right className={awd ? (b.budget - awd < 0 ? "text-red-500 font-semibold" : "text-emerald-600") : "text-gray-300"}>{awd ? $f(b.budget - awd) : "—"}</TD>
+                    <TD right bold>{$f(awd)}</TD>
+                    <TD right className={variance > 0 ? "text-red-500 font-semibold" : variance < 0 ? "text-emerald-600 font-semibold" : "text-gray-300"}>
+                      {variance > 0 ? `+${$f(variance)}` : variance < 0 ? `-${$f(-variance)}` : "—"}
+                    </TD>
                   </TR>
                 );
               })}
@@ -515,980 +519,10 @@ function Dashboard({ setTab }) {
           </table>
         </Modal>
       )}
-      {modal?.type === "spendDetail" && (
-        <Modal title={modal.row.name} subtitle="Spend detail" onClose={() => setModal(null)}>
-          <KVGrid rows={[["Vendor / Phase", modal.row.name], ["Total Paid", $f(modal.row.paid)], ["% of Grand Total", pf(modal.row.paid / grandTotalPaid)]]} />
-        </Modal>
-      )}
     </div>
   );
 }
 
-// ─── CONTROL BUDGET ───────────────────────────────────────────────────────────
-function BudgetView({ setTab }) {
-  const { budget, awards, awardedByCode, changeOrders, totalBudget, totalAwarded } = useAppData();
-  const [cat, setCat] = useState("All");
-  const [q, setQ] = useState("");
-  const [modal, setModal] = useState(null);
-  const cats = ["All", ...Array.from(new Set(budget.map(b => b.cat)))];
-  const rows = budget.filter(b => (cat === "All" || b.cat === cat) && (b.name.toLowerCase().includes(q.toLowerCase()) || b.code.includes(q)));
-
-  // Contract summary figures (matching Taconic contract)
-  const ORIGINAL_CONTRACT  = 13093419.47;
-  const GC_FEE_PCT         = 0.135;
-  const INSURANCE_PCT      = 0.03;
-  const constructionBudget = budget.reduce((s,b) => s + parseFloat(b.budget), 0);
-  // Back-calculate construction sub-total from contract
-  const constructionSub    = 9376094.20;
-  const generalConditions  = 1823957;
-  const gcFee              = constructionBudget * GC_FEE_PCT / (1 + GC_FEE_PCT + INSURANCE_PCT);
-  const insurance          = constructionBudget * INSURANCE_PCT / (1 + GC_FEE_PCT + INSURANCE_PCT);
-  const totalCOs           = changeOrders.reduce((s,c) => s + parseFloat(c.approved_co||0), 0);
-  const totalCOsWithFees   = changeOrders.reduce((s,c) => s + parseFloat(c.total||0), 0);
-  const revisedContract    = ORIGINAL_CONTRACT + totalCOsWithFees;
-
-  const inp = "bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-400";
-
-  return (
-    <div className="space-y-5">
-      {/* Contract Summary - always visible, all clickable */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Contract Summary</h3>
-        </div>
-        <table className="w-full">
-          <tbody>
-            {[
-              { label: "Construction Trades",      amount: constructionSub,   note: "51 line items · click to view", action: () => { setCat("All"); setQ(""); document.getElementById("budget-line-items")?.scrollIntoView({behavior:"smooth"}); } },
-              { label: "General Conditions",       amount: generalConditions, note: "01-000 · click to view",        action: () => setModal({type:"gc"}) },
-              { label: "GC Fee (13.5%)",           amount: 1512006.87,        note: "On construction cost",          action: () => setModal({type:"fee"}) },
-              { label: "Insurance (3.0%)",         amount: 381361.73,         note: "On construction cost",          action: () => setModal({type:"ins"}) },
-              { label: "Original Contract Amount", amount: ORIGINAL_CONTRACT, note: "Signed Jun 23, 2025",           action: () => setModal({type:"orig"}), subtotal: true },
-              { label: "Approved Change Orders",   amount: totalCOsWithFees,  note: `${changeOrders.length} COs · click to view`, action: () => setTab && setTab("cos"), accent: true },
-              { label: "Revised Contract Amount",  amount: revisedContract,   note: "Current contract value",        action: () => setModal({type:"revised"}), subtotal: true },
-            ].map((row, i) => (
-              <tr key={i}
-                onClick={row.action}
-                className="cursor-pointer hover:bg-gray-50 transition-colors"
-                style={{ borderTop: row.subtotal ? "2px solid #e5e7eb" : "1px solid #f3f4f6" }}
-              >
-                <td className="px-5 py-3.5" style={{ fontSize: 13, fontWeight: row.subtotal ? 700 : 500, color: row.subtotal ? "#111827" : "#374151" }}>
-                  {row.label}
-                  <span className="ml-1 text-gray-300 text-xs">→</span>
-                </td>
-                <td className="px-5 py-3.5 text-right" style={{ fontSize: 12, color: "#9ca3af" }}>{row.note}</td>
-                <td className="px-5 py-3.5 text-right" style={{ fontSize: 13, fontWeight: row.subtotal ? 700 : 600, color: row.accent ? "#4f46e5" : row.subtotal ? "#111827" : "#374151" }}>
-                  {row.accent && totalCOsWithFees > 0 ? "+" : ""}{$f(row.amount)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Line items detail */}
-      <div id="budget-line-items" className="flex flex-wrap gap-2 items-center">
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search…" className={cx(inp, "w-44")} />
-        <div className="flex flex-wrap gap-1">
-          {cats.map(c => <button key={c} onClick={() => setCat(c)} className={cx("px-3 py-1.5 rounded-lg text-xs font-medium transition-all", cat === c ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-400 hover:text-gray-800")}>{c}</button>)}
-        </div>
-      </div>
-      <Card className="overflow-hidden">
-        <table className="w-full">
-          <thead><tr><TH>Code</TH><TH>Division</TH><TH right>Budget</TH><TH right>Awarded</TH><TH right>Variance</TH><TH className="w-32">% Awarded</TH><TH>Status</TH></tr></thead>
-          <tbody>
-            {rows.map(b => {
-              const awd = awardedByCode[b.code] || 0;
-              const vari = parseFloat(b.budget) - awd;
-              const ap = parseFloat(b.budget) > 0 ? awd / parseFloat(b.budget) : 0;
-              return (
-                <TR key={b.code} onClick={() => setModal({type:"line",data:b})}>
-                  <TD mono muted>{b.code}</TD>
-                  <TD bold className="text-gray-800">{b.name}</TD>
-                  <TD right muted>{$f(b.budget)}</TD>
-                  <TD right bold className={awd > 0 ? "text-gray-900" : "text-gray-300"}>{awd > 0 ? $f(awd) : "—"}</TD>
-                  <TD right className={awd > 0 ? (vari < 0 ? "text-red-500 font-semibold" : "text-emerald-600 font-medium") : "text-gray-300"}>{awd > 0 ? $f(vari) : "—"}</TD>
-                  <TD>{awd > 0 && <div className="flex items-center gap-2"><BarFill value={awd} max={parseFloat(b.budget)} /><span className="text-gray-400 text-xs w-10">{pf(ap)}</span></div>}</TD>
-                  <TD>{awd === 0 ? <Tag text="Not Awarded" /> : ap > 1.05 ? <Tag text="Over Budget" color="red" /> : <Tag text="Awarded" color="green" />}</TD>
-                </TR>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <TR subtle>
-              <TD bold colSpan={2} className="text-gray-500">Total — {rows.length} items</TD>
-              <TD right bold muted>{$f(rows.reduce((s, b) => s + parseFloat(b.budget), 0))}</TD>
-              <TD right bold className="text-gray-900">{$f(rows.reduce((s, b) => s + (awardedByCode[b.code] || 0), 0))}</TD>
-              <TD colSpan={3} />
-            </TR>
-          </tfoot>
-        </table>
-      </Card>
-
-      {modal?.type === "line" && modal.data && (
-        <Modal title={`${modal.data.code} — ${modal.data.name}`} subtitle={`Category: ${modal.data.cat}`} onClose={() => setModal(null)}>
-          <KVGrid rows={[
-            ["CSI Code", modal.data.code], ["Category", modal.data.cat],
-            ["Control Budget", $f(modal.data.budget)], ["Awarded", $f(awardedByCode[modal.data.code] || 0)],
-            ["Variance", $f(parseFloat(modal.data.budget) - (awardedByCode[modal.data.code] || 0))],
-            ["% Awarded", awardedByCode[modal.data.code] ? pf(awardedByCode[modal.data.code] / parseFloat(modal.data.budget)) : "—"],
-          ]} />
-          {awards.filter(a => a.code === modal.data.code).length > 0 && (
-            <>
-              <SectionTitle>Awards for this line</SectionTitle>
-              <table className="w-full text-xs">
-                <thead><tr><TH>ID</TH><TH>Vendor</TH><TH right>Award</TH><TH right>COs</TH><TH right>Current</TH></tr></thead>
-                <tbody>
-                  {awards.filter(a => a.code === modal.data.code).map(a => (
-                    <TR key={a.id}>
-                      <TD mono className="text-indigo-600">{a.id}</TD>
-                      <TD className="text-gray-600">{a.vendor}</TD>
-                      <TD right muted>{$f(a.award_amount)}</TD>
-                      <TD right className={parseFloat(a.co_amount) > 0 ? "text-indigo-600" : "text-gray-300"}>{parseFloat(a.co_amount) > 0 ? `+${$f(a.co_amount)}` : "—"}</TD>
-                      <TD right bold className="text-gray-900">{$f(a.current_amount)}</TD>
-                    </TR>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
-        </Modal>
-      )}
-      {modal?.type === "revised" && (
-        <Modal title="Revised Contract Amount" subtitle="Original contract + all approved change orders" onClose={() => setModal(null)}>
-          <KVGrid rows={[
-            ["Original Contract", $f(ORIGINAL_CONTRACT)],
-            ["Approved COs (net)", $f(totalCOs)],
-            ["CO Fees & Insurance", $f(totalCOsWithFees - totalCOs)],
-            ["Total COs incl. Fees", `+${$f(totalCOsWithFees)}`],
-            ["Revised Contract", $f(revisedContract)],
-          ]} />
-        </Modal>
-      )}
-      {modal?.type === "orig" && (
-        <Modal title="Original Contract Amount" subtitle="Taconic Builders · Signed Jun 23, 2025" onClose={() => setModal(null)}>
-          <KVGrid rows={[
-            ["Construction Trades", $f(constructionSub)],
-            ["General Conditions (01-000)", $f(generalConditions)],
-            ["Subtotal (Trades + GC)", $f(constructionSub + generalConditions)],
-            ["GC Fee (13.5%)", $f(1512006.87)],
-            ["Insurance (3.0%)", $f(381361.73)],
-            ["Original Contract Total", $f(ORIGINAL_CONTRACT)],
-            ["Contract Date", "June 23, 2025"],
-            ["Duration", "22 months"],
-            ["Est. Completion", "April 2027"],
-          ]} />
-        </Modal>
-      )}
-      {modal?.type === "fee" && (
-        <Modal title="GC Fee — 13.5%" subtitle="Applied to all construction trades and general conditions" onClose={() => setModal(null)}>
-          <KVGrid rows={[
-            ["Fee Rate", "13.5%"],
-            ["Applied To", "Construction trades + GC"],
-            ["Base Amount", $f(constructionSub + generalConditions)],
-            ["Fee Amount", $f(1512006.87)],
-            ["Note", "Fee is fixed per signed contract — does not fluctuate with buyout savings unless negotiated via CO"],
-          ]} />
-        </Modal>
-      )}
-      {modal?.type === "ins" && (
-        <Modal title="Insurance — 3.0%" subtitle="Builder's risk and liability insurance" onClose={() => setModal(null)}>
-          <KVGrid rows={[
-            ["Insurance Rate", "3.0%"],
-            ["Applied To", "Construction trades + GC"],
-            ["Base Amount", $f(constructionSub + generalConditions)],
-            ["Insurance Amount", $f(381361.73)],
-            ["Note", "Fixed per signed contract"],
-          ]} />
-        </Modal>
-      )}
-      {modal?.type === "gc" && (
-        <Modal title="General Conditions — 01-000" subtitle="Project overhead and site management" onClose={() => setModal(null)}>
-          <KVGrid rows={[
-            ["CSI Code", "01-000"],
-            ["Budget", $f(generalConditions)],
-            ["% of Construction", "15.28%"],
-            ["Includes", "Project staffing, site trailer, temp utilities, safety, insurance admin"],
-            ["GC", "Taconic Builders Inc."],
-          ]} />
-          <SectionTitle>What this covers</SectionTitle>
-          <div className="text-xs text-gray-500 space-y-1">
-            <p>• Joseph Hamilton — Project Manager</p>
-            <p>• Robert Noto — Site Supervisor</p>
-            <p>• Liam Hanley — Assistant PM</p>
-            <p>• Site trailer, porta-potties, storage containers</p>
-            <p>• Verizon, utilities, snow removal, fuel</p>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-// ─── AWARDS ───────────────────────────────────────────────────────────────────
-function AwardsView() {
-  const { awards, budget } = useAppData();
-  const [q, setQ] = useState("");
-  const [modal, setModal] = useState(null);
-  const rows = awards.filter(a =>
-    a.vendor.toLowerCase().includes(q.toLowerCase()) ||
-    a.id.toLowerCase().includes(q.toLowerCase()) ||
-    a.code.includes(q)
-  );
-  const vendorTotals = awards.reduce((acc, a) => { acc[a.vendor] = (acc[a.vendor] || 0) + parseFloat(a.current_amount); return acc; }, {});
-
-  return (
-    <div className="space-y-4">
-      <Card className="p-4">
-        <SectionTitle>Totals by Subcontractor</SectionTitle>
-        <div className="grid md:grid-cols-2 gap-2">
-          {Object.entries(vendorTotals).sort((a, b) => b[1] - a[1]).map(([v, t]) => (
-            <button key={v} onClick={() => setModal({ type: "vendor", vendor: v })} className="flex justify-between items-center bg-[#f5f6f8] hover:bg-indigo-50 rounded-lg px-3 py-2.5 transition-colors text-left">
-              <span className="text-xs font-medium text-gray-600 truncate">{v}</span>
-              <span className="text-xs font-bold tabular-nums text-gray-900 ml-3 shrink-0">{$f(t)}</span>
-            </button>
-          ))}
-        </div>
-      </Card>
-      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search vendor, ID, or code…" className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-800 placeholder-zinc-400 outline-none focus:border-indigo-400 w-60 shadow-sm" />
-      <Card className="overflow-hidden">
-        <table className="w-full">
-          <thead><tr><TH>ID</TH><TH>Date</TH><TH>Vendor</TH><TH>Division</TH><TH right>Award</TH><TH right>COs</TH><TH right>Current</TH><TH right>Budget</TH><TH right>Variance</TH></tr></thead>
-          <tbody>
-            {rows.map(a => {
-              const bAmt = parseFloat(budget.find(b => b.code === a.code)?.budget);
-              const vari = bAmt != null ? bAmt - parseFloat(a.current_amount) : null;
-              return (
-                <TR key={a.id} onClick={() => setModal({ type: "award", award: a })}>
-                  <TD mono className="text-indigo-600">{a.id}</TD>
-                  <TD muted>{a.award_date}</TD>
-                  <TD bold className="text-gray-800 max-w-[160px] truncate">{a.vendor}</TD>
-                  <TD muted className="max-w-[120px] truncate">{a.division}</TD>
-                  <TD right muted>{$f(a.award_amount)}</TD>
-                  <TD right className={parseFloat(a.co_amount) > 0 ? "text-indigo-600 font-medium" : "text-gray-300"}>{parseFloat(a.co_amount) > 0 ? `+${$f(a.co_amount)}` : "—"}</TD>
-                  <TD right bold className="text-gray-900">{$f(a.current_amount)}</TD>
-                  <TD right muted>{bAmt ? $f(bAmt) : "—"}</TD>
-                  <TD right className={vari != null ? (vari < 0 ? "text-red-500 font-semibold" : "text-emerald-600 font-medium") : "text-gray-300"}>{vari != null ? $f(vari) : "—"}</TD>
-                </TR>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <TR subtle>
-              <TD colSpan={4} bold muted>Total ({rows.length})</TD>
-              <TD right muted bold>{$f(rows.reduce((s, a) => s + parseFloat(a.award_amount), 0))}</TD>
-              <TD right className="text-indigo-600 font-bold">+{$f(rows.reduce((s, a) => s + parseFloat(a.co_amount), 0))}</TD>
-              <TD right bold className="text-gray-900">{$f(rows.reduce((s, a) => s + parseFloat(a.current_amount), 0))}</TD>
-              <TD colSpan={2} />
-            </TR>
-          </tfoot>
-        </table>
-      </Card>
-
-      {modal?.type === "award" && (
-        <Modal title={`${modal.award.id} — ${modal.award.vendor}`} subtitle={modal.award.division} onClose={() => setModal(null)}>
-          <KVGrid rows={[
-            ["Award ID", modal.award.id], ["Date", modal.award.award_date],
-            ["Vendor", modal.award.vendor], ["Division", modal.award.division],
-            ["CSI Code", modal.award.code], ["Description", modal.award.description],
-            ["Original Award", $f(modal.award.award_amount)], ["Change Orders", parseFloat(modal.award.co_amount) > 0 ? `+${$f(modal.award.co_amount)}` : "—"],
-            ["Current Contract", $f(modal.award.current_amount)],
-            ["Budget Line", $f(budget.find(b => b.code === modal.award.code)?.budget)],
-            ["Variance", $f((parseFloat(budget.find(b => b.code === modal.award.code)?.budget) || 0) - parseFloat(modal.award.current_amount))],
-          ]} />
-        </Modal>
-      )}
-      {modal?.type === "vendor" && (
-        <Modal title={modal.vendor} subtitle={`${awards.filter(a => a.vendor === modal.vendor).length} awards`} onClose={() => setModal(null)} wide>
-          <table className="w-full text-xs">
-            <thead><tr><TH>ID</TH><TH>Division</TH><TH>Description</TH><TH right>Award</TH><TH right>Current</TH></tr></thead>
-            <tbody>
-              {awards.filter(a => a.vendor === modal.vendor).map(a => (
-                <TR key={a.id}>
-                  <TD mono className="text-indigo-600">{a.id}</TD>
-                  <TD className="text-gray-600">{a.division}</TD>
-                  <TD muted className="max-w-xs">{a.description}</TD>
-                  <TD right muted>{$f(a.award_amount)}</TD>
-                  <TD right bold className="text-gray-900">{$f(a.current_amount)}</TD>
-                </TR>
-              ))}
-            </tbody>
-          </table>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-// ─── CHANGE ORDERS ────────────────────────────────────────────────────────────
-// ─── CO FILE UPLOAD (reusable, same as Documents tab) ────────────────────────
-function COFileUpload({ coNo, onUploaded, onParsed }) {
-  const { refresh } = useAppData();
-  const [file, setFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [parsing, setParsing] = useState(false);
-  const [done, setDone] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const fileRef = useRef();
-
-  const handleFile = async (f) => {
-    if (!f || f.type !== "application/pdf") return;
-    setFile(f); setDone(false);
-    // Auto-parse the CO PDF immediately on file select
-    if (onParsed) {
-      setParsing(true);
-      try {
-        const fd = new FormData();
-        fd.append("file", f);
-        fd.append("doc_type", "change_order");
-        const res = await fetch("/api/parse-document", { method: "POST", body: fd });
-        const data = await res.json();
-        if (data.ok && data.parsed) {
-          onParsed(data.parsed);
-        }
-      } catch(e) {}
-      setParsing(false);
-    }
-  };
-
-  const upload = async () => {
-    if (!file || uploading) return;
-    setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("name", file.name);
-    fd.append("type", "Change Order");
-    fd.append("vendor_key", "taconic");
-    fd.append("vendor_label", "Taconic Builders");
-    fd.append("linked_id", coNo || "");
-    fd.append("note", coNo ? `Supporting document for ${coNo}` : "");
-    await fetch("/api/documents", { method: "POST", body: fd });
-    await refresh();
-    setDone(true); setFile(null); setUploading(false);
-    onUploaded && onUploaded();
-  };
-
-  if (done) return (
-    <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700 font-semibold flex items-center justify-between">
-      ✓ PDF saved to Documents
-      <button onClick={() => setDone(false)} className="text-emerald-400 hover:text-emerald-600 ml-2">Upload another</button>
-    </div>
-  );
-
-  return (
-    <div>
-      {file ? (
-        <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
-          <span className="text-sm">📄</span>
-          <span className="text-xs text-gray-700 flex-1 truncate">{file.name}{parsing ? " — parsing..." : ""}</span>
-          <button onClick={upload} disabled={uploading || parsing}
-            className="px-3 py-1 text-xs font-bold rounded-lg text-white"
-            style={{ background: uploading ? "#9ca3af" : "#111827" }}>
-            {uploading ? "Saving..." : "Save →"}
-          </button>
-          <button onClick={() => setFile(null)} className="text-gray-300 hover:text-gray-500 text-xs">✕</button>
-        </div>
-      ) : (
-        <div
-          className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors"
-          style={{ borderColor: dragOver ? "#6366f1" : "#e5e7eb", background: dragOver ? "#eef2ff" : "#fafafa" }}
-          onClick={() => fileRef.current?.click()}
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={e => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); }}>
-          <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={e => handleFile(e.target.files[0])} />
-          <p className="text-xs text-gray-400">Drop CO PDF here or click to browse</p>
-          <p className="text-xs text-gray-300 mt-0.5">Saved to Documents tab automatically</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function COsView() {
-  const { changeOrders, refresh } = useAppData();
-  const [modal, setModal] = useState(null);
-  const [editModal, setEditModal] = useState(null);
-  const [editForm, setEditForm] = useState({});
-  const [saving, setSaving] = useState(false);
-  const [addModal, setAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({ no:"", code:"", div:"", origBudget:"", approvedCO:"", notes:"", date:"" });
-
-  const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-400";
-
-  const openEdit = (co) => { setEditForm({ no:co.no, code:co.code, div:co.div, origBudget:co.orig_budget, approvedCO:co.approved_co, notes:co.notes||"", date:co.co_date }); setEditModal(co); };
-
-  const saveEdit = async () => {
-    if (saving) return; setSaving(true);
-    const amt = parseFloat(editForm.approvedCO) || 0;
-    const fees = amt * 0.135; const ins = amt * 0.03;
-    await apiFetch(`/change-orders/${editModal.no}`, {
-      method: 'PUT', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ code:editForm.code, div:editForm.div, origBudget:parseFloat(editForm.origBudget)||0, approvedCO:amt, fees, total:amt+fees+ins, revisedBudget:(parseFloat(editForm.origBudget)||0)+amt+fees+ins, notes:editForm.notes, date:editForm.date })
-    });
-    await refresh(); setEditModal(null); setSaving(false);
-  };
-
-  const deleteCO = async (no) => {
-    if (!confirm(`Delete ${no}?`)) return;
-    await apiFetch(`/change-orders/${no}`, { method:'DELETE' });
-    await refresh();
-  };
-
-  const saveAdd = async () => {
-    if (saving || !addForm.no || !addForm.approvedCO) return; setSaving(true);
-    const amt = parseFloat(addForm.approvedCO) || 0;
-    const fees = amt * 0.135; const ins = amt * 0.03;
-    await apiFetch('/change-orders', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ no:addForm.no, code:addForm.code, div:addForm.div, origBudget:parseFloat(addForm.origBudget)||0, approvedCO:amt, fees, total:amt+fees+ins, revisedBudget:(parseFloat(addForm.origBudget)||0)+amt+fees+ins, notes:addForm.notes, date:addForm.date })
-    });
-    await refresh(); setAddModal(false); setAddForm({ no:"", code:"", div:"", origBudget:"", approvedCO:"", notes:"", date:"" }); setSaving(false);
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="Total COs" value={String(changeOrders.length)} sub="All approved" onClick={() => {}} />
-        <Stat label="Net CO Amount" value={$f(changeOrders.reduce((s, c) => s + parseFloat(c.approved_co), 0))} sub="Before fees" accent onClick={() => {}} />
-        <Stat label="Total incl. Fees" value={$f(changeOrders.reduce((s, c) => s + parseFloat(c.total||0), 0))} sub="13.5% fee + 3% ins." onClick={() => {}} />
-      </div>
-
-      <div className="flex justify-end">
-        <button onClick={() => setAddModal(true)} className="px-4 py-2 text-xs font-bold rounded-lg text-white" style={{background:"#111827"}}>+ Add Change Order</button>
-      </div>
-
-      <Card className="overflow-hidden">
-        <table className="w-full">
-          <thead><tr><TH>CO #</TH><TH>Date</TH><TH>CSI Code</TH><TH>Division</TH><TH right>Orig. Budget</TH><TH right>CO Amount</TH><TH right>Fees</TH><TH right>Total w/ Fees</TH><TH right>Revised Budget</TH><TH>Actions</TH></tr></thead>
-          <tbody>
-            {[...changeOrders].sort((a, b) => {
-              const n = s => { const m = s.match(/(\d+)([a-z]?)/i); return m ? parseInt(m[1]) * 100 + (m[2] ? m[2].charCodeAt(0) : 0) : 0; };
-              return n(a.no) - n(b.no);
-            }).map(co => (
-              <TR key={co.no} onClick={() => setModal(co)}>
-                <TD mono className="text-indigo-600 font-bold">{co.no}</TD>
-                <TD muted>{co.co_date}</TD>
-                <TD mono muted>{co.code}</TD>
-                <TD bold className="text-gray-800 max-w-[140px] truncate">{co.div}</TD>
-                <TD right muted>{$f(co.orig_budget)}</TD>
-                <TD right className={parseFloat(co.approved_co)<0?"text-emerald-600 font-bold":"text-indigo-600 font-bold"}>{parseFloat(co.approved_co)<0?$f(co.approved_co):`+${$f(co.approved_co)}`}</TD>
-                <TD right muted>{$f(co.fees)}</TD>
-                <TD right bold className="text-gray-800">{parseFloat(co.total)<0?$f(co.total):`+${$f(co.total)}`}</TD>
-                <TD right className="text-gray-600">{$f(co.revised_budget)}</TD>
-                <TD onClick={e => e.stopPropagation()}>
-                  <div className="flex gap-1">
-                    <button onClick={() => openEdit(co)} className="text-xs px-2 py-1 border border-gray-200 rounded text-gray-400 hover:text-gray-700 hover:border-gray-400 transition-colors">Edit</button>
-                    <button onClick={() => deleteCO(co.no)} className="text-xs px-2 py-1 text-gray-300 hover:text-red-500 transition-colors">✕</button>
-                  </div>
-                </TD>
-              </TR>
-            ))}
-          </tbody>
-          <tfoot>
-            <TR subtle>
-              <TD colSpan={5} bold muted>Totals</TD>
-              <TD right className="text-indigo-600 font-bold">+{$f(changeOrders.reduce((s, c) => s + parseFloat(c.approved_co), 0))}</TD>
-              <TD right muted bold>{$f(changeOrders.reduce((s, c) => s + parseFloat(c.fees||0), 0))}</TD>
-              <TD right bold className="text-gray-900">+{$f(changeOrders.reduce((s, c) => s + parseFloat(c.total||0), 0))}</TD>
-              <TD colSpan={2} />
-            </TR>
-          </tfoot>
-        </table>
-      </Card>
-
-      {/* Detail modal */}
-      {modal && typeof modal === "object" && modal.no && (
-        <Modal title={`${modal.no} — ${modal.div}`} subtitle={`Approved ${modal.co_date}`} onClose={() => setModal(null)}>
-          <KVGrid rows={[
-            ["CO Number", modal.no], ["Date", modal.co_date], ["CSI Code", modal.code], ["Division", modal.div],
-            ["Original Budget", $f(modal.orig_budget)], ["CO Amount", `${parseFloat(modal.approved_co)<0?"":"+"}${$f(modal.approved_co)}`],
-            ["GC Fee (13.5%)", $f(parseFloat(modal.approved_co) * 0.135)], ["Insurance (3%)", $f(parseFloat(modal.approved_co) * 0.03)],
-            ["Total incl. Fees", `${parseFloat(modal.total)<0?"":"+"}${$f(modal.total)}`], ["Revised Budget", $f(modal.revised_budget)],
-            ["Notes", modal.notes || "—"],
-          ]} />
-        </Modal>
-      )}
-
-      {/* Edit modal */}
-      {editModal && (
-        <Modal title={`Edit ${editModal.no}`} onClose={() => setEditModal(null)} wide>
-          <div className="grid grid-cols-2 gap-3">
-            {[["CO #","no"],["Date","date"],["CSI Code","code"],["Division","div"],["Original Budget","origBudget"],["CO Amount","approvedCO"],["Notes","notes"]].map(([lbl,key]) => (
-              <div key={key} className={key==="div"||key==="notes"?"col-span-2":""}>
-                <label className="block text-xs text-gray-400 uppercase tracking-widest mb-1">{lbl}</label>
-                <input value={editForm[key]||""} onChange={e=>setEditForm(f=>({...f,[key]:e.target.value}))} className={inp} />
-              </div>
-            ))}
-          </div>
-          {/* PDF Upload — same as Documents tab */}
-          <div>
-            <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">Attach / Replace PDF</label>
-            <COFileUpload coNo={editModal.no} onUploaded={() => {}} onParsed={(p) => {
-                  setEditForm(f => ({
-                    ...f,
-                    approvedCO: p.reimbursable ? String(p.reimbursable) : p.coAmount ? String(p.coAmount) : f.approvedCO,
-                    notes: p.description || f.notes,
-                  }));
-                }} />
-          </div>
-          <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-400">
-            Fees will auto-calculate: 13.5% GC fee + 3% insurance on CO amount.
-          </div>
-          <button onClick={saveEdit} disabled={saving} className="w-full py-2.5 text-sm font-bold rounded-lg text-white transition-colors" style={{background:"#111827"}}>{saving?"Saving...":"Save Changes"}</button>
-        </Modal>
-      )}
-
-      {/* Add modal */}
-      {addModal && (
-        <Modal title="Add Change Order" onClose={() => setAddModal(false)} wide>
-          <div className="grid grid-cols-2 gap-3">
-            {[["CO #","no"],["Date","date"],["CSI Code","code"],["Division","div"],["Original Budget","origBudget"],["CO Amount","approvedCO"],["Notes","notes"]].map(([lbl,key]) => (
-              <div key={key} className={key==="div"||key==="notes"?"col-span-2":""}>
-                <label className="block text-xs text-gray-400 uppercase tracking-widest mb-1">{lbl}</label>
-                <input value={addForm[key]||""} onChange={e=>setAddForm(f=>({...f,[key]:e.target.value}))} className={inp} />
-              </div>
-            ))}
-          </div>
-          {/* PDF Upload — same as Documents tab */}
-          <div>
-            <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">Attach PDF (optional)</label>
-            <COFileUpload coNo={addForm.no} onUploaded={() => {}} onParsed={(p) => {
-                  // If multiple line items matched, show the first one and note the rest
-                  const items = p.lineItems || [];
-                  const firstItem = items[0];
-                  const extraNote = items.length > 1
-                    ? items.map(i => `${i.csiCode} ${i.description} $${i.amount}`).join(' | ')
-                    : p.description || '';
-                  setAddForm(f => ({
-                    ...f,
-                    no: p.coNumber || f.no,
-                    date: p.date || f.date,
-                    code: firstItem?.csiCode || f.code,
-                    div: firstItem?.division || f.div,
-                    approvedCO: firstItem ? String(firstItem.amount) : (p.reimbursable ? String(p.reimbursable) : f.approvedCO),
-                    notes: extraNote,
-                  }));
-                  // If multiple items, alert user to add them separately
-                  if (items.length > 1) {
-                    alert(`CO has ${items.length} line items. Form filled with first item (${firstItem?.csiCode}). Add the remaining items as separate COs:\n\n${items.slice(1).map(i => `• ${i.csiCode} — ${i.description}: $${i.amount}`).join('\n')}`);
-                  }
-                }} />
-          </div>
-          <button onClick={saveAdd} disabled={saving||!addForm.no||!addForm.approvedCO} className="w-full py-2.5 text-sm font-bold rounded-lg text-white" style={{background:saving||!addForm.no||!addForm.approvedCO?"#e5e7eb":"#111827",color:saving||!addForm.no||!addForm.approvedCO?"#9ca3af":"#fff"}}>{saving?"Saving...":"Add Change Order"}</button>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-// ─── INVOICES ─────────────────────────────────────────────────────────────────
-function InvoicesView() {
-  const { invoices, taconicPaid, taconicPending, retainageHeld, refresh } = useAppData();
-  const [modal, setModal] = useState(null);
-  const [markPaidModal, setMarkPaidModal] = useState(null);
-  const [payForm, setPayForm] = useState({ actualPaid:"", creditApplied:"", paidDate:"" });
-  const [creditData, setCreditData] = useState(null);
-
-  useEffect(() => {
-    apiFetch('/credit-balance').then(d => setCreditData(d)).catch(() => {});
-  }, [invoices]);
-
-  const openMarkPaid = (inv) => {
-    setMarkPaidModal(inv);
-    // Pre-populate from existing payment data if available (e.g. set by SmartUpload)
-    const existingCredit = parseFloat(inv.credit_applied || 0);
-    const existingWire   = parseFloat(inv.actual_paid || 0);
-    const approved       = parseFloat(inv.approved || 0);
-    // If credit was already parsed/stored, use those values; otherwise default wire = full approved
-    const wireDefault   = existingWire > 0 ? String(existingWire) : existingCredit > 0 ? String(Math.max(0, approved - existingCredit)) : String(approved);
-    const creditDefault = existingCredit > 0 ? String(existingCredit) : "0";
-    const dateDefault   = inv.paid_date || new Date().toLocaleDateString("en-US");
-    setPayForm({ actualPaid: wireDefault, creditApplied: creditDefault, paidDate: dateDefault });
-    setModal(null);
-  };
-
-  const submitMarkPaid = async () => {
-    const wire = parseFloat(payForm.actualPaid)||0;
-    const credit = parseFloat(payForm.creditApplied)||0;
-    const approved = parseFloat(markPaidModal.approved)||0;
-    const diff = (wire + credit) - approved;
-    const isFullyPaid = Math.abs(diff) <= 15; // tolerate up to $15 rounding (Taconic invoices carry consistent $10 delta)
-    const hasCredit = credit > 0;
-    const status = isFullyPaid
-      ? (hasCredit && wire > 0 ? 'Paid - Credit Applied, Balance Paid'
-        : hasCredit ? 'Paid - Credit Applied'
-        : 'Paid')
-      : 'Pending Payment';
-    await apiFetch(`/invoices/${markPaidModal.id}`, {
-      method:'PUT', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        status,
-        paidDate: isFullyPaid ? payForm.paidDate : null,
-        notes: markPaidModal.notes,
-        actualPaid: wire,
-        creditApplied: credit
-      })
-    });
-    await refresh(); setMarkPaidModal(null);
-  };
-
-  const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-400";
-
-  return (
-    <div className="space-y-5">
-      {/* KPI row */}
-      <div className="grid grid-cols-4 gap-3">
-        <Stat label="Total Approved" value={$f(invoices.reduce((s,i)=>s+parseFloat(i.approved),0))} sub={`${invoices.length} invoices`} />
-        <Stat label="Total Paid" value={$f(taconicPaid)} sub={`${invoices.filter(i=>i.status?.startsWith("Paid")).length} paid`} />
-        <Stat label="Retainage Held" value={$f(retainageHeld)} sub="Released at completion" />
-        <Stat label="Outstanding" value={$f(taconicPending)} accent sub={`${invoices.filter(i=>!i.status?.startsWith("Paid")).length} pending`} />
-      </div>
-
-      {creditData?.creditBalance > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center gap-3">
-          <span className="text-blue-500">↩</span>
-          <div>
-            <p className="text-sm font-semibold text-blue-700">Credit Balance: {$f(creditData.creditBalance)}</p>
-            <p className="text-xs text-blue-500 mt-0.5">Credit on account — being applied against outstanding invoices</p>
-          </div>
-        </div>
-      )}
-
-      {/* Invoice table */}
-      <Card className="overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <TH>ID</TH><TH>Invoice #</TH><TH>Period</TH><TH right>Job Total</TH>
-              <TH right>Fees</TH><TH right>Deposit</TH><TH right>Retainage</TH>
-              <TH right>Approved</TH><TH right>Wire Sent</TH><TH>Paid Date</TH><TH>Status</TH>
-            </tr>
-          </thead>
-          <tbody>
-            {invoices.map(inv => {
-              const overpaid = parseFloat(inv.actual_paid||0) > parseFloat(inv.approved||0);
-              const usedCredit = parseFloat(inv.credit_applied||0) > 0;
-              return (
-                <TR key={inv.id} onClick={() => setModal(inv)}>
-                  <TD mono className="text-indigo-600 font-bold">{inv.id}</TD>
-                  <TD mono bold className="text-gray-800">{inv.inv_num}</TD>
-                  <TD muted className="max-w-[140px] truncate">{inv.description}</TD>
-                  <TD right muted>{$f(inv.job_total)}</TD>
-                  <TD right muted>{$f(inv.fees)}</TD>
-                  <TD right className="text-gray-400">{inv.deposit_applied ? $f(Math.abs(parseFloat(inv.deposit_applied))) : "—"}</TD>
-                  <TD right className="text-gray-400">{inv.retainage ? $f(Math.abs(parseFloat(inv.retainage))) : "—"}</TD>
-                  <TD right bold className="text-gray-900">{$f(inv.approved)}</TD>
-                  <TD right className={overpaid?"text-red-500 font-bold":usedCredit?"text-blue-500":"text-gray-300"}>
-                    {overpaid ? $f(inv.actual_paid) : usedCredit ? "↩ Credit" : "—"}
-                  </TD>
-                  <TD muted>{inv.paid_date || "—"}</TD>
-                  <TD>{statusTag(inv.status)}</TD>
-                </TR>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <TR subtle>
-              <TD bold colSpan={3} muted>Totals</TD>
-              <TD right bold muted>{$f(invoices.reduce((s,i)=>s+parseFloat(i.job_total),0))}</TD>
-              <TD right bold muted>{$f(invoices.reduce((s,i)=>s+parseFloat(i.fees||0),0))}</TD>
-              <TD right bold muted>{$f(invoices.reduce((s,i)=>s+Math.abs(parseFloat(i.deposit_applied||0)),0))}</TD>
-              <TD right bold muted>{$f(invoices.reduce((s,i)=>s+Math.abs(parseFloat(i.retainage||0)),0))}</TD>
-              <TD right bold className="text-gray-900">{$f(invoices.reduce((s,i)=>s+parseFloat(i.approved),0))}</TD>
-              <TD colSpan={3} />
-            </TR>
-          </tfoot>
-        </table>
-      </Card>
-
-      {/* Detail modal */}
-      {modal && typeof modal === "object" && modal.id && (
-        <Modal title={`${modal.inv_num} — ${modal.description}`} subtitle={`${modal.id} · Requested ${modal.req_date}`} onClose={() => setModal(null)}>
-          <KVGrid rows={[
-            ["Invoice Number", modal.inv_num], ["Request Date", modal.req_date],
-            ["Paid Date", modal.paid_date||"—"], ["Status", modal.status],
-            ["Job Total", $f(modal.job_total)], ["GC Fees", $f(modal.fees)],
-            ["Deposit Applied", modal.deposit_applied ? $f(Math.abs(parseFloat(modal.deposit_applied))) : "—"],
-            ["Retainage Held", $f(Math.abs(parseFloat(modal.retainage||0)))],
-            ["Amount Due", $f(modal.amt_due)], ["Approved Amount", $f(modal.approved)],
-            parseFloat(modal.actual_paid||0) > 0 ? ["Actual Wire Sent", $f(modal.actual_paid)] : null,
-            parseFloat(modal.credit_applied||0) > 0 ? ["Credit Applied", $f(modal.credit_applied)] : null,
-          ]} />
-          {modal.notes && (
-            <div className={`border rounded-lg px-4 py-3 ${parseFloat(modal.actual_paid||0) > parseFloat(modal.approved||0) ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}>
-              <p className="text-xs text-gray-600">{modal.notes}</p>
-            </div>
-          )}
-          <div className="flex gap-2">
-            {!modal.status?.startsWith("Paid") && (
-              <button onClick={() => openMarkPaid(modal)} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors">Mark as Paid</button>
-            )}
-            <button onClick={() => openMarkPaid(modal)}
-              className="flex-1 py-2.5 border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-semibold rounded-lg transition-colors">
-              {modal.status?.startsWith("Paid") ? "Edit Payment Info" : "Edit Payment"}
-            </button>
-            <button onClick={() => setModal(null)} className="px-4 py-2.5 border border-gray-200 text-gray-400 hover:bg-gray-50 text-xs font-semibold rounded-lg transition-colors">Close</button>
-          </div>
-        </Modal>
-      )}
-
-      {markPaidModal && (
-        <Modal title={`Mark as Paid — ${markPaidModal.inv_num}`} subtitle={`Approved: ${$f(markPaidModal.approved)}`} onClose={() => setMarkPaidModal(null)}>
-          <div className="space-y-3">
-            {creditData?.creditBalance > 0 && <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-600 font-semibold">↩ Available credit: {$f(creditData.creditBalance)}</div>}
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-xs text-gray-400 uppercase tracking-widest mb-1">Wire Sent ($)</label><input value={payForm.actualPaid} onChange={e=>setPayForm(f=>({...f,actualPaid:e.target.value}))} className={inp} /></div>
-              <div><label className="block text-xs text-gray-400 uppercase tracking-widest mb-1">Credit Applied ($)</label><input value={payForm.creditApplied} onChange={e=>setPayForm(f=>({...f,creditApplied:e.target.value}))} className={inp} /></div>
-              <div className="col-span-2"><label className="block text-xs text-gray-400 uppercase tracking-widest mb-1">Payment Date</label><input value={payForm.paidDate} onChange={e=>setPayForm(f=>({...f,paidDate:e.target.value}))} className={inp} /></div>
-            </div>
-            {(() => {
-              const wire = parseFloat(payForm.actualPaid)||0;
-              const credit = parseFloat(payForm.creditApplied)||0;
-              const total = wire + credit;
-              const approved = parseFloat(markPaidModal.approved)||0;
-              const diff = total - approved;
-              const outstanding = approved - total;
-              const isBalanced = Math.abs(diff) <= 15;
-              const isPartial = outstanding > 15;
-              const isOver = diff > 15;
-              return (
-                <div className={`rounded-lg px-3 py-2 text-xs font-medium border ${isBalanced?"bg-emerald-50 border-emerald-200 text-emerald-700":isOver?"bg-red-50 border-red-200 text-red-600":"bg-blue-50 border-blue-200 text-blue-700"}`}>
-                  {isBalanced && "✓ Fully paid — balanced"}
-                  {isPartial && `↩ Partial payment — ${$f(outstanding)} will remain outstanding`}
-                  {isOver && `⚠ Wire + Credit exceeds approved by ${$f(diff)}`}
-                </div>
-              );
-            })()}
-            <button onClick={submitMarkPaid} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg">Confirm Payment</button>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-// ─── LINE ITEM BILLING ────────────────────────────────────────────────────────
-function LineItemView() {
-  const { lineItems, INV_NUMS, refresh } = useAppData();
-  const [sel, setSel] = useState("All");
-  const [modal, setModal] = useState(null);
-  const [editingBilling, setEditingBilling] = useState(null); // {code, invNum, amount}
-  const [editVal, setEditVal] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const rows = sel === "All" ? lineItems : lineItems.filter(li => li.inv && li.inv[sel] != null && li.inv[sel] !== 0);
-  const totalBudget = rows.reduce((s,li) => s + li.budget, 0);
-  const totalCOs    = rows.reduce((s,li) => s + li.cos, 0);
-  const totalDone   = rows.reduce((s,li) => s + li.done, 0);
-
-  const saveBilling = async () => {
-    if (!editingBilling || saving) return;
-    setSaving(true);
-    const { code, invNum } = editingBilling;
-    const amount = parseFloat(editVal) || 0;
-    if (amount === 0) {
-      // Delete the billing
-      await apiFetch(`/line-item-billings/${encodeURIComponent(code)}/${encodeURIComponent(invNum)}`, { method: 'DELETE' });
-    } else {
-      // Upsert
-      await apiFetch('/line-item-billings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, invNum, amount })
-      });
-    }
-    await refresh();
-    setEditingBilling(null);
-    setSaving(false);
-  };
-
-  const inp = "bg-white border border-indigo-300 rounded px-2 py-1 text-xs outline-none focus:border-indigo-500 w-28 text-right";
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="Control Budget" value={$f(lineItems.reduce((s,l)=>s+l.budget,0))} sub={`${lineItems.length} line items`} />
-        <Stat label="Completed to Date" value={$f(lineItems.reduce((s,l)=>s+l.done,0))} sub={pf(lineItems.reduce((s,l)=>s+l.done,0)/Math.max(lineItems.reduce((s,l)=>s+l.budget+l.cos,0),1)) + " of revised"} accent />
-        <Stat label="Balance to Finish" value={$f(lineItems.reduce((s,l)=>s+(l.budget+l.cos-l.done),0))} sub="Remaining work" />
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-400 font-medium">Filter:</span>
-          {["All", ...INV_NUMS].map(n => (
-            <button key={n} onClick={() => setSel(n)}
-              className={cx("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                sel === n ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-400 hover:text-gray-800")}>
-              {n}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-gray-300">Click any amount to edit</p>
-      </div>
-
-      <Card className="overflow-hidden">
-        <table className="w-full">
-          <thead><tr>
-            <TH>Code</TH><TH>Description</TH>
-            <TH right>Budget</TH><TH right>COs</TH><TH right>Revised</TH>
-            <TH right>Completed</TH><TH className="w-32">Progress</TH>
-            <TH right>Balance</TH>
-            {sel !== "All" && <TH right className="text-indigo-600">{sel}</TH>}
-          </tr></thead>
-          <tbody>
-            {rows.map(li => {
-              const rev = li.budget + li.cos;
-              const bal = rev - li.done;
-              const isEditing = editingBilling?.code === li.code && editingBilling?.invNum === sel;
-              return (
-                <TR key={li.code} onClick={() => setModal(li)}>
-                  <TD muted>{li.code}</TD>
-                  <TD bold className="text-gray-800">{li.name}</TD>
-                  <TD right muted>{$f(li.budget)}</TD>
-                  <TD right className={li.cos !== 0 ? (li.cos < 0 ? "text-emerald-600" : "text-indigo-600") : "text-gray-300"}>{li.cos !== 0 ? `${li.cos>0?"+":""}${$f(li.cos)}` : "—"}</TD>
-                  <TD right muted>{$f(rev)}</TD>
-                  <TD right bold className="text-gray-900">{$f(li.done)}</TD>
-                  <TD><div className="flex items-center gap-2"><BarFill value={li.done} max={rev} /><span className="text-gray-400 text-xs w-10 shrink-0">{pf(li.pct)}</span></div></TD>
-                  <TD right className={bal < 0 ? "text-red-500 font-bold" : "text-gray-400"}>{$f(bal)}</TD>
-                  {sel !== "All" && (
-                    <TD right onClick={e => { e.stopPropagation(); setEditingBilling({code:li.code, invNum:sel}); setEditVal(String(li.inv?.[sel] || "")); }}>
-                      {isEditing ? (
-                        <div className="flex items-center gap-1" onClick={e=>e.stopPropagation()}>
-                          <input value={editVal} onChange={e=>setEditVal(e.target.value)}
-                            className={inp} autoFocus
-                            onKeyDown={e=>{if(e.key==="Enter")saveBilling();if(e.key==="Escape")setEditingBilling(null);}}/>
-                          <button onClick={saveBilling} disabled={saving} className="text-xs px-1.5 py-1 bg-gray-900 text-white rounded">{saving?"…":"✓"}</button>
-                          <button onClick={()=>setEditingBilling(null)} className="text-xs px-1.5 py-1 bg-gray-100 text-gray-500 rounded">✕</button>
-                        </div>
-                      ) : (
-                        <span className={cx("cursor-pointer hover:text-indigo-600 transition-colors", li.inv?.[sel] ? "text-indigo-600 font-bold" : "text-gray-200 hover:text-gray-400")}>
-                          {li.inv?.[sel] ? $f(li.inv[sel]) : "—"}
-                        </span>
-                      )}
-                    </TD>
-                  )}
-                </TR>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <TR subtle>
-              <TD bold colSpan={2} muted>Totals ({rows.length} items)</TD>
-              <TD right bold muted>{$f(totalBudget)}</TD>
-              <TD right bold className="text-indigo-600">{totalCOs !== 0 ? `+${$f(totalCOs)}` : "—"}</TD>
-              <TD right bold muted>{$f(totalBudget + totalCOs)}</TD>
-              <TD right bold className="text-gray-900">{$f(totalDone)}</TD>
-              <TD /><TD right bold className="text-gray-500">{$f((totalBudget+totalCOs)-totalDone)}</TD>
-              {sel !== "All" && <TD right bold className="text-indigo-600">{$f(rows.reduce((s,li)=>s+(li.inv?.[sel]||0),0))}</TD>}
-            </TR>
-          </tfoot>
-        </table>
-      </Card>
-
-      {modal && (
-        <Modal title={`${modal.code} — ${modal.name}`} subtitle="Line item billing detail" onClose={() => setModal(null)}>
-          <KVGrid rows={[
-            ["Control Budget", $f(modal.budget)],
-            ["Approved COs", modal.cos !== 0 ? `${modal.cos>0?"+":""}${$f(modal.cos)}` : "—"],
-            ["Revised Budget", $f(modal.budget + modal.cos)],
-            ["Completed to Date", $f(modal.done)],
-            ["% Complete", pf(modal.pct)],
-            ["Balance to Finish", $f((modal.budget+modal.cos)-modal.done)],
-          ]} />
-          {modal.inv && Object.keys(modal.inv).length > 0 && (
-            <>
-              <SectionTitle>Breakdown by Invoice</SectionTitle>
-              <table className="w-full text-xs">
-                <thead><tr><TH>Invoice</TH><TH right>Amount Billed</TH></tr></thead>
-                <tbody>
-                  {Object.entries(modal.inv).filter(([,v])=>v&&v!==0).map(([invNum,amt])=>(
-                    <TR key={invNum}><TD muted>{invNum}</TD><TD right bold className={parseFloat(amt)<0?"text-red-500":"text-gray-900"}>{$f(amt)}</TD></TR>
-                  ))}
-                  <TR subtle><TD bold muted>Total billed</TD><TD right bold className="text-gray-900">{$f(Object.values(modal.inv).filter(v=>v>0).reduce((s,v)=>s+v,0))}</TD></TR>
-                </tbody>
-              </table>
-            </>
-          )}
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-// ─── CASH FLOW ────────────────────────────────────────────────────────────────
-function CashFlowView() {
-  const { cashFlow } = useAppData();
-  const [modal, setModal] = useState(null);
-  const maxV = Math.max(...cashFlow.map(b => b.v));
-  const carryoverItems = [
-    ["01-001", "Project Staffing (22 months)",      296747,  656427, 953174],
-    ["31-640", "Sheet Pile / Caissons",             416472,       0, 416472],
-    ["31-200", "Excavations & Backfilling",         377267,       0, 377267],
-    ["33-370", "Electrical Service",                314905,   78850, 393754],
-    ["03-330", "Cast In Place Concrete",            264650,       0, 264650],
-    ["06-200", "Ext. Finish Carpentry - Labor",     169071,  253607, 422678],
-    ["32-010", "Paving (Hardscape)",                 89311,  357245, 446556],
-    ["09-300", "Tile & Stone",                      245457,  163638, 409095],
-  ];
-  const annual = cashFlow.reduce((s, b) => s + b.v, 0);
-
-  return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="2025 Carryover"      value="$4,541,872" sub="Unfinished 2025 work" accent onClick={() => setModal("carryover")} />
-        <Stat label="2026 New Projected"  value="$3,902,018" sub="Newly scheduled work" onClick={() => setModal("monthly")} />
-        <Stat label="Total 2026 Spend"    value="$8,443,889" sub="Carryover + new" onClick={() => setModal("monthly")} />
-      </div>
-      <Card className="p-5">
-        <SectionTitle>2026 Monthly Projection</SectionTitle>
-        <div className="flex items-end gap-1.5 h-36">
-          {cashFlow.map(d => {
-            const h = Math.round((d.v / maxV) * 100);
-            return (
-              <button key={d.m} onClick={() => setModal({ type: "month", ...d })} className="flex-1 flex flex-col items-center gap-1 group">
-                <span className="text-gray-400 group-hover:text-indigo-600 transition-colors leading-none" style={{ fontSize: "8px" }}>
-                  {$f(d.v).replace("$", "").replace(",000", "k")}
-                </span>
-                <div className="w-full rounded-sm bg-gray-200 group-hover:bg-amber-400 transition-colors" style={{ height: `${h}%` }} />
-                <span className="text-gray-400 leading-none" style={{ fontSize: "9px" }}>{d.m}</span>
-              </button>
-            );
-          })}
-        </div>
-      </Card>
-      <Card className="overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-100">
-          <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Top 2025 Carryover Items</span>
-        </div>
-        <table className="w-full">
-          <thead><tr><TH>Code</TH><TH>Description</TH><TH right>2025 Carryover</TH><TH right>2026 New</TH><TH right>Grand Total</TH></tr></thead>
-          <tbody>
-            {carryoverItems.map(r => (
-              <TR key={r[0]} onClick={() => setModal({ type: "carryoverItem", code: r[0], desc: r[1], carryover: r[2], new2026: r[3], total: r[4] })}>
-                <TD mono muted>{r[0]}</TD>
-                <TD bold className="text-gray-800">{r[1]}</TD>
-                <TD right className="text-indigo-600 font-bold">{$f(r[2])}</TD>
-                <TD right muted>{r[3] > 0 ? $f(r[3]) : "—"}</TD>
-                <TD right bold className="text-gray-900">{$f(r[4])}</TD>
-              </TR>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-      {modal?.type === "month" && (
-        <Modal title={`${modal.m} 2026 — Projected Spend`} onClose={() => setModal(null)}>
-          <KVGrid rows={[["Month", `${modal.m} 2026`], ["Projected Amount", $f(modal.v)], ["% of Annual Total", pf(modal.v / annual)]]} />
-        </Modal>
-      )}
-      {modal?.type === "carryoverItem" && (
-        <Modal title={`${modal.code} — ${modal.desc}`} subtitle="Cash flow carryover detail" onClose={() => setModal(null)}>
-          <KVGrid rows={[["Code", modal.code], ["2025 Carryover", $f(modal.carryover)], ["2026 New Projected", modal.new2026 > 0 ? $f(modal.new2026) : "—"], ["Grand Total", $f(modal.total)]]} />
-        </Modal>
-      )}
-    </div>
-  );
-}
 
 // ─── PRIOR PHASES ─────────────────────────────────────────────────────────────
 function PriorPhaseShell({ phaseId }) {
@@ -1530,7 +564,7 @@ function PriorPhaseShell({ phaseId }) {
       <div className="flex gap-1 border-b border-gray-200 -mt-2">
         {SUB_TABS.map(t => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
-            className={cx("px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
+            className={cx("px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
               subTab === t.id ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600")}>
             {t.label}
           </button>
@@ -1544,8 +578,8 @@ function PriorPhaseShell({ phaseId }) {
           <div className="flex items-center gap-3 px-5 py-3.5 rounded-xl border" style={{ background: meta.color + "10", borderColor: meta.color + "40" }}>
             <span className="w-3 h-3 rounded-full shrink-0" style={{ background: meta.color }} />
             <div className="flex-1">
-              <p className="text-xs font-bold text-gray-800">{meta.label} — {meta.contract}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{phase.gc}{phase.subcontractor ? ` · Sub: ${phase.subcontractor}` : ""} · {phase.start_date} – {phase.end_date}</p>
+              <p className="text-sm font-bold text-gray-800">{meta.label} — {meta.contract}</p>
+              <p className="text-sm text-gray-500 mt-0.5">{phase.gc}{phase.subcontractor ? ` · Sub: ${phase.subcontractor}` : ""} · {phase.start_date} – {phase.end_date}</p>
             </div>
             <Tag text="Complete" color="green" />
           </div>
@@ -1562,7 +596,7 @@ function PriorPhaseShell({ phaseId }) {
           {phase.scope && (
             <Card className="p-5">
               <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Scope of Work</p>
-              <p className="text-xs text-gray-600 leading-relaxed">{phase.scope}</p>
+              <p className="text-sm text-gray-600 leading-relaxed">{phase.scope}</p>
             </Card>
           )}
 
@@ -1570,7 +604,7 @@ function PriorPhaseShell({ phaseId }) {
           {phase.notes && (
             <Card className="p-5">
               <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Notes</p>
-              <p className="text-xs text-gray-500 leading-relaxed">{phase.notes}</p>
+              <p className="text-sm text-gray-500 leading-relaxed">{phase.notes}</p>
             </Card>
           )}
         </div>
@@ -1592,8 +626,8 @@ function PriorPhaseShell({ phaseId }) {
                 ["Total Paid",         $f(phase.total_paid),         "text-indigo-600 font-bold"],
               ].map(([label, val, cls]) => (
                 <div key={label} className="flex items-center px-5 py-3">
-                  <span className="flex-1 text-xs text-gray-500">{label}</span>
-                  <span className={cx("text-xs tabular-nums", cls)}>{val}</span>
+                  <span className="flex-1 text-sm text-gray-500">{label}</span>
+                  <span className={cx("text-sm tabular-nums", cls)}>{val}</span>
                 </div>
               ))}
             </div>
@@ -1683,7 +717,7 @@ function PriorPhaseShell({ phaseId }) {
           ) : (
             <div className="text-center py-16 text-gray-400">
               <p className="text-sm font-semibold text-gray-500 mb-1">No Change Orders</p>
-              <p className="text-xs">This phase had no change orders.</p>
+              <p className="text-sm">This phase had no change orders.</p>
             </div>
           )}
         </div>
@@ -1716,7 +750,7 @@ function VendorsView() {
   const inv = totalInvoiced(vendor);
   const bud = totalBudgeted(vendor);
   const rem = bud > 0 ? bud - inv : null;
-  const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-400";
+  const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-400";
 
   const saveNewInv = async () => {
     if (!addForm.invNum || !addForm.amount || saving) return;
@@ -1755,15 +789,15 @@ function VendorsView() {
               className={cx("w-full text-left px-3 py-3 rounded-xl transition-all border", vendorKey===v.key ? "bg-white border-gray-200 shadow-sm" : "border-transparent hover:bg-gray-50")}>
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-2 h-2 rounded-full shrink-0" style={{ background: vendors[v.key].color }} />
-                <span className={cx("text-xs font-semibold leading-tight", vendorKey===v.key ? "text-gray-900" : "text-gray-500")}>{v.label}</span>
+                <span className={cx("text-sm font-semibold leading-tight", vendorKey===v.key ? "text-gray-900" : "text-gray-500")}>{v.label}</span>
               </div>
-              <p className="text-xs font-bold tabular-nums text-gray-400 pl-4">{$f(v.total)}</p>
+              <p className="text-sm font-bold tabular-nums text-gray-400 pl-4">{$f(v.total)}</p>
             </button>
           ))}
         </div>
         <div className="mt-6 border-t border-gray-100 pt-4">
           <div className="bg-[#f5f6f8] rounded-lg px-3 py-2.5">
-            <div className="text-xs text-gray-400 mb-0.5">Combined</div>
+            <div className="text-sm text-gray-400 mb-0.5">Combined</div>
             <div className="text-sm font-bold text-gray-900">{$f(vendorList.reduce((s,v)=>s+v.total,0))}</div>
           </div>
         </div>
@@ -1774,7 +808,7 @@ function VendorsView() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-base font-bold text-gray-900">{vendor.full_name}</h2>
-            <p className="text-xs text-gray-400 mt-0.5">{vendor.role}</p>
+            <p className="text-sm text-gray-400 mt-0.5">{vendor.role}</p>
           </div>
           <Tag text="Active" color="amber" />
         </div>
@@ -1782,7 +816,7 @@ function VendorsView() {
         <div className="flex border-b border-gray-200 mb-5">
           {[["overview","Overview"],["phases","Budget"],["invoices","Invoices"]].map(([id,lbl]) => (
             <button key={id} onClick={() => { setSubTab(id); setModal(null); setAddingInv(false); setEditingId(null); }}
-              className={cx("px-4 py-2.5 text-xs font-semibold transition-all border-b-2 -mb-px", subTab===id ? "border-indigo-500 text-indigo-600" : "border-transparent text-gray-400 hover:text-gray-600")}>
+              className={cx("px-4 py-2.5 text-sm font-semibold transition-all border-b-2 -mb-px", subTab===id ? "border-indigo-500 text-indigo-600" : "border-transparent text-gray-400 hover:text-gray-600")}>
               {lbl}
               {id==="invoices" && <span className="ml-1 text-gray-300">({vendor.invoices.length})</span>}
             </button>
@@ -1802,12 +836,12 @@ function VendorsView() {
                 <SectionTitle>Budget Status</SectionTitle>
                 <div className="flex gap-1 -mt-4">
                   {[["table","Table"],["cards","Cards"],["timeline","List"]].map(([v,l]) => (
-                    <button key={v} onClick={() => setPhaseView(v)} className={cx("px-2.5 py-1 text-xs rounded-lg font-medium", phaseView===v ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-400 hover:text-gray-700")}>{l}</button>
+                    <button key={v} onClick={() => setPhaseView(v)} className={cx("px-2.5 py-1 text-sm rounded-lg font-medium", phaseView===v ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-400 hover:text-gray-700")}>{l}</button>
                   ))}
                 </div>
               </div>
               {phaseView==="table" && (
-                <table className="w-full text-xs">
+                <table className="w-full text-sm">
                   <thead><tr className="border-b border-gray-100"><TH>Budget Phase</TH><TH right>Budget</TH><TH right>Invoiced</TH><TH right>Remaining</TH><TH>Status</TH></tr></thead>
                   <tbody>
                     {vendor.phases.map((p,i) => {
@@ -1831,9 +865,9 @@ function VendorsView() {
                     const b=p.budget||0; const inv2=p.invoiced||0;
                     return (
                       <button key={i} onClick={()=>{setSubTab("phases");setModal(p);}} className="text-left bg-gray-50 hover:bg-indigo-50 rounded-xl p-3 border border-gray-100 transition-colors">
-                        <div className="flex items-start justify-between gap-2 mb-2"><span className="text-xs font-semibold text-gray-800 leading-tight">{p.phase}</span>{statusTag(p.status)}</div>
+                        <div className="flex items-start justify-between gap-2 mb-2"><span className="text-sm font-semibold text-gray-800 leading-tight">{p.phase}</span>{statusTag(p.status)}</div>
                         {b>0&&<BarFill value={inv2} max={b} color={vendor.color}/>}
-                        <div className="flex justify-between mt-2"><span className="text-xs text-gray-400">{b>0?$f(b)+" budget":"T&M"}</span><span className="text-xs font-bold text-gray-800">{$f(inv2)}</span></div>
+                        <div className="flex justify-between mt-2"><span className="text-sm text-gray-400">{b>0?$f(b)+" budget":"T&M"}</span><span className="text-sm font-bold text-gray-800">{$f(inv2)}</span></div>
                       </button>
                     );
                   })}
@@ -1849,10 +883,10 @@ function VendorsView() {
                         <div className="absolute -left-3.5 top-1 w-2.5 h-2.5 rounded-full border-2 border-white" style={{background:dotColor}} />
                         <div className="flex-1 min-w-0 bg-gray-50 hover:bg-indigo-50 rounded-lg px-3 py-2 transition-colors">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-semibold text-gray-800 truncate">{p.phase}</span>
-                            <div className="flex items-center gap-2 shrink-0">{statusTag(p.status)}<span className="text-xs font-bold tabular-nums text-gray-700">{$f(p.invoiced||0)}</span></div>
+                            <span className="text-sm font-semibold text-gray-800 truncate">{p.phase}</span>
+                            <div className="flex items-center gap-2 shrink-0">{statusTag(p.status)}<span className="text-sm font-bold tabular-nums text-gray-700">{$f(p.invoiced||0)}</span></div>
                           </div>
-                          {p.description&&<p className="text-xs text-gray-400 mt-0.5 truncate">{p.description}</p>}
+                          {p.description&&<p className="text-sm text-gray-400 mt-0.5 truncate">{p.description}</p>}
                         </div>
                       </button>
                     );
@@ -1901,7 +935,7 @@ function VendorsView() {
           <div className="space-y-3">
             <div className="flex justify-end">
               <button onClick={() => { setAddingInv(v=>!v); setEditingId(null); }}
-                className={cx("px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors", addingInv ? "bg-gray-200 text-gray-600" : "bg-gray-900 text-white")}>
+                className={cx("px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors", addingInv ? "bg-gray-200 text-gray-600" : "bg-gray-900 text-white")}>
                 {addingInv?"Cancel":"+ Add Invoice"}
               </button>
             </div>
@@ -1909,15 +943,15 @@ function VendorsView() {
               <Card className="p-4">
                 <SectionTitle>New Invoice — {vendor.name}</SectionTitle>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
-                  <div><label className="block text-xs text-gray-400 mb-1">Invoice #</label><input value={addForm.invNum} onChange={e=>setAddForm(f=>({...f,invNum:e.target.value}))} placeholder="e.g. INV-001" className={inp}/></div>
-                  <div><label className="block text-xs text-gray-400 mb-1">Date</label><input value={addForm.date} onChange={e=>setAddForm(f=>({...f,date:e.target.value}))} placeholder="MM/DD/YYYY" className={inp}/></div>
-                  <div><label className="block text-xs text-gray-400 mb-1">Amount ($)</label><input value={addForm.amount} onChange={e=>setAddForm(f=>({...f,amount:e.target.value}))} placeholder="0.00" className={inp}/></div>
-                  <div className="md:col-span-2"><label className="block text-xs text-gray-400 mb-1">Description</label><input value={addForm.desc} onChange={e=>setAddForm(f=>({...f,desc:e.target.value}))} placeholder="Invoice description…" className={inp}/></div>
-                  <div><label className="block text-xs text-gray-400 mb-1">Status</label><select value={addForm.status} onChange={e=>setAddForm(f=>({...f,status:e.target.value}))} className={inp}>{["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}</select></div>
+                  <div><label className="block text-sm text-gray-400 mb-1">Invoice #</label><input value={addForm.invNum} onChange={e=>setAddForm(f=>({...f,invNum:e.target.value}))} placeholder="e.g. INV-001" className={inp}/></div>
+                  <div><label className="block text-sm text-gray-400 mb-1">Date</label><input value={addForm.date} onChange={e=>setAddForm(f=>({...f,date:e.target.value}))} placeholder="MM/DD/YYYY" className={inp}/></div>
+                  <div><label className="block text-sm text-gray-400 mb-1">Amount ($)</label><input value={addForm.amount} onChange={e=>setAddForm(f=>({...f,amount:e.target.value}))} placeholder="0.00" className={inp}/></div>
+                  <div className="md:col-span-2"><label className="block text-sm text-gray-400 mb-1">Description</label><input value={addForm.desc} onChange={e=>setAddForm(f=>({...f,desc:e.target.value}))} placeholder="Invoice description…" className={inp}/></div>
+                  <div><label className="block text-sm text-gray-400 mb-1">Status</label><select value={addForm.status} onChange={e=>setAddForm(f=>({...f,status:e.target.value}))} className={inp}>{["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}</select></div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={saveNewInv} disabled={!addForm.invNum||!addForm.amount||saving} className={cx("px-4 py-2 text-xs font-bold rounded-lg transition-colors", addForm.invNum&&addForm.amount&&!saving?"bg-gray-900 text-white":"bg-gray-100 text-gray-400 cursor-not-allowed")}>{saving?"Saving…":"Save Invoice"}</button>
-                  <button onClick={()=>setAddingInv(false)} className="px-4 py-2 text-xs font-semibold rounded-lg bg-gray-100 text-gray-500 hover:text-gray-700">Cancel</button>
+                  <button onClick={saveNewInv} disabled={!addForm.invNum||!addForm.amount||saving} className={cx("px-4 py-2 text-sm font-bold rounded-lg transition-colors", addForm.invNum&&addForm.amount&&!saving?"bg-gray-900 text-white":"bg-gray-100 text-gray-400 cursor-not-allowed")}>{saving?"Saving…":"Save Invoice"}</button>
+                  <button onClick={()=>setAddingInv(false)} className="px-4 py-2 text-sm font-semibold rounded-lg bg-gray-100 text-gray-500 hover:text-gray-700">Cancel</button>
                 </div>
               </Card>
             )}
@@ -1934,7 +968,7 @@ function VendorsView() {
                         <TD><input value={editForm.description||""} onChange={e=>setEditForm(f=>({...f,description:e.target.value}))} className={inp+" w-48"}/></TD>
                         <TD right><input value={editForm.amount||""} onChange={e=>setEditForm(f=>({...f,amount:e.target.value}))} className={inp+" w-24 text-right"}/></TD>
                         <TD><select value={editForm.status||"Pending"} onChange={e=>setEditForm(f=>({...f,status:e.target.value}))} className={inp+" w-24"}>{["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}</select></TD>
-                        <TD><div className="flex gap-1"><button onClick={saveEdit} className="text-xs px-2 py-1 bg-gray-900 text-white rounded">{saving?"…":"Save"}</button><button onClick={()=>setEditingId(null)} className="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded">Cancel</button></div></TD>
+                        <TD><div className="flex gap-1"><button onClick={saveEdit} className="text-sm px-2 py-1 bg-gray-900 text-white rounded">{saving?"…":"Save"}</button><button onClick={()=>setEditingId(null)} className="text-sm px-2 py-1 bg-gray-100 text-gray-500 rounded">Cancel</button></div></TD>
                       </tr>
                     ) : (
                       <TR key={vinv.id} onClick={() => setModal({_inv:true,...vinv})}>
@@ -1945,8 +979,8 @@ function VendorsView() {
                         <TD>{statusTag(vinv.status)}</TD>
                         <TD onClick={e=>e.stopPropagation()}>
                           <div className="flex gap-1">
-                            <button onClick={()=>{setEditingId(vinv.id);setEditForm({...vinv});}} className="text-xs px-2 py-1 border border-gray-200 rounded text-gray-400 hover:text-gray-700 hover:border-gray-400">Edit</button>
-                            <button onClick={()=>deleteInv(vinv.id)} className="text-xs px-2 py-1 text-gray-300 hover:text-red-500">✕</button>
+                            <button onClick={()=>{setEditingId(vinv.id);setEditForm({...vinv});}} className="text-sm px-2 py-1 border border-gray-200 rounded text-gray-400 hover:text-gray-700 hover:border-gray-400">Edit</button>
+                            <button onClick={()=>deleteInv(vinv.id)} className="text-sm px-2 py-1 text-gray-300 hover:text-red-500">✕</button>
                           </div>
                         </TD>
                       </TR>
@@ -2024,10 +1058,10 @@ function DocumentsView() {
     <div className="space-y-5">
       {/* Tab toggle */}
       <div className="flex gap-1 border-b border-gray-200">
-        <button onClick={() => setView("upload")} className={`px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all ${view==="upload" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
+        <button onClick={() => setView("upload")} className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all ${view==="upload" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
           Upload Document
         </button>
-        <button onClick={() => { setView("history"); loadDocs(); }} className={`px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all ${view==="history" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
+        <button onClick={() => { setView("history"); loadDocs(); }} className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all ${view==="history" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
           Document History {docs.length > 0 ? <span className="ml-1 text-gray-400">({docs.length})</span> : ""}
         </button>
       </div>
@@ -2059,7 +1093,7 @@ function DocumentsView() {
                   {docs.map(doc => (
                     <TR key={doc.id}>
                       <TD bold className="text-gray-800 max-w-[180px] truncate">{doc.name}</TD>
-                      <TD><span className={`text-xs font-medium px-2 py-0.5 rounded-full ${typeColor(doc.type)}`}>{doc.type}</span></TD>
+                      <TD><span className={`text-sm font-medium px-2 py-0.5 rounded-full ${typeColor(doc.type)}`}>{doc.type}</span></TD>
                       <TD muted>{doc.linked_id || "—"}</TD>
                       <TD muted>{doc.vendor_label || doc.vendor_key || "—"}</TD>
                       <TD muted className="max-w-[160px] truncate">{doc.note || "—"}</TD>
@@ -2067,17 +1101,17 @@ function DocumentsView() {
                       <TD>
                         <div className="flex gap-1">
                           <a href={`/api/documents/${doc.id}/file`} target="_blank" rel="noreferrer"
-                            className="text-xs px-2 py-1 border border-gray-200 rounded text-gray-400 hover:text-gray-700 hover:border-gray-400 transition-colors">
+                            className="text-sm px-2 py-1 border border-gray-200 rounded text-gray-400 hover:text-gray-700 hover:border-gray-400 transition-colors">
                             View
                           </a>
                           {doc.type === "Invoice" && doc.linked_id && (
                             <button onClick={() => rollbackInvoice(doc)}
-                              className="text-xs px-2 py-1 border border-amber-200 rounded text-amber-500 hover:text-amber-700 hover:border-amber-400 transition-colors">
+                              className="text-sm px-2 py-1 border border-amber-200 rounded text-amber-500 hover:text-amber-700 hover:border-amber-400 transition-colors">
                               Rollback
                             </button>
                           )}
                           <button onClick={() => deleteDoc(doc.id)} disabled={deleting === doc.id}
-                            className="text-xs px-2 py-1 text-gray-300 hover:text-red-500 transition-colors">
+                            className="text-sm px-2 py-1 text-gray-300 hover:text-red-500 transition-colors">
                             {deleting === doc.id ? "…" : "✕"}
                           </button>
                         </div>
@@ -2137,14 +1171,14 @@ function ZohoReconcileView() {
         {inv ? (
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-            <span className="text-xs font-semibold text-emerald-700">{inv.inv_num}</span>
+            <span className="text-sm font-semibold text-emerald-700">{inv.inv_num}</span>
           </div>
         ) : bill.reconciled_to === 'prior_phases_road' ? (
-          <span className="text-xs text-amber-600 font-medium">Road Construction C23-101</span>
+          <span className="text-sm text-amber-600 font-medium">Road Construction C23-101</span>
         ) : bill.reconciled_to === 'prior_phases_demo' ? (
-          <span className="text-xs text-red-500 font-medium">Demolition C25-102</span>
+          <span className="text-sm text-red-500 font-medium">Demolition C25-102</span>
         ) : (
-          <span className="text-xs text-gray-400">—</span>
+          <span className="text-sm text-gray-400">—</span>
         )}
       </TD>
       <TD>
@@ -2162,19 +1196,19 @@ function ZohoReconcileView() {
       {/* Summary KPIs */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4">
-          <p className="text-xs font-semibold text-amber-600 mb-1">Road Construction</p>
+          <p className="text-sm font-semibold text-amber-600 mb-1">Road Construction</p>
           <p className="text-lg font-bold text-gray-900">{$f(roadTotal)}</p>
-          <p className="text-xs text-amber-500 mt-1">{roadBills.length} Zoho bills · C23-101</p>
+          <p className="text-sm text-amber-500 mt-1">{roadBills.length} Zoho bills · C23-101</p>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-4">
-          <p className="text-xs font-semibold text-red-500 mb-1">Demolition</p>
+          <p className="text-sm font-semibold text-red-500 mb-1">Demolition</p>
           <p className="text-lg font-bold text-gray-900">{$f(demoTotal)}</p>
-          <p className="text-xs text-red-400 mt-1">{demoBills.length} Zoho bills · C25-102</p>
+          <p className="text-sm text-red-400 mt-1">{demoBills.length} Zoho bills · C25-102</p>
         </div>
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-4">
-          <p className="text-xs font-semibold text-emerald-600 mb-1">Phase 1.1</p>
+          <p className="text-sm font-semibold text-emerald-600 mb-1">Phase 1.1</p>
           <p className="text-lg font-bold text-gray-900">{$f(phase11Total)}</p>
-          <p className="text-xs text-emerald-500 mt-1">{phase11Bills.length} Zoho bills · C25-104</p>
+          <p className="text-sm text-emerald-500 mt-1">{phase11Bills.length} Zoho bills · C25-104</p>
         </div>
       </div>
 
@@ -2184,7 +1218,7 @@ function ZohoReconcileView() {
           <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-              <span className="text-xs font-bold text-gray-700">Road Construction — C23-101</span>
+              <span className="text-sm font-bold text-gray-700">Road Construction — C23-101</span>
             </div>
             <span className="text-sm font-bold text-gray-900">{$f(roadTotal)}</span>
           </div>
@@ -2200,7 +1234,7 @@ function ZohoReconcileView() {
           <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-              <span className="text-xs font-bold text-gray-700">Demolition — C25-102</span>
+              <span className="text-sm font-bold text-gray-700">Demolition — C25-102</span>
             </div>
             <span className="text-sm font-bold text-gray-900">{$f(demoTotal)}</span>
           </div>
@@ -2216,8 +1250,8 @@ function ZohoReconcileView() {
           <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-              <span className="text-xs font-bold text-gray-700">Phase 1.1 — C25-104</span>
-              <span className="text-xs text-gray-400">Matched to uploaded pay applications</span>
+              <span className="text-sm font-bold text-gray-700">Phase 1.1 — C25-104</span>
+              <span className="text-sm text-gray-400">Matched to uploaded pay applications</span>
             </div>
             <span className="text-sm font-bold text-gray-900">{$f(phase11Total)}</span>
           </div>
@@ -2277,7 +1311,7 @@ function ReconcileView({ setTab }) {
   if (!recon) return (
     <div className="bg-white rounded-xl border border-gray-100 p-8 text-center shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
       <p className="text-gray-400 text-sm mb-3">Could not load reconciliation data.</p>
-      <button onClick={load} className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-lg">Retry</button>
+      <button onClick={load} className="px-4 py-2 bg-gray-900 text-white text-sm font-bold rounded-lg">Retry</button>
     </div>
   );
 
@@ -2344,12 +1378,12 @@ function ReconcileView({ setTab }) {
                 {issues.length === 0 ? '✓ Books Balanced' : `${issues.length} Item${issues.length > 1 ? 's' : ''} Need Attention`}
               </span>
             </div>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-sm text-gray-400 mt-1">
               {passing.length} of {checks.length} checks passing
               {invoicesWithNoLineItems.length > 0 && ` · ${invoicesWithNoLineItems.length} invoice${invoicesWithNoLineItems.length > 1 ? 's' : ''} missing line item detail`}
             </p>
           </div>
-          <button onClick={load} className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-400 hover:text-gray-800 transition-colors">
+          <button onClick={load} className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-gray-200 text-gray-400 hover:text-gray-800 transition-colors">
             ↻ Refresh
           </button>
         </div>
@@ -2370,7 +1404,7 @@ function ReconcileView({ setTab }) {
           { id: 'passing',  label: `All Checks (${checks.length})` },
         ].map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
-            className={`px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all ${activeTab === t.id ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-500'}`}>
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all ${activeTab === t.id ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-500'}`}>
             {t.label}
           </button>
         ))}
@@ -2383,7 +1417,7 @@ function ReconcileView({ setTab }) {
             <Card className="p-8 text-center">
               <div className="text-3xl mb-2">✓</div>
               <p className="font-semibold text-emerald-600">No issues found</p>
-              <p className="text-xs text-gray-400 mt-1">All reconciliation checks are passing</p>
+              <p className="text-sm text-gray-400 mt-1">All reconciliation checks are passing</p>
             </Card>
           ) : issues.filter(c => c.severity !== 'info').map(c => {
             const action = actionMap[c.id];
@@ -2394,11 +1428,11 @@ function ReconcileView({ setTab }) {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className={`text-sm font-bold ${c.severity === 'error' ? 'text-red-500' : 'text-indigo-500'}`}>{c.severity === 'error' ? '✕' : '⚠'}</span>
-                      <span className={`text-xs font-bold ${c.severity === 'error' ? 'text-red-700' : 'text-indigo-700'}`}>{c.label}</span>
+                      <span className={`text-sm font-bold ${c.severity === 'error' ? 'text-red-700' : 'text-indigo-700'}`}>{c.label}</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-xs text-gray-400">Gap: </span>
-                      <span className={`text-xs font-bold ${c.severity === 'error' ? 'text-red-500' : 'text-indigo-500'}`}>
+                      <span className="text-sm text-gray-400">Gap: </span>
+                      <span className={`text-sm font-bold ${c.severity === 'error' ? 'text-red-500' : 'text-indigo-500'}`}>
                         {c.diff != null ? ((c.diff >= 0 ? '+' : '') + $f(c.diff)) : '—'}
                       </span>
                     </div>
@@ -2407,33 +1441,33 @@ function ReconcileView({ setTab }) {
                 <div className="p-4 space-y-3">
                   {/* What it means */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">What this means</p>
+                    <p className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">What this means</p>
                     <p className="text-sm text-gray-600">{action.plain}</p>
                   </div>
                   {/* Numbers */}
                   <div className="grid grid-cols-3 gap-2">
                     <div className="bg-[#f5f6f8] rounded-lg px-3 py-2">
-                      <p className="text-xs text-gray-400 mb-0.5">Expected</p>
+                      <p className="text-sm text-gray-400 mb-0.5">Expected</p>
                       <p className="text-sm font-bold text-gray-600">{c.expected != null ? $f(c.expected) : '—'}</p>
                     </div>
                     <div className="bg-[#f5f6f8] rounded-lg px-3 py-2">
-                      <p className="text-xs text-gray-400 mb-0.5">In App</p>
+                      <p className="text-sm text-gray-400 mb-0.5">In App</p>
                       <p className={`text-sm font-bold ${c.severity === 'error' ? 'text-red-500' : 'text-indigo-500'}`}>{c.actual != null ? $f(c.actual) : '—'}</p>
                     </div>
                     <div className="bg-[#f5f6f8] rounded-lg px-3 py-2">
-                      <p className="text-xs text-gray-400 mb-0.5">Difference</p>
+                      <p className="text-sm text-gray-400 mb-0.5">Difference</p>
                       <p className={`text-sm font-bold ${c.severity === 'error' ? 'text-red-500' : 'text-indigo-500'}`}>{c.diff != null ? ((c.diff >= 0 ? '+' : '') + $f(c.diff)) : '—'}</p>
                     </div>
                   </div>
                   {/* How to fix */}
                   <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
-                    <p className="text-xs font-semibold text-blue-600 mb-0.5">How to fix this</p>
-                    <p className="text-xs text-blue-700">{action.fix}</p>
+                    <p className="text-sm font-semibold text-blue-600 mb-0.5">How to fix this</p>
+                    <p className="text-sm text-blue-700">{action.fix}</p>
                   </div>
                   {action.tab && (
                     <button
                       onClick={() => { if (setTab) setTab(action.tab); }}
-                      className="w-full py-2 bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold rounded-lg transition-colors"
+                      className="w-full py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold rounded-lg transition-colors"
                     >
                       {action.btnLabel}
                     </button>
@@ -2453,39 +1487,39 @@ function ReconcileView({ setTab }) {
             <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-4 flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-blue-700">Fix All Billing Data</p>
-                <p className="text-xs text-blue-500 mt-0.5">Reseeds all 67 line item billings from Excel data (PAY-001 to PAY-007) — including Fee, Insurance, Deposit rows. Run this once after deploy.</p>
+                <p className="text-sm text-blue-500 mt-0.5">Reseeds all 67 line item billings from Excel data (PAY-001 to PAY-007) — including Fee, Insurance, Deposit rows. Run this once after deploy.</p>
               </div>
               <button onClick={runReseed} disabled={reseeding}
-                className="ml-4 px-4 py-2 text-xs font-bold rounded-lg text-white shrink-0"
+                className="ml-4 px-4 py-2 text-sm font-bold rounded-lg text-white shrink-0"
                 style={{ background: reseeding ? "#93c5fd" : "#1d4ed8" }}>
                 {reseeding ? "Running..." : "Fix Billing Data →"}
               </button>
             </div>
           )}
           {reseedDone && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-xs text-emerald-700 font-semibold">✓ Data fix applied — line items updated.</div>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-700 font-semibold">✓ Data fix applied — line items updated.</div>
           )}
           <Card className="p-4">
             <SectionTitle>Invoices Without Line Item Detail</SectionTitle>
-            <p className="text-xs text-gray-400 mb-4">
+            <p className="text-sm text-gray-400 mb-4">
               These invoices are in the system but have no line items uploaded yet.
               Without line items, the Completed to Date and per-invoice reconciliation checks can't run.
             </p>
             {invoicesWithNoLineItems.length === 0 ? (
-              <p className="text-xs text-emerald-600 font-semibold">✓ All invoices have line item detail</p>
+              <p className="text-sm text-emerald-600 font-semibold">✓ All invoices have line item detail</p>
             ) : (
               <div className="space-y-2">
                 {invoicesWithNoLineItems.map(inv => (
                   <div key={inv.id} className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2.5">
                     <div>
-                      <span className="text-xs font-bold text-gray-800">{inv.id} — {inv.inv_num}</span>
-                      <p className="text-xs text-gray-400 mt-0.5">{inv.description} · Approved {$f(inv.approved)}</p>
+                      <span className="text-sm font-bold text-gray-800">{inv.id} — {inv.inv_num}</span>
+                      <p className="text-sm text-gray-400 mt-0.5">{inv.description} · Approved {$f(inv.approved)}</p>
                     </div>
                     <Tag text="Upload PDF to add" color="amber" />
                   </div>
                 ))}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5 mt-2">
-                  <p className="text-xs text-blue-700 font-semibold">To fix: Go to Documents tab → upload the Taconic invoice PDF → approve the line items</p>
+                  <p className="text-sm text-blue-700 font-semibold">To fix: Go to Documents tab → upload the Taconic invoice PDF → approve the line items</p>
                 </div>
               </div>
             )}
@@ -2493,19 +1527,19 @@ function ReconcileView({ setTab }) {
 
           <Card className="p-4">
             <SectionTitle>Change Orders Without Supporting Documents</SectionTitle>
-            <p className="text-xs text-gray-400 mb-3">COs in the system that don't yet have a signed CO PDF attached.</p>
+            <p className="text-sm text-gray-400 mb-3">COs in the system that don't yet have a signed CO PDF attached.</p>
             <div className="space-y-2">
               {changeOrders.filter(co => !co.has_document).map(co => (
                 <div key={co.no} className="flex items-center justify-between bg-[#f5f6f8] rounded-lg px-3 py-2.5">
                   <div>
-                    <span className="text-xs font-bold text-indigo-600">{co.no}</span>
-                    <span className="text-xs text-gray-500 ml-2">{co.div}</span>
+                    <span className="text-sm font-bold text-indigo-600">{co.no}</span>
+                    <span className="text-sm text-gray-500 ml-2">{co.div}</span>
                   </div>
-                  <span className="text-xs font-bold text-gray-800">{$f(co.approved_co)}</span>
+                  <span className="text-sm font-bold text-gray-800">{$f(co.approved_co)}</span>
                 </div>
               ))}
               {changeOrders.filter(co => !co.has_document).length === 0 && (
-                <p className="text-xs text-emerald-600 font-semibold">✓ All COs have documents attached</p>
+                <p className="text-sm text-emerald-600 font-semibold">✓ All COs have documents attached</p>
               )}
             </div>
           </Card>
@@ -2522,7 +1556,7 @@ function ReconcileView({ setTab }) {
                 <TR key={c.id}>
                   <TD bold className="text-gray-800 max-w-xs">
                     <div>{c.label}</div>
-                    <div className="text-gray-400 font-normal text-xs mt-0.5">{c.description}</div>
+                    <div className="text-gray-400 font-normal text-sm mt-0.5">{c.description}</div>
                   </TD>
                   <TD right muted>{c.expected != null ? $f(c.expected) : '—'}</TD>
                   <TD right bold className={c.pass ? 'text-emerald-600' : c.severity === 'error' ? 'text-red-500' : 'text-indigo-500'}>
@@ -2577,7 +1611,7 @@ function ZohoSyncButton({ onSynced }) {
     <div className="flex items-center gap-3">
       <span className="text-sm text-gray-400">Last sync: <span className="text-gray-600 font-medium">{lastSyncStr}</span></span>
       <button onClick={forceSync} disabled={syncing}
-        className="px-3 py-1.5 bg-gray-900 hover:bg-gray-700 disabled:bg-gray-300 text-white text-xs font-semibold rounded-lg transition-colors">
+        className="px-3 py-1.5 bg-gray-900 hover:bg-gray-700 disabled:bg-gray-300 text-white text-sm font-semibold rounded-lg transition-colors">
         {syncing ? "Syncing…" : "Sync now"}
       </button>
     </div>
@@ -2750,7 +1784,7 @@ function TotalSpendView() {
           </button>
         ))}
         <div className="px-5 py-3 bg-gray-50 flex items-center justify-between border-b border-gray-100">
-          <span className="text-xs font-semibold text-gray-500">Pre-Construction subtotal</span>
+          <span className="text-sm font-semibold text-gray-500">Pre-Construction subtotal</span>
           <div className="flex items-center gap-6">
             <span className="text-sm text-gray-400 tabular-nums">{grandTotal > 0 ? pf(preConTotal/grandTotal) : "—"}</span>
             <span className="text-sm font-bold text-gray-700 tabular-nums w-32 text-right">{$f(preConTotal)}</span>
@@ -2783,7 +1817,7 @@ function TotalSpendView() {
           </button>
         ))}
         <div className="px-5 py-3 bg-gray-50 flex items-center justify-between border-b border-gray-100">
-          <span className="text-xs font-semibold text-gray-500">Construction subtotal</span>
+          <span className="text-sm font-semibold text-gray-500">Construction subtotal</span>
           <div className="flex items-center gap-6">
             <span className="text-sm text-gray-400 tabular-nums">{grandTotal > 0 ? pf(conTotal/grandTotal) : "—"}</span>
             <span className="text-sm font-bold text-gray-700 tabular-nums w-32 text-right">{$f(conTotal)}</span>
@@ -2814,7 +1848,7 @@ function TotalSpendView() {
           ))}
         </div>
         <button onClick={() => setViewMode(viewMode === "mapping" ? "vendor" : "mapping")}
-          className={cx("px-3 py-2 rounded-lg text-xs font-medium transition-colors border",
+          className={cx("px-3 py-2 rounded-lg text-sm font-medium transition-colors border",
             viewMode === "mapping" ? "border-gray-300 text-gray-500 bg-white" : "border-transparent text-gray-300 hover:text-gray-400 hover:border-gray-200")}>
           Phase Mapping
         </button>
@@ -2899,7 +1933,7 @@ function TotalSpendView() {
                 <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: v.color }} />
                 <div className="flex-1 min-w-0 flex items-center gap-3">
                   <span className="text-sm font-semibold text-gray-800">{v.name}</span>
-                  {v.tag && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">{v.tag}</span>}
+                  {v.tag && <span className="text-sm font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">{v.tag}</span>}
                 </div>
                 <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(v.total/grandTotal) : "—"}</span>
                 <span className="text-sm font-bold text-gray-900 tabular-nums w-32 text-right mr-3">{$f(v.total)}</span>
@@ -2915,8 +1949,8 @@ function TotalSpendView() {
                       {v.phases.filter(p => p.invoiced > 0 || p.budget > 0).map((p, i) => (
                         <TR key={i}>
                           <TD bold>{p.phase}</TD>
-                          <TD>{p.stage && <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: (STAGE_COLORS[p.stage]||"#9ca3af")+"18", color: STAGE_COLORS[p.stage]||"#9ca3af" }}>{p.stage}</span>}</TD>
-                          <TD>{p.work_package && <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: (WP_COLORS[p.work_package]||"#9ca3af")+"18", color: WP_COLORS[p.work_package]||"#9ca3af" }}>{p.work_package}</span>}</TD>
+                          <TD>{p.stage && <span className="text-sm font-semibold px-2 py-0.5 rounded-full" style={{ background: (STAGE_COLORS[p.stage]||"#9ca3af")+"18", color: STAGE_COLORS[p.stage]||"#9ca3af" }}>{p.stage}</span>}</TD>
+                          <TD>{p.work_package && <span className="text-sm font-semibold px-2 py-0.5 rounded-full" style={{ background: (WP_COLORS[p.work_package]||"#9ca3af")+"18", color: WP_COLORS[p.work_package]||"#9ca3af" }}>{p.work_package}</span>}</TD>
                           <TD>{statusTag(p.status)}</TD>
                           <TD right bold>{$f(p.invoiced)}</TD>
                         </TR>
@@ -3000,7 +2034,7 @@ function TotalSpendView() {
                 const r = await apiFetch('/admin/migrate-phase-tags', { method: 'POST' });
                 if (r.ok) { alert(`✓ Tags applied to ${r.updated} phases.`); load(); }
               } catch(e) { alert('Failed: ' + e.message); }
-            }} className="ml-4 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-semibold rounded-lg shrink-0 transition-colors">
+            }} className="ml-4 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-semibold rounded-lg shrink-0 transition-colors">
               Apply Tags
             </button>
           </div>
@@ -3024,7 +2058,7 @@ function TotalSpendView() {
                             {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                         ) : (
-                          vp.stage ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: (STAGE_COLORS[vp.stage]||"#9ca3af")+"18", color: STAGE_COLORS[vp.stage]||"#9ca3af" }}>{vp.stage}</span> : <span className="text-gray-300">—</span>
+                          vp.stage ? <span className="text-sm font-semibold px-2 py-0.5 rounded-full" style={{ background: (STAGE_COLORS[vp.stage]||"#9ca3af")+"18", color: STAGE_COLORS[vp.stage]||"#9ca3af" }}>{vp.stage}</span> : <span className="text-gray-300">—</span>
                         )}
                       </TD>
                       <TD>
@@ -3034,7 +2068,7 @@ function TotalSpendView() {
                             {WORK_PACKAGES.map(w => <option key={w} value={w}>{w}</option>)}
                           </select>
                         ) : (
-                          vp.work_package ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: (WP_COLORS[vp.work_package]||"#9ca3af")+"18", color: WP_COLORS[vp.work_package]||"#9ca3af" }}>{vp.work_package}</span> : <span className="text-gray-300">—</span>
+                          vp.work_package ? <span className="text-sm font-semibold px-2 py-0.5 rounded-full" style={{ background: (WP_COLORS[vp.work_package]||"#9ca3af")+"18", color: WP_COLORS[vp.work_package]||"#9ca3af" }}>{vp.work_package}</span> : <span className="text-gray-300">—</span>
                         )}
                       </TD>
                       <TD right bold>{$f(vp.invoiced)}</TD>
@@ -3043,15 +2077,15 @@ function TotalSpendView() {
                         {isEditing ? (
                           <div className="flex gap-1">
                             <button onClick={() => savePhaseTag(vp.id)} disabled={saving}
-                              className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded transition-colors disabled:opacity-50">
+                              className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded transition-colors disabled:opacity-50">
                               {saving ? "…" : "Save"}
                             </button>
                             <button onClick={() => setEditingPhase(null)}
-                              className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold rounded transition-colors">✕</button>
+                              className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-semibold rounded transition-colors">✕</button>
                           </div>
                         ) : (
                           <button onClick={() => { setEditingPhase(vp.id); setEditForm({ stage: vp.stage || "", work_package: vp.work_package || "" }); }}
-                            className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold rounded transition-colors">Edit</button>
+                            className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-semibold rounded transition-colors">Edit</button>
                         )}
                       </TD>
                     </TR>
@@ -3119,7 +2153,7 @@ function Phase11Shell({ initialSubTab = 'landing' }) {
       <div className="flex gap-1 border-b border-gray-200 -mt-2">
         {SUB_TABS.map(t => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
-            className={cx("px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
+            className={cx("px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
               subTab === t.id ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600")}>
             {t.label}
           </button>
@@ -3157,7 +2191,7 @@ function Phase11Shell({ initialSubTab = 'landing' }) {
                 className="bg-white border border-gray-100 rounded-xl p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all shadow-sm group">
                 <div className="text-xl mb-3 text-gray-300 group-hover:text-indigo-400 transition-colors">{card.icon}</div>
                 <div className="text-sm font-semibold text-gray-800 mb-1">{card.label}</div>
-                <div className="text-xs text-gray-400">{card.desc}</div>
+                <div className="text-sm text-gray-400">{card.desc}</div>
               </button>
             ))}
           </div>
@@ -3175,8 +2209,8 @@ function Phase11Shell({ initialSubTab = 'landing' }) {
                 <div key={ci} className="divide-y divide-gray-50">
                   {col.map(([k,v]) => (
                     <div key={k} className="flex items-center justify-between px-5 py-3">
-                      <span className="text-xs text-gray-400">{k}</span>
-                      <span className="text-xs font-semibold text-gray-800">{v}</span>
+                      <span className="text-sm text-gray-400">{k}</span>
+                      <span className="text-sm font-semibold text-gray-800">{v}</span>
                     </div>
                   ))}
                 </div>
@@ -3226,7 +2260,7 @@ function DesignEngShell() {
       <div className="flex gap-1 border-b border-gray-200 -mt-2">
         {VENDOR_TABS.map(t => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
-            className={cx("px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
+            className={cx("px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all whitespace-nowrap",
               subTab === t.id ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600")}>
             {t.label}
           </button>
@@ -3242,25 +2276,25 @@ function DesignEngShell() {
                 className="bg-white border border-gray-100 rounded-xl p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all shadow-sm group">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-3 h-3 rounded-full" style={{ background: v.color }} />
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{v.role}</span>
+                  <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{v.role}</span>
                 </div>
                 <div className="text-sm font-bold text-gray-900 mb-3 leading-tight">{v.name}</div>
                 <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
+                  <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Invoiced to date</span>
                     <span className="font-bold text-gray-900">{$f(v.invoiced)}</span>
                   </div>
                   {v.budget > 0 && (
                     <>
                       <BarFill value={v.invoiced} max={v.budget} color={v.color} />
-                      <div className="flex justify-between text-xs">
+                      <div className="flex justify-between text-sm">
                         <span className="text-gray-400">Budget</span>
                         <span className="text-gray-500">{$f(v.budget)}</span>
                       </div>
                     </>
                   )}
                 </div>
-                <div className="mt-3 text-xs text-indigo-400 font-medium group-hover:text-indigo-600">View detail →</div>
+                <div className="mt-3 text-sm text-indigo-400 font-medium group-hover:text-indigo-600">View detail →</div>
               </button>
             ))}
           </div>
@@ -3327,7 +2361,7 @@ const INV_STATUS_COLORS = {
 function InvStatusTag({ status }) {
   const c = INV_STATUS_COLORS[status] || { bg:"#f3f4f6", text:"#6b7280", dot:"#9ca3af" };
   return (
-    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: c.bg, color: c.text }}>
+    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium" style={{ background: c.bg, color: c.text }}>
       <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: c.dot }} />
       {status}
     </span>
@@ -3352,7 +2386,7 @@ function InvoiceWorkflow({ vendorKey }) {
   });
   const [lines, setLines] = useState([]);
 
-  const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-400";
+  const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-400";
 
   const load = async () => {
     setLoading(true);
@@ -3476,10 +2510,10 @@ function InvoiceWorkflow({ vendorKey }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs text-gray-400">Upload and review invoices · map to budget phases · approve · reconcile to Zoho</p>
+          <p className="text-sm text-gray-400">Upload and review invoices · map to budget phases · approve · reconcile to Zoho</p>
         </div>
         <button onClick={() => { setView("new"); setLines([]); }}
-          className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold rounded-lg transition-colors">
+          className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold rounded-lg transition-colors">
           + New Invoice
         </button>
       </div>
@@ -3499,25 +2533,25 @@ function InvoiceWorkflow({ vendorKey }) {
                 <TR key={inv.id} onClick={() => { setSelected(inv); setView("detail"); }}>
                   <TD mono bold className="text-indigo-600">{inv.invoice_num}</TD>
                   <TD muted>{inv.invoice_date}</TD>
-                  <TD muted className="text-xs">{inv.period_start && inv.period_end ? `${inv.period_start} – ${inv.period_end}` : inv.period_start || "—"}</TD>
+                  <TD muted className="text-sm">{inv.period_start && inv.period_end ? `${inv.period_start} – ${inv.period_end}` : inv.period_start || "—"}</TD>
                   <TD muted>{inv.lines?.length || 0} line{inv.lines?.length !== 1 ? "s" : ""}</TD>
                   <TD right bold className="text-gray-900">{$f(inv.total_amount)}</TD>
                   <TD><InvStatusTag status={inv.status} /></TD>
                   <TD onClick={e=>e.stopPropagation()}>
                     <div className="flex gap-1 flex-wrap">
                       {inv.status === "Submitted" && (
-                        <button onClick={() => { setSelected(inv); setView("detail"); }} className="text-xs px-2 py-1 border border-gray-200 rounded text-gray-500 hover:border-indigo-300 hover:text-indigo-600">Review</button>
+                        <button onClick={() => { setSelected(inv); setView("detail"); }} className="text-sm px-2 py-1 border border-gray-200 rounded text-gray-500 hover:border-indigo-300 hover:text-indigo-600">Review</button>
                       )}
                       {inv.status === "Under Review" && (
-                        <button onClick={() => approve(inv.id)} className="text-xs px-2 py-1 bg-emerald-500 hover:bg-emerald-400 text-white rounded font-semibold">Approve</button>
+                        <button onClick={() => approve(inv.id)} className="text-sm px-2 py-1 bg-emerald-500 hover:bg-emerald-400 text-white rounded font-semibold">Approve</button>
                       )}
                       {inv.status === "Approved" && (
-                        <button onClick={() => markZohoMatch(inv)} className="text-xs px-2 py-1 bg-blue-500 hover:bg-blue-400 text-white rounded font-semibold">Match Zoho</button>
+                        <button onClick={() => markZohoMatch(inv)} className="text-sm px-2 py-1 bg-blue-500 hover:bg-blue-400 text-white rounded font-semibold">Match Zoho</button>
                       )}
                       {inv.status === "Zoho Matched" && (
-                        <button onClick={() => markPaid(inv)} className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded font-semibold">Mark Paid</button>
+                        <button onClick={() => markPaid(inv)} className="text-sm px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded font-semibold">Mark Paid</button>
                       )}
-                      <button onClick={() => deleteInv(inv.id)} className="text-xs px-2 py-1 text-gray-300 hover:text-red-500 transition-colors">✕</button>
+                      <button onClick={() => deleteInv(inv.id)} className="text-sm px-2 py-1 text-gray-300 hover:text-red-500 transition-colors">✕</button>
                     </div>
                   </TD>
                 </TR>
@@ -3545,10 +2579,10 @@ function InvoiceWorkflow({ vendorKey }) {
               <div key={s} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="w-2 h-2 rounded-full" style={{background:c.dot}} />
-                  <span className="text-xs font-semibold" style={{color:c.text}}>{s}</span>
+                  <span className="text-sm font-semibold" style={{color:c.text}}>{s}</span>
                 </div>
                 <div className="text-sm font-bold text-gray-900">{$f(total)}</div>
-                <div className="text-xs text-gray-400">{count} invoice{count!==1?"s":""}</div>
+                <div className="text-sm text-gray-400">{count} invoice{count!==1?"s":""}</div>
               </div>
             );
           })}
@@ -3561,22 +2595,22 @@ function InvoiceWorkflow({ vendorKey }) {
   if (view === "new") return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <button onClick={() => setView("list")} className="text-xs text-gray-400 hover:text-gray-700">← Back</button>
+        <button onClick={() => setView("list")} className="text-sm text-gray-400 hover:text-gray-700">← Back</button>
         <span className="text-sm font-bold text-gray-900">New Invoice — {vendor.full_name}</span>
       </div>
 
       <Card className="p-5 space-y-4">
         <SectionTitle>Invoice Details</SectionTitle>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <div><label className="block text-xs text-gray-400 mb-1">Invoice #*</label>
+          <div><label className="block text-sm text-gray-400 mb-1">Invoice #*</label>
             <input value={form.invoice_num} onChange={e=>setForm(f=>({...f,invoice_num:e.target.value}))} placeholder="e.g. CFA-44" className={inp}/></div>
-          <div><label className="block text-xs text-gray-400 mb-1">Invoice Date*</label>
+          <div><label className="block text-sm text-gray-400 mb-1">Invoice Date*</label>
             <input type="date" value={form.invoice_date} onChange={e=>setForm(f=>({...f,invoice_date:e.target.value}))} className={inp}/></div>
-          <div><label className="block text-xs text-gray-400 mb-1">Period Start</label>
+          <div><label className="block text-sm text-gray-400 mb-1">Period Start</label>
             <input type="date" value={form.period_start} onChange={e=>setForm(f=>({...f,period_start:e.target.value}))} className={inp}/></div>
-          <div><label className="block text-xs text-gray-400 mb-1">Period End</label>
+          <div><label className="block text-sm text-gray-400 mb-1">Period End</label>
             <input type="date" value={form.period_end} onChange={e=>setForm(f=>({...f,period_end:e.target.value}))} className={inp}/></div>
-          <div className="md:col-span-2"><label className="block text-xs text-gray-400 mb-1">Notes</label>
+          <div className="md:col-span-2"><label className="block text-sm text-gray-400 mb-1">Notes</label>
             <input value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="e.g. Guest cabin CD's, OAC meetings…" className={inp}/></div>
         </div>
       </Card>
@@ -3584,10 +2618,10 @@ function InvoiceWorkflow({ vendorKey }) {
       <Card className="p-5 space-y-3">
         <div className="flex items-center justify-between">
           <SectionTitle>Line Items</SectionTitle>
-          <button onClick={addLine} className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded-lg font-semibold">+ Add Line</button>
+          <button onClick={addLine} className="text-sm px-3 py-1.5 bg-gray-900 text-white rounded-lg font-semibold">+ Add Line</button>
         </div>
         {lines.length === 0 && (
-          <div className="text-center py-6 text-gray-400 text-xs border-2 border-dashed border-gray-200 rounded-xl">
+          <div className="text-center py-6 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
             Add line items from the invoice — one row per service/phase
           </div>
         )}
@@ -3598,27 +2632,27 @@ function InvoiceWorkflow({ vendorKey }) {
           return (
             <div key={i} className={`border rounded-xl p-4 space-y-3 ${isOver ? "border-red-300 bg-red-50" : "border-gray-100 bg-gray-50"}`}>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500">Line {i+1}</span>
-                <button onClick={()=>removeLine(i)} className="text-xs text-gray-300 hover:text-red-500">✕ Remove</button>
+                <span className="text-sm font-semibold text-gray-500">Line {i+1}</span>
+                <button onClick={()=>removeLine(i)} className="text-sm text-gray-300 hover:text-red-500">✕ Remove</button>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-400 mb-1">Description*</label>
+                  <label className="block text-sm text-gray-400 mb-1">Description*</label>
                   <input value={line.line_description} onChange={e=>handleLineChange(i,"line_description",e.target.value)}
                     placeholder="e.g. Design – Guest Cabin" className={inp}/>
                 </div>
-                <div><label className="block text-xs text-gray-400 mb-1">Hours</label>
+                <div><label className="block text-sm text-gray-400 mb-1">Hours</label>
                   <input type="number" value={line.hours} onChange={e=>handleLineChange(i,"hours",e.target.value)} placeholder="0" className={inp}/></div>
-                <div><label className="block text-xs text-gray-400 mb-1">Rate</label>
+                <div><label className="block text-sm text-gray-400 mb-1">Rate</label>
                   <input type="number" value={line.rate} onChange={e=>handleLineChange(i,"rate",e.target.value)} placeholder="0.00" className={inp}/></div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">Amount*</label>
+                  <label className="block text-sm text-gray-400 mb-1">Amount*</label>
                   <input type="number" value={line.amount} onChange={e=>handleLineChange(i,"amount",e.target.value)} placeholder="0.00" className={`${inp} font-bold`}/>
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-400 mb-1">Map to Budget Phase*</label>
+                  <label className="block text-sm text-gray-400 mb-1">Map to Budget Phase*</label>
                   <select value={line.vendor_phase_id} onChange={e=>{
                     const ph = vendor.phases.find(p=>String(p.id)===e.target.value);
                     updateLine(i,"vendor_phase_id",e.target.value);
@@ -3635,7 +2669,7 @@ function InvoiceWorkflow({ vendorKey }) {
               </div>
               {/* Budget check */}
               {phase && (
-                <div className={`text-xs rounded-lg px-3 py-2 flex items-center justify-between ${isOver ? "bg-red-100 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
+                <div className={`text-sm rounded-lg px-3 py-2 flex items-center justify-between ${isOver ? "bg-red-100 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
                   <span>{phase.phase}</span>
                   <span className="font-semibold">
                     {isOver ? `⚠ Over budget by ${$f(parseFloat(line.amount||0) - remaining)}` : `${$f(remaining)} remaining`}
@@ -3643,7 +2677,7 @@ function InvoiceWorkflow({ vendorKey }) {
                 </div>
               )}
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Notes</label>
+                <label className="block text-sm text-gray-400 mb-1">Notes</label>
                 <input value={line.notes} onChange={e=>updateLine(i,"notes",e.target.value)} placeholder="Optional notes…" className={inp}/>
               </div>
             </div>
@@ -3651,7 +2685,7 @@ function InvoiceWorkflow({ vendorKey }) {
         })}
         {lines.length > 0 && (
           <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-            <span className="text-xs text-gray-400">Lines total</span>
+            <span className="text-sm text-gray-400">Lines total</span>
             <span className={`text-sm font-bold ${form.total_amount && Math.abs(linesTotal - parseFloat(form.total_amount||0)) > 0.5 ? "text-red-600" : "text-gray-900"}`}>{$f(linesTotal)}</span>
           </div>
         )}
@@ -3660,11 +2694,11 @@ function InvoiceWorkflow({ vendorKey }) {
       <div className="flex gap-3">
         <button onClick={saveInvoice}
           disabled={!form.invoice_num||!form.invoice_date||lines.length===0||saving}
-          className={cx("px-6 py-2.5 text-xs font-bold rounded-lg transition-colors",
+          className={cx("px-6 py-2.5 text-sm font-bold rounded-lg transition-colors",
             form.invoice_num&&form.invoice_date&&lines.length>0&&!saving ? "bg-gray-900 hover:bg-gray-800 text-white" : "bg-gray-100 text-gray-400 cursor-not-allowed")}>
           {saving ? "Saving…" : "Submit Invoice →"}
         </button>
-        <button onClick={()=>setView("list")} className="px-6 py-2.5 text-xs font-semibold rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-gray-700">Cancel</button>
+        <button onClick={()=>setView("list")} className="px-6 py-2.5 text-sm font-semibold rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-gray-700">Cancel</button>
       </div>
     </div>
   );
@@ -3681,13 +2715,13 @@ function InvoiceWorkflow({ vendorKey }) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={()=>setView("list")} className="text-xs text-gray-400 hover:text-gray-700">← Back</button>
+            <button onClick={()=>setView("list")} className="text-sm text-gray-400 hover:text-gray-700">← Back</button>
             <span className="text-sm font-bold text-gray-900">Invoice {inv.invoice_num}</span>
             <InvStatusTag status={inv.status} />
           </div>
           <div className="flex gap-2">
             {(inv.status==="Submitted"||inv.status==="Under Review") && canApprove && (
-              <button onClick={()=>approve(inv.id)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg">✓ Approve Invoice</button>
+              <button onClick={()=>approve(inv.id)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg">✓ Approve Invoice</button>
             )}
             {inv.status==="Approved" && (
               <button onClick={async () => {
@@ -3716,15 +2750,15 @@ function InvoiceWorkflow({ vendorKey }) {
                     }
                   }
                 } catch(e) { alert('Match error: ' + e.message); }
-              }} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg">
+              }} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg">
                 Match to Zoho →
               </button>
             )}
             {inv.status==="Zoho Matched" && (
-              <button onClick={()=>markPaid(inv)} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-lg">Mark as Paid</button>
+              <button onClick={()=>markPaid(inv)} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold rounded-lg">Mark as Paid</button>
             )}
             {(inv.status==="Approved"||inv.status==="Under Review") && (
-              <button onClick={()=>unapprove(inv.id)} className="px-3 py-2 border border-gray-200 text-xs font-semibold rounded-lg text-gray-500 hover:text-gray-700">Send Back</button>
+              <button onClick={()=>unapprove(inv.id)} className="px-3 py-2 border border-gray-200 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-700">Send Back</button>
             )}
           </div>
         </div>
@@ -3733,13 +2767,13 @@ function InvoiceWorkflow({ vendorKey }) {
         {!allMapped && inv.lines?.length > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
             <span className="text-amber-500">⚑</span>
-            <p className="text-xs font-semibold text-amber-700">{inv.lines.filter(l=>!l.vendor_phase_id).length} line item{inv.lines.filter(l=>!l.vendor_phase_id).length!==1?"s":""} not yet mapped to a budget phase — required before approval</p>
+            <p className="text-sm font-semibold text-amber-700">{inv.lines.filter(l=>!l.vendor_phase_id).length} line item{inv.lines.filter(l=>!l.vendor_phase_id).length!==1?"s":""} not yet mapped to a budget phase — required before approval</p>
           </div>
         )}
         {anyOverBudget && (
           <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-3">
             <span className="text-red-500">⚠</span>
-            <p className="text-xs font-semibold text-red-700">One or more line items exceed the remaining budget for their phase — review before approving</p>
+            <p className="text-sm font-semibold text-red-700">One or more line items exceed the remaining budget for their phase — review before approving</p>
           </div>
         )}
         {inv.status === "Zoho Matched" && (
@@ -3747,8 +2781,8 @@ function InvoiceWorkflow({ vendorKey }) {
             <div className="flex items-center gap-3">
               <span className="text-blue-500">✓</span>
               <div>
-                <p className="text-xs font-semibold text-blue-700">Matched to Zoho</p>
-                <p className="text-xs text-blue-600">Bill ID: {inv.zoho_bill_id} · {$f(inv.zoho_match_amount)}</p>
+                <p className="text-sm font-semibold text-blue-700">Matched to Zoho</p>
+                <p className="text-sm text-blue-600">Bill ID: {inv.zoho_bill_id} · {$f(inv.zoho_match_amount)}</p>
               </div>
             </div>
           </div>
@@ -3759,12 +2793,12 @@ function InvoiceWorkflow({ vendorKey }) {
           <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-gray-50">
             {[["Vendor", vendor.full_name],["Invoice #", inv.invoice_num],["Date", inv.invoice_date],["Period", inv.period_start&&inv.period_end?`${inv.period_start} – ${inv.period_end}`:"—"]].map(([k,v])=>(
               <div key={k} className="px-4 py-3">
-                <p className="text-xs text-gray-400 mb-0.5">{k}</p>
-                <p className="text-xs font-semibold text-gray-900">{v}</p>
+                <p className="text-sm text-gray-400 mb-0.5">{k}</p>
+                <p className="text-sm font-semibold text-gray-900">{v}</p>
               </div>
             ))}
           </div>
-          {inv.notes && <div className="px-4 py-2 border-t border-gray-50 bg-gray-50"><p className="text-xs text-gray-500 italic">{inv.notes}</p></div>}
+          {inv.notes && <div className="px-4 py-2 border-t border-gray-50 bg-gray-50"><p className="text-sm text-gray-500 italic">{inv.notes}</p></div>}
         </Card>
 
         {/* Line items */}
@@ -3789,7 +2823,7 @@ function InvoiceWorkflow({ vendorKey }) {
                           const ph = vendor.phases.find(p=>String(p.id)===e.target.value);
                           updatePhaseMapping(line.id, e.target.value, ph?.phase||"");
                         }}
-                        className="bg-white border border-gray-200 rounded px-2 py-1 text-xs outline-none focus:border-indigo-400 w-48"
+                        className="bg-white border border-gray-200 rounded px-2 py-1 text-sm outline-none focus:border-indigo-400 w-48"
                         onClick={e=>e.stopPropagation()}>
                         <option value="">— Map to phase —</option>
                         {vendor.phases.map(p=>(
@@ -3797,7 +2831,7 @@ function InvoiceWorkflow({ vendorKey }) {
                         ))}
                       </select>
                     ) : (
-                      <span className="text-xs font-medium text-indigo-600">{line.vendor_phase_name||"—"}</span>
+                      <span className="text-sm font-medium text-indigo-600">{line.vendor_phase_name||"—"}</span>
                     )}
                   </TD>
                   <TD right className={line.is_over_budget?"text-red-600 font-bold":"text-gray-500"}>
@@ -3834,18 +2868,18 @@ function InvoiceWorkflow({ vendorKey }) {
               [inv.status !== "Submitted", "Invoice reviewed"],
             ].map(([ok, label], i) => (
               <div key={i} className="flex items-center gap-2">
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${ok?"bg-emerald-100 text-emerald-600":"bg-gray-100 text-gray-400"}`}>{ok?"✓":"·"}</span>
-                <span className={`text-xs ${ok?"text-gray-700":"text-gray-400"}`}>{label}</span>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-sm font-bold ${ok?"bg-emerald-100 text-emerald-600":"bg-gray-100 text-gray-400"}`}>{ok?"✓":"·"}</span>
+                <span className={`text-sm ${ok?"text-gray-700":"text-gray-400"}`}>{label}</span>
               </div>
             ))}
           </div>
           {canApprove && (
-            <button onClick={()=>approve(inv.id)} className="mt-4 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors">
+            <button onClick={()=>approve(inv.id)} className="mt-4 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors">
               ✓ Approve Invoice — {$f(linesTotal2)}
             </button>
           )}
           {!canApprove && inv.status==="Submitted" && (
-            <div className="mt-4 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <div className="mt-4 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
               Complete the checklist above before approving
             </div>
           )}
@@ -3877,7 +2911,7 @@ function VendorsViewSingle({ vendorKey }) {
   const totalInvoiced = vendor.invoices.reduce((s,i) => s+(i.amount||0), 0);
   const totalBudgeted = vendor.phases.reduce((s,p) => s+(p.budget||0), 0);
   const rem = totalBudgeted > 0 ? totalBudgeted - totalInvoiced : null;
-  const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-400";
+  const inp = "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-400";
 
   const saveNewInv = async () => {
     if (!addForm.invNum || !addForm.amount || saving) return;
@@ -3909,7 +2943,7 @@ function VendorsViewSingle({ vendorKey }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-bold text-gray-900">{vendor.full_name}</h2>
-          <p className="text-xs text-gray-400 mt-0.5">{vendor.role}</p>
+          <p className="text-sm text-gray-400 mt-0.5">{vendor.role}</p>
         </div>
         <Tag text="Active" color="amber" />
       </div>
@@ -3917,7 +2951,7 @@ function VendorsViewSingle({ vendorKey }) {
       <div className="flex border-b border-gray-200">
         {[["invoices","Invoices"],["phases","Budget Phases"],["overview","Overview"]].map(([id,lbl]) => (
           <button key={id} onClick={() => { setSubTab(id); setModal(null); setAddingInv(false); setEditingId(null); }}
-            className={cx("px-4 py-2.5 text-xs font-semibold transition-all border-b-2 -mb-px",
+            className={cx("px-4 py-2.5 text-sm font-semibold transition-all border-b-2 -mb-px",
               subTab===id ? "border-indigo-500 text-indigo-600" : "border-transparent text-gray-400 hover:text-gray-600")}>
             {lbl}
           </button>
@@ -3936,12 +2970,12 @@ function VendorsViewSingle({ vendorKey }) {
               <SectionTitle>Budget Phases</SectionTitle>
               <div className="flex gap-1 -mt-4">
                 {[["table","Table"],["cards","Cards"],["timeline","List"]].map(([v,l]) => (
-                  <button key={v} onClick={() => setPhaseView(v)} className={cx("px-2.5 py-1 text-xs rounded-lg font-medium", phaseView===v ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-400 hover:text-gray-700")}>{l}</button>
+                  <button key={v} onClick={() => setPhaseView(v)} className={cx("px-2.5 py-1 text-sm rounded-lg font-medium", phaseView===v ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-400 hover:text-gray-700")}>{l}</button>
                 ))}
               </div>
             </div>
             {phaseView==="table" && (
-              <table className="w-full text-xs">
+              <table className="w-full text-sm">
                 <thead><tr className="border-b border-gray-100"><TH>Phase</TH><TH>Stage</TH><TH>Work Package</TH><TH right>Budget</TH><TH right>Invoiced</TH><TH right>Remaining</TH><TH>Status</TH></tr></thead>
                 <tbody>
                   {vendor.phases.map((p,i) => {
@@ -3949,8 +2983,8 @@ function VendorsViewSingle({ vendorKey }) {
                     return (
                       <TR key={i} onClick={() => { setSubTab("phases"); setModal(p); }}>
                         <TD bold className="text-gray-800">{p.phase}</TD>
-                        <TD>{p.stage && <span className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-600">{p.stage}</span>}</TD>
-                        <TD>{p.work_package && <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">{p.work_package}</span>}</TD>
+                        <TD>{p.stage && <span className="px-2 py-0.5 rounded text-sm font-medium bg-indigo-50 text-indigo-600">{p.stage}</span>}</TD>
+                        <TD>{p.work_package && <span className="px-2 py-0.5 rounded text-sm font-medium bg-gray-100 text-gray-500">{p.work_package}</span>}</TD>
                         <TD right muted>{b>0?$f(b):"T&M"}</TD>
                         <TD right bold className="text-gray-900">{$f(inv2)}</TD>
                         <TD right className={r==null?"text-gray-400":r<0?"text-red-500 font-bold":r>0?"text-indigo-600 font-medium":"text-gray-300"}>{r==null?"T&M":r>0?$f(r):r<0?`-${$f(-r)}`:"—"}</TD>
@@ -3975,10 +3009,10 @@ function VendorsViewSingle({ vendorKey }) {
                   const b=p.budget||0; const inv2=p.invoiced||0;
                   return (
                     <button key={i} onClick={()=>{setSubTab("phases");setModal(p);}} className="text-left bg-gray-50 hover:bg-indigo-50 rounded-xl p-3 border border-gray-100 transition-colors">
-                      <div className="flex items-start justify-between gap-2 mb-1"><span className="text-xs font-semibold text-gray-800 leading-tight">{p.phase}</span>{statusTag(p.status)}</div>
-                      {p.stage && <span className="text-xs text-indigo-500 font-medium">{p.stage} · {p.work_package}</span>}
+                      <div className="flex items-start justify-between gap-2 mb-1"><span className="text-sm font-semibold text-gray-800 leading-tight">{p.phase}</span>{statusTag(p.status)}</div>
+                      {p.stage && <span className="text-sm text-indigo-500 font-medium">{p.stage} · {p.work_package}</span>}
                       {b>0&&<BarFill value={inv2} max={b} color={vendor.color}/>}
-                      <div className="flex justify-between mt-2"><span className="text-xs text-gray-400">{b>0?$f(b)+" budget":"T&M"}</span><span className="text-xs font-bold text-gray-800">{$f(inv2)}</span></div>
+                      <div className="flex justify-between mt-2"><span className="text-sm text-gray-400">{b>0?$f(b)+" budget":"T&M"}</span><span className="text-sm font-bold text-gray-800">{$f(inv2)}</span></div>
                     </button>
                   );
                 })}
@@ -3998,8 +3032,8 @@ function VendorsViewSingle({ vendorKey }) {
                 return (
                   <TR key={i} onClick={()=>setModal(p)}>
                     <TD bold className="text-gray-800 whitespace-nowrap">{p.phase}</TD>
-                    <TD>{p.stage && <span className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-600">{p.stage}</span>}</TD>
-                    <TD>{p.work_package && <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">{p.work_package}</span>}</TD>
+                    <TD>{p.stage && <span className="px-2 py-0.5 rounded text-sm font-medium bg-indigo-50 text-indigo-600">{p.stage}</span>}</TD>
+                    <TD>{p.work_package && <span className="px-2 py-0.5 rounded text-sm font-medium bg-gray-100 text-gray-500">{p.work_package}</span>}</TD>
                     <TD muted className="max-w-xs">{p.description}</TD>
                     <TD right muted>{bP>0?$f(bP):"T&M"}</TD>
                     <TD right bold className="text-gray-900">{$f(invP)}</TD>
@@ -4025,7 +3059,7 @@ function VendorsViewSingle({ vendorKey }) {
         <div className="space-y-3">
           <div className="flex justify-end">
             <button onClick={() => { setAddingInv(v=>!v); setEditingId(null); }}
-              className={cx("px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors", addingInv ? "bg-gray-200 text-gray-600" : "bg-gray-900 text-white")}>
+              className={cx("px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors", addingInv ? "bg-gray-200 text-gray-600" : "bg-gray-900 text-white")}>
               {addingInv?"Cancel":"+ Add Invoice"}
             </button>
           </div>
@@ -4033,15 +3067,15 @@ function VendorsViewSingle({ vendorKey }) {
             <Card className="p-4">
               <SectionTitle>New Invoice — {vendor.name}</SectionTitle>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
-                <div><label className="block text-xs text-gray-400 mb-1">Invoice #</label><input value={addForm.invNum} onChange={e=>setAddForm(f=>({...f,invNum:e.target.value}))} placeholder="e.g. INV-001" className={inp}/></div>
-                <div><label className="block text-xs text-gray-400 mb-1">Date</label><input value={addForm.date} onChange={e=>setAddForm(f=>({...f,date:e.target.value}))} placeholder="MM/DD/YYYY" className={inp}/></div>
-                <div><label className="block text-xs text-gray-400 mb-1">Amount ($)</label><input value={addForm.amount} onChange={e=>setAddForm(f=>({...f,amount:e.target.value}))} placeholder="0.00" className={inp}/></div>
-                <div className="md:col-span-2"><label className="block text-xs text-gray-400 mb-1">Description</label><input value={addForm.desc} onChange={e=>setAddForm(f=>({...f,desc:e.target.value}))} placeholder="Invoice description…" className={inp}/></div>
-                <div><label className="block text-xs text-gray-400 mb-1">Status</label><select value={addForm.status} onChange={e=>setAddForm(f=>({...f,status:e.target.value}))} className={inp}>{["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}</select></div>
+                <div><label className="block text-sm text-gray-400 mb-1">Invoice #</label><input value={addForm.invNum} onChange={e=>setAddForm(f=>({...f,invNum:e.target.value}))} placeholder="e.g. INV-001" className={inp}/></div>
+                <div><label className="block text-sm text-gray-400 mb-1">Date</label><input value={addForm.date} onChange={e=>setAddForm(f=>({...f,date:e.target.value}))} placeholder="MM/DD/YYYY" className={inp}/></div>
+                <div><label className="block text-sm text-gray-400 mb-1">Amount ($)</label><input value={addForm.amount} onChange={e=>setAddForm(f=>({...f,amount:e.target.value}))} placeholder="0.00" className={inp}/></div>
+                <div className="md:col-span-2"><label className="block text-sm text-gray-400 mb-1">Description</label><input value={addForm.desc} onChange={e=>setAddForm(f=>({...f,desc:e.target.value}))} placeholder="Invoice description…" className={inp}/></div>
+                <div><label className="block text-sm text-gray-400 mb-1">Status</label><select value={addForm.status} onChange={e=>setAddForm(f=>({...f,status:e.target.value}))} className={inp}>{["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}</select></div>
               </div>
               <div className="flex gap-2">
-                <button onClick={saveNewInv} disabled={!addForm.invNum||!addForm.amount||saving} className={cx("px-4 py-2 text-xs font-bold rounded-lg", addForm.invNum&&addForm.amount&&!saving?"bg-gray-900 text-white":"bg-gray-100 text-gray-400 cursor-not-allowed")}>{saving?"Saving…":"Save Invoice"}</button>
-                <button onClick={()=>setAddingInv(false)} className="px-4 py-2 text-xs font-semibold rounded-lg bg-gray-100 text-gray-500">Cancel</button>
+                <button onClick={saveNewInv} disabled={!addForm.invNum||!addForm.amount||saving} className={cx("px-4 py-2 text-sm font-bold rounded-lg", addForm.invNum&&addForm.amount&&!saving?"bg-gray-900 text-white":"bg-gray-100 text-gray-400 cursor-not-allowed")}>{saving?"Saving…":"Save Invoice"}</button>
+                <button onClick={()=>setAddingInv(false)} className="px-4 py-2 text-sm font-semibold rounded-lg bg-gray-100 text-gray-500">Cancel</button>
               </div>
             </Card>
           )}
@@ -4058,7 +3092,7 @@ function VendorsViewSingle({ vendorKey }) {
                       <TD><input value={editForm.description||""} onChange={e=>setEditForm(f=>({...f,description:e.target.value}))} className={inp+" w-48"}/></TD>
                       <TD right><input value={editForm.amount||""} onChange={e=>setEditForm(f=>({...f,amount:e.target.value}))} className={inp+" w-24 text-right"}/></TD>
                       <TD><select value={editForm.status||"Pending"} onChange={e=>setEditForm(f=>({...f,status:e.target.value}))} className={inp+" w-24"}>{["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}</select></TD>
-                      <TD><div className="flex gap-1"><button onClick={saveEdit} className="text-xs px-2 py-1 bg-gray-900 text-white rounded">{saving?"…":"Save"}</button><button onClick={()=>setEditingId(null)} className="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded">Cancel</button></div></TD>
+                      <TD><div className="flex gap-1"><button onClick={saveEdit} className="text-sm px-2 py-1 bg-gray-900 text-white rounded">{saving?"…":"Save"}</button><button onClick={()=>setEditingId(null)} className="text-sm px-2 py-1 bg-gray-100 text-gray-500 rounded">Cancel</button></div></TD>
                     </tr>
                   ) : (
                     <TR key={vinv.id} onClick={() => setModal({_inv:true,...vinv})}>
@@ -4069,8 +3103,8 @@ function VendorsViewSingle({ vendorKey }) {
                       <TD>{statusTag(vinv.status)}</TD>
                       <TD onClick={e=>e.stopPropagation()}>
                         <div className="flex gap-1">
-                          <button onClick={()=>{setEditingId(vinv.id);setEditForm({...vinv});}} className="text-xs px-2 py-1 border border-gray-200 rounded text-gray-400 hover:text-gray-700">Edit</button>
-                          <button onClick={()=>deleteInv(vinv.id)} className="text-xs px-2 py-1 text-gray-300 hover:text-red-500">✕</button>
+                          <button onClick={()=>{setEditingId(vinv.id);setEditForm({...vinv});}} className="text-sm px-2 py-1 border border-gray-200 rounded text-gray-400 hover:text-gray-700">Edit</button>
+                          <button onClick={()=>deleteInv(vinv.id)} className="text-sm px-2 py-1 text-gray-300 hover:text-red-500">✕</button>
                         </div>
                       </TD>
                     </TR>
