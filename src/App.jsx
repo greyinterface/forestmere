@@ -115,18 +115,39 @@ function DataProvider({ children }) {
 const $f = (n) => n == null ? "—" : "$" + Math.abs(Number(n)).toLocaleString("en-US", { maximumFractionDigits: 0 });
 const pf = (n) => (Number(n) * 100).toFixed(1) + "%";
 
+// ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
+// Single source of truth for typography and color — applied everywhere
+const T = {
+  // Labels / section headers
+  label:   "text-xs font-semibold text-gray-400 uppercase tracking-widest",
+  // Body copy — primary
+  body:    "text-sm text-gray-700",
+  // Body copy — secondary / muted
+  muted:   "text-sm text-gray-400",
+  // Table cell text
+  cell:    "text-sm text-gray-700",
+  cellMuted: "text-sm text-gray-400",
+  cellBold:  "text-sm font-semibold text-gray-900",
+  // Stat card value
+  statVal: "text-xl font-bold tabular-nums tracking-tight text-gray-900",
+  statValAccent: "text-xl font-bold tabular-nums tracking-tight text-indigo-600",
+  // Sub-tab label
+  subLabel: "text-sm font-semibold",
+};
+
 // ─── PRIMITIVES ───────────────────────────────────────────────────────────────
 const cx = (...a) => a.filter(Boolean).join(" ");
 
 const Tag = ({ text, color = "muted" }) => {
   const map = {
-    green:  "bg-emerald-100 text-emerald-700",
-    amber:  "bg-indigo-100  text-indigo-700",
-    red:    "bg-red-100    text-red-700",
-    blue:   "bg-blue-100   text-blue-700",
+    green:  "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+    amber:  "bg-indigo-50  text-indigo-700  ring-1 ring-indigo-200",
+    red:    "bg-red-50     text-red-700     ring-1 ring-red-200",
+    blue:   "bg-blue-50    text-blue-700    ring-1 ring-blue-200",
+    gray:   "bg-gray-100   text-gray-500",
     muted:  "bg-gray-100   text-gray-400",
   };
-  return <span className={cx("text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap", map[color])}>{text}</span>;
+  return <span className={cx("text-xs font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap", map[color])}>{text}</span>;
 };
 
 const statusTag = (s) => {
@@ -138,14 +159,14 @@ const statusTag = (s) => {
   if (s?.startsWith("Paid - Credit"))  return <Tag text="Paid (Credit)"  color="green" />;
   if (s === "Paid")            return <Tag text="Paid"           color="green" />;
   if (s === "Pending Payment") return <Tag text="Pending Payment" color="amber" />;
-  return <Tag text={s} />;
+  return <Tag text={s || "—"} />;
 };
 
 const BarFill = ({ value, max, color }) => {
   const w = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   const over = value > max * 1.02;
   return (
-    <div className="w-full bg-gray-100 rounded-full h-1">
+    <div className="w-full bg-gray-100 rounded-full h-1.5">
       <div className="h-full rounded-full transition-all" style={{ width: `${w}%`, background: over ? "#ef4444" : (color || "#4f46e5") }} />
     </div>
   );
@@ -153,50 +174,51 @@ const BarFill = ({ value, max, color }) => {
 
 const SectionTitle = ({ children }) => (
   <div className="flex items-center gap-3 mb-4">
-    <span className="text-xs font-bold uppercase tracking-widest text-gray-400 whitespace-nowrap">{children}</span>
+    <span className={cx(T.label, "whitespace-nowrap")}>{children}</span>
     <div className="flex-1 h-px bg-gray-100" />
   </div>
 );
 
 const Stat = ({ label, value, sub, accent, onClick }) => (
   <div onClick={onClick} className={cx(
-    "bg-white rounded-xl p-5 border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] transition-all select-none",
-    onClick && "cursor-pointer hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:border-gray-200 active:scale-[0.99]"
+    "bg-white rounded-xl px-5 py-4 border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.05)] transition-all select-none",
+    onClick && "cursor-pointer hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)] hover:border-gray-200 active:scale-[0.99]"
   )}>
-    <div className="text-xs text-gray-400 mb-2 uppercase tracking-widest font-semibold">{label}</div>
-    <div className={cx("text-2xl font-bold tabular-nums tracking-tight", accent ? "text-indigo-600" : "text-gray-900")}>{value}</div>
-    {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
-    {onClick && <div className="text-xs text-gray-400 mt-2 font-medium hover:text-gray-600">View detail →</div>}
+    <div className={cx(T.label, "mb-2")}>{label}</div>
+    <div className={accent ? T.statValAccent : T.statVal}>{value}</div>
+    {sub && <div className={cx(T.muted, "mt-1.5 leading-snug")}>{sub}</div>}
+    {onClick && <div className="text-xs text-indigo-400 mt-2 font-semibold">View detail →</div>}
   </div>
 );
 
 const Card = ({ children, className = "" }) => (
-  <div className={cx("bg-white border border-gray-100 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)]", className)}>{children}</div>
+  <div className={cx("bg-white border border-gray-100 rounded-xl shadow-[0_1px_4px_rgba(0,0,0,0.05)]", className)}>{children}</div>
 );
 
+// Table primitives — text-sm throughout, generous row height
 const TH = ({ children, right, className = "" }) => (
-  <th className={cx("px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-400 bg-[#f5f6f8] whitespace-nowrap", right ? "text-right" : "text-left", className)}>{children}</th>
+  <th className={cx("px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-50 whitespace-nowrap border-b border-gray-100", right ? "text-right" : "text-left", className)}>{children}</th>
 );
 const TD = ({ children, right, muted, bold, colSpan, className = "" }) => (
-  <td colSpan={colSpan} className={cx("px-4 py-3 text-xs", right && "text-right tabular-nums", muted && "text-gray-400", bold && "font-semibold", className)}>{children}</td>
+  <td colSpan={colSpan} className={cx("px-4 py-3.5 text-sm", right && "text-right tabular-nums", muted ? "text-gray-400" : "text-gray-700", bold && "font-semibold text-gray-900", className)}>{children}</td>
 );
 const TR = ({ children, onClick, subtle }) => (
-  <tr onClick={onClick} className={cx("border-b border-gray-100 transition-colors", onClick && "cursor-pointer hover:bg-indigo-50", subtle && "bg-[#f5f6f8]/50")}>{children}</tr>
+  <tr onClick={onClick} className={cx("border-b border-gray-100 transition-colors", onClick && "cursor-pointer hover:bg-indigo-50/60", subtle && "bg-gray-50/60")}>{children}</tr>
 );
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
 function Modal({ title, subtitle, onClose, children, wide }) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
       <div
         onClick={e => e.stopPropagation()}
         className={cx("bg-white border border-gray-200 rounded-2xl flex flex-col shadow-2xl w-full", wide ? "max-w-4xl" : "max-w-2xl")}
         style={{ maxHeight: "90vh" }}
       >
-        <div className="flex items-start justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 shrink-0">
           <div>
-            <p className="font-semibold text-gray-900">{title}</p>
-            {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+            <p className="text-base font-semibold text-gray-900">{title}</p>
+            {subtitle && <p className={cx(T.muted, "mt-0.5")}>{subtitle}</p>}
           </div>
           <button onClick={onClose} className="ml-4 w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 text-xl transition-colors">×</button>
         </div>
@@ -208,11 +230,11 @@ function Modal({ title, subtitle, onClose, children, wide }) {
 
 function KVGrid({ rows }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 gap-2.5">
       {rows.filter(Boolean).map(([k, v]) => (
-        <div key={k} className="bg-[#f5f6f8] rounded-lg px-3 py-2.5">
-          <div className="text-xs text-gray-400 mb-0.5">{k}</div>
-          <div className="text-xs font-semibold text-gray-800 break-words">{v ?? "—"}</div>
+        <div key={k} className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+          <div className={cx(T.label, "mb-1")}>{k}</div>
+          <div className="text-sm font-semibold text-gray-800 break-words">{v ?? "—"}</div>
         </div>
       ))}
     </div>
@@ -265,12 +287,11 @@ function Dashboard({ setTab }) {
         </button>
       )}
       {/* Prior phases now tracked in Total Spend tab */}
-      {/* Zoho source of truth banner */}
+
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-3">
         <span className="text-blue-500 mt-0.5 shrink-0">ℹ</span>
         <div>
-          <p className="text-xs font-semibold text-blue-700">Zoho is the source of truth</p>
-          <p className="text-xs text-blue-600 mt-0.5">All spend data pulled directly from Camp Forestmere Zoho Books. Go to Total Spend tab to force sync.</p>
+
         </div>
       </div>
       {reconSummary?.failed === 0 && reconSummary?.total > 0 && (
@@ -1523,8 +1544,8 @@ function PriorPhaseShell({ phaseId }) {
           <div className="flex items-center gap-3 px-5 py-3.5 rounded-xl border" style={{ background: meta.color + "10", borderColor: meta.color + "40" }}>
             <span className="w-3 h-3 rounded-full shrink-0" style={{ background: meta.color }} />
             <div className="flex-1">
-              <p className="text-xs font-bold text-stone-800">{meta.label} — {meta.contract}</p>
-              <p className="text-xs text-stone-500 mt-0.5">{phase.gc}{phase.subcontractor ? ` · Sub: ${phase.subcontractor}` : ""} · {phase.start_date} – {phase.end_date}</p>
+              <p className="text-xs font-bold text-gray-800">{meta.label} — {meta.contract}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{phase.gc}{phase.subcontractor ? ` · Sub: ${phase.subcontractor}` : ""} · {phase.start_date} – {phase.end_date}</p>
             </div>
             <Tag text="Complete" color="green" />
           </div>
@@ -1540,16 +1561,16 @@ function PriorPhaseShell({ phaseId }) {
           {/* Scope */}
           {phase.scope && (
             <Card className="p-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">Scope of Work</p>
-              <p className="text-xs text-stone-600 leading-relaxed">{phase.scope}</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Scope of Work</p>
+              <p className="text-xs text-gray-600 leading-relaxed">{phase.scope}</p>
             </Card>
           )}
 
           {/* Notes */}
           {phase.notes && (
             <Card className="p-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">Notes</p>
-              <p className="text-xs text-stone-500 leading-relaxed">{phase.notes}</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Notes</p>
+              <p className="text-xs text-gray-500 leading-relaxed">{phase.notes}</p>
             </Card>
           )}
         </div>
@@ -1559,19 +1580,19 @@ function PriorPhaseShell({ phaseId }) {
       {subTab === "budget" && (
         <div className="space-y-4">
           {/* Contract summary ledger */}
-          <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-            <div className="px-5 py-3 border-b border-stone-100">
-              <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Contract Summary</span>
+          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+            <div className="px-5 py-3 border-b border-gray-100">
+              <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Contract Summary</span>
             </div>
-            <div className="divide-y divide-stone-50">
+            <div className="divide-y divide-gray-50">
               {[
-                ["Original Contract",  $f(phase.original_contract),  "text-stone-800"],
+                ["Original Contract",  $f(phase.original_contract),  "text-gray-800"],
                 ["Approved COs",       $f(phase.approved_cos),       variance > 0 ? "text-amber-600" : "text-emerald-600"],
-                ["Final Contract",     $f(phase.final_contract),     "text-stone-900 font-bold"],
+                ["Final Contract",     $f(phase.final_contract),     "text-gray-900 font-bold"],
                 ["Total Paid",         $f(phase.total_paid),         "text-indigo-600 font-bold"],
               ].map(([label, val, cls]) => (
                 <div key={label} className="flex items-center px-5 py-3">
-                  <span className="flex-1 text-xs text-stone-500">{label}</span>
+                  <span className="flex-1 text-xs text-gray-500">{label}</span>
                   <span className={cx("text-xs tabular-nums", cls)}>{val}</span>
                 </div>
               ))}
@@ -1581,8 +1602,8 @@ function PriorPhaseShell({ phaseId }) {
           {/* Line items */}
           {phase.lineItems?.length > 0 && (
             <Card className="overflow-hidden">
-              <div className="px-5 py-3 border-b border-stone-100">
-                <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Budget Line Items</span>
+              <div className="px-5 py-3 border-b border-gray-100">
+                <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Budget Line Items</span>
               </div>
               <table className="w-full">
                 <thead><tr>
@@ -1594,10 +1615,10 @@ function PriorPhaseShell({ phaseId }) {
                     return (
                       <TR key={li.code}>
                         <TD muted className="font-mono text-xs">{li.code}</TD>
-                        <TD className="text-stone-700">{li.description}</TD>
+                        <TD className="text-gray-700">{li.description}</TD>
                         <TD right muted>{$f(li.budget)}</TD>
-                        <TD right bold className="text-stone-900">{$f(li.paid)}</TD>
-                        <TD right className={v > 0 ? "text-red-500 font-semibold" : v < 0 ? "text-emerald-600 font-semibold" : "text-stone-300"}>
+                        <TD right bold className="text-gray-900">{$f(li.paid)}</TD>
+                        <TD right className={v > 0 ? "text-red-500 font-semibold" : v < 0 ? "text-emerald-600 font-semibold" : "text-gray-300"}>
                           {v > 0 ? `+${$f(v)}` : v < 0 ? `-${$f(-v)}` : "—"}
                         </TD>
                       </TR>
@@ -1608,7 +1629,7 @@ function PriorPhaseShell({ phaseId }) {
                   <TR subtle>
                     <TD bold colSpan={2} muted>Total</TD>
                     <TD right muted>{$f(phase.lineItems.reduce((s,l) => s+l.budget, 0))}</TD>
-                    <TD right bold className="text-stone-900">{$f(phase.lineItems.reduce((s,l) => s+l.paid, 0))}</TD>
+                    <TD right bold className="text-gray-900">{$f(phase.lineItems.reduce((s,l) => s+l.paid, 0))}</TD>
                     <TD />
                   </TR>
                 </tfoot>
@@ -1630,8 +1651,8 @@ function PriorPhaseShell({ phaseId }) {
                 <Stat label="Final Contract"    value={$f(phase.final_contract)}    sub="Original + all COs" accent />
               </div>
               <Card className="overflow-hidden">
-                <div className="px-5 py-3 border-b border-stone-100">
-                  <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Change Orders</span>
+                <div className="px-5 py-3 border-b border-gray-100">
+                  <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Change Orders</span>
                 </div>
                 <table className="w-full">
                   <thead><tr>
@@ -1640,8 +1661,8 @@ function PriorPhaseShell({ phaseId }) {
                   <tbody>
                     {phase.cos.map(co => (
                       <TR key={co.no}>
-                        <TD bold className="text-stone-700 font-mono text-xs">{co.no}</TD>
-                        <TD className="text-stone-600">{co.description}</TD>
+                        <TD bold className="text-gray-700 font-mono text-xs">{co.no}</TD>
+                        <TD className="text-gray-600">{co.description}</TD>
                         <TD right bold className={co.amount < 0 ? "text-emerald-600" : "text-amber-600"}>
                           {co.amount < 0 ? `-${$f(-co.amount)}` : `+${$f(co.amount)}`}
                         </TD>
@@ -1660,8 +1681,8 @@ function PriorPhaseShell({ phaseId }) {
               </Card>
             </>
           ) : (
-            <div className="text-center py-16 text-stone-400">
-              <p className="text-sm font-semibold text-stone-500 mb-1">No Change Orders</p>
+            <div className="text-center py-16 text-gray-400">
+              <p className="text-sm font-semibold text-gray-500 mb-1">No Change Orders</p>
               <p className="text-xs">This phase had no change orders.</p>
             </div>
           )}
@@ -2553,11 +2574,11 @@ function ZohoSyncButton({ onSynced }) {
   const lastSyncStr = lastSync ? lastSync.toLocaleDateString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : 'Never';
 
   return (
-    <div className="flex items-center gap-3 mt-2">
-      <span className="text-xs text-blue-500">Last Zoho sync: {lastSyncStr}</span>
+    <div className="flex items-center gap-3">
+      <span className="text-sm text-gray-400">Last sync: <span className="text-gray-600 font-medium">{lastSyncStr}</span></span>
       <button onClick={forceSync} disabled={syncing}
-        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-300 text-white text-xs font-bold rounded-lg transition-colors">
-        {syncing ? "Syncing…" : "Force Sync →"}
+        className="px-3 py-1.5 bg-gray-900 hover:bg-gray-700 disabled:bg-gray-300 text-white text-xs font-semibold rounded-lg transition-colors">
+        {syncing ? "Syncing…" : "Sync now"}
       </button>
     </div>
   );
@@ -2667,137 +2688,139 @@ function TotalSpendView() {
   const batchedVendors   = allPayments.filter(p => p.is_batched);
   const batchedTotal     = batchedVendors.reduce((s,p) => s+p.amount_usd, 0);
 
-  const inp = "bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-400";
 
-  // ── Ledger row helpers ────────────────────────────────────────────────────
-  const LedgerHeader = ({ label, total, pct, color, expanded, onToggle, indent = 0 }) => (
-    <button onClick={onToggle}
-      className={cx("w-full flex items-center text-left transition-colors hover:bg-stone-50 border-b border-stone-100", expanded && "bg-stone-50")}
-      style={{ paddingLeft: 20 + indent * 16, paddingRight: 20, paddingTop: 11, paddingBottom: 11 }}>
-      <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: color }} />
-      <span className="flex-1 text-xs font-semibold text-stone-800 tracking-wide">{label}</span>
-      <span className="text-xs text-stone-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(pct) : "—"}</span>
-      <span className="text-xs font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(total)}</span>
-      <span className="text-stone-300 text-xs w-4 text-center">{expanded ? "▾" : "›"}</span>
-    </button>
-  );
 
-  const LedgerSubRow = ({ label, total, pct, color, onClick, indent = 1 }) => (
-    <div onClick={onClick}
-      className={cx("w-full flex items-center border-b border-stone-50 transition-colors", onClick ? "cursor-pointer hover:bg-indigo-50/40" : "")}
-      style={{ paddingLeft: 20 + indent * 16, paddingRight: 20, paddingTop: 9, paddingBottom: 9 }}>
-      <span className="w-2 h-2 rounded-full shrink-0 mr-3" style={{ background: color || "#cbd5e1" }} />
-      <span className="flex-1 text-xs text-stone-600">{label}</span>
-      <span className="text-xs text-stone-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(pct) : "—"}</span>
-      <span className="text-xs font-semibold text-stone-800 tabular-nums w-28 text-right mr-4">{$f(total)}</span>
-      {onClick ? <span className="text-indigo-400 text-xs w-4 text-center">›</span> : <span className="w-4" />}
-    </div>
-  );
+  // ── Fix other vendors filter — exclude JXM/CFC intercompany entries ─────────
+  const EXCLUDE_VENDORS = ['jxm', 'camp forestmere corp', 'forestmere corp', '175660', 'intercompany'];
+  const isExcluded = (v) => EXCLUDE_VENDORS.some(e => v.toLowerCase().includes(e));
 
-  const LedgerTotal = ({ label, total }) => (
-    <div className="flex items-center border-t-2 border-stone-200 bg-stone-50 px-5 py-3.5">
-      <span className="flex-1 text-xs font-bold text-stone-900 uppercase tracking-widest">{label}</span>
-      <span className="text-xs text-stone-400 tabular-nums w-16 text-right mr-6">100%</span>
-      <span className="text-sm font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(total)}</span>
-      <span className="w-4" />
-    </div>
-  );
+  // ── Vendor dot color — consistent across Timothy + big 4 ─────────────────
+  const VENDOR_COLORS = {
+    taconic:      "#10b981",
+    ivan:         "#7c3aed",
+    reed:         "#059669",
+    arch:         "#0891b2",
+    land:         "#6366f1",   // Timothy R Smith / Land Acquisition
+  };
 
   return (
     <div className="space-y-5">
-      {/* Zoho banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-3">
-        <span className="text-blue-500 mt-0.5 shrink-0">ℹ</span>
-        <div className="flex-1">
-          <p className="text-xs font-semibold text-blue-700">Zoho is the source of truth — syncing live from Camp Forestmere Books</p>
-          <p className="text-xs text-blue-600 mt-0.5">All bills pulled directly from Zoho CF. Phase 1.1 Taconic pay apps tracked separately in the invoices table.</p>
-          <ZohoSyncButton onSynced={load} />
-        </div>
+      {/* Sync bar — clean, minimal */}
+      <div className="flex items-center justify-between px-4 py-3 bg-white border border-gray-100 rounded-xl shadow-sm">
+        <ZohoSyncButton onSynced={load} />
+        {batchedTotal > 0 && (
+          <span className="text-sm text-amber-600 font-medium">⚑ {$f(batchedTotal)} in batched payments need breakdown</span>
+        )}
       </div>
 
-      {/* Batched warning */}
-      {batchedTotal > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
-          <span className="text-amber-500 mt-0.5 shrink-0">⚑</span>
+      {/* ── SPEND SUMMARY (clickable rows = the drill-down) ── */}
+      <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-amber-700">{$f(batchedTotal)} in batched payments need breakdown</p>
-            <p className="text-xs text-amber-600 mt-0.5">These cover multiple vendors and are currently grouped as "Other." Grand total is accurate — vendor allocation pending.</p>
+            <p className="text-sm font-bold text-gray-900">Total Project Spend</p>
+            <p className="text-sm text-gray-400 mt-0.5">Inception to date · All phases · USD</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-0.5">Grand Total</p>
+            <p className="text-2xl font-bold text-gray-900 tabular-nums">{$f(grandTotal)}</p>
           </div>
         </div>
-      )}
 
-      {/* KPI ledger summary */}
-      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="px-5 py-3 border-b border-stone-100 flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Total Project Spend — Inception to Date</span>
+        {/* Section: Pre-Construction */}
+        <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
+          <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Pre-Construction</span>
         </div>
-        <div className="divide-y divide-stone-50">
-          {/* Pre-Construction */}
-          <div className="flex items-center px-5 py-3">
-            <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: STAGE_COLORS["Pre-Construction"] }} />
-            <span className="flex-1 text-xs text-stone-500">Pre-Construction</span>
-            <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(preConTotal/grandTotal) : "—"}</span>
-            <span className="text-xs font-semibold text-stone-800 tabular-nums w-28 text-right">{$f(preConTotal)}</span>
-          </div>
-          <div className="flex items-center px-5 py-2 bg-stone-50/50">
-            <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-6" style={{ background: WP_COLORS["Land Acquisition"] }} />
-            <span className="flex-1 text-xs text-stone-400 pl-1">Land Acquisition</span>
-            <span className="text-xs text-stone-300 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(landAcqTotal/grandTotal) : "—"}</span>
-            <span className="text-xs text-stone-500 tabular-nums w-28 text-right">{$f(landAcqTotal)}</span>
-          </div>
-          <div className="flex items-center px-5 py-2 bg-stone-50/50">
-            <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-6" style={{ background: WP_COLORS["Design & Permitting"] }} />
-            <span className="flex-1 text-xs text-stone-400 pl-1">Design & Permitting</span>
-            <span className="text-xs text-stone-300 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(designPermTotal/grandTotal) : "—"}</span>
-            <span className="text-xs text-stone-500 tabular-nums w-28 text-right">{$f(designPermTotal)}</span>
-          </div>
-          {/* Construction */}
-          <div className="flex items-center px-5 py-3">
-            <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: STAGE_COLORS["Construction"] }} />
-            <span className="flex-1 text-xs text-stone-500">Construction</span>
-            <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(conTotal/grandTotal) : "—"}</span>
-            <span className="text-xs font-semibold text-stone-800 tabular-nums w-28 text-right">{$f(conTotal)}</span>
-          </div>
-          <div className="flex items-center px-5 py-2 bg-stone-50/50">
-            <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-6" style={{ background: WP_COLORS["Road Construction"] }} />
-            <span className="flex-1 text-xs text-stone-400 pl-1">Road Construction</span>
-            <span className="text-xs text-stone-300 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(roadTotal/grandTotal) : "—"}</span>
-            <span className="text-xs text-stone-500 tabular-nums w-28 text-right">{$f(roadTotal)}</span>
-          </div>
-          <div className="flex items-center px-5 py-2 bg-stone-50/50">
-            <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-6" style={{ background: WP_COLORS["Demolition"] }} />
-            <span className="flex-1 text-xs text-stone-400 pl-1">Demolition</span>
-            <span className="text-xs text-stone-300 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(demoTotal/grandTotal) : "—"}</span>
-            <span className="text-xs text-stone-500 tabular-nums w-28 text-right">{$f(demoTotal)}</span>
-          </div>
-          <div className="flex items-center px-5 py-2 bg-stone-50/50">
-            <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-6" style={{ background: WP_COLORS["Phase 1.1"] }} />
-            <span className="flex-1 text-xs text-stone-400 pl-1">Phase 1.1</span>
-            <span className="text-xs text-stone-300 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(phase11Total/grandTotal) : "—"}</span>
-            <span className="text-xs text-stone-500 tabular-nums w-28 text-right">{$f(phase11Total)}</span>
-          </div>
-          {/* Grand total */}
-          <div className="flex items-center px-5 py-3.5 bg-stone-100 border-t border-stone-200">
-            <span className="w-3 h-3 shrink-0 mr-3" />
-            <span className="flex-1 text-xs font-bold text-stone-900 uppercase tracking-widest">Total — Inception to Date</span>
-            <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">100%</span>
-            <span className="text-sm font-bold text-stone-900 tabular-nums w-28 text-right">{$f(grandTotal)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* View toggle */}
-      <div className="flex items-center gap-1 bg-stone-100 rounded-xl p-1 w-fit">
-        {[["stage","By Stage"],["vendor","By Vendor"],["mapping","Phase Mapping"]].map(([id,lbl]) => (
-          <button key={id} onClick={() => setViewMode(id)}
-            className={cx("px-4 py-2 rounded-lg text-xs font-semibold transition-all",
-              viewMode === id ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700")}>
-            {lbl}
+        {[
+          { name: "Land Acquisition",    total: landAcqTotal,    color: WP_COLORS["Land Acquisition"],    desc: "Cost of land purchase",
+            rows: allPayments.filter(p => p.work_package === "Land Acquisition") },
+          { name: "Design & Permitting", total: designPermTotal, color: WP_COLORS["Design & Permitting"], desc: "Architecture, engineering & permits",
+            rows: allPayments.filter(p => p.work_package === "Design & Permitting") },
+        ].map(ph => (
+          <button key={ph.name} onClick={() => setModal(ph)}
+            className="w-full flex items-center px-5 py-4 border-b border-gray-50 hover:bg-indigo-50/40 transition-colors text-left group">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0 mr-4" style={{ background: ph.color }} />
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
+              <span className="text-sm text-gray-400 ml-2">{ph.desc}</span>
+            </div>
+            <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
+            <span className="text-sm font-semibold text-gray-900 tabular-nums w-32 text-right mr-3">{$f(ph.total)}</span>
+            <span className="text-gray-300 group-hover:text-indigo-400 text-sm transition-colors">›</span>
           </button>
         ))}
+        <div className="px-5 py-3 bg-gray-50 flex items-center justify-between border-b border-gray-100">
+          <span className="text-xs font-semibold text-gray-500">Pre-Construction subtotal</span>
+          <div className="flex items-center gap-6">
+            <span className="text-sm text-gray-400 tabular-nums">{grandTotal > 0 ? pf(preConTotal/grandTotal) : "—"}</span>
+            <span className="text-sm font-bold text-gray-700 tabular-nums w-32 text-right">{$f(preConTotal)}</span>
+            <span className="w-4" />
+          </div>
+        </div>
+
+        {/* Section: Construction */}
+        <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
+          <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Construction</span>
+        </div>
+        {[
+          { name: "Road Construction", total: roadTotal,    color: WP_COLORS["Road Construction"], desc: "C23-101",
+            rows: allPayments.filter(p => p.work_package === "Road Construction") },
+          { name: "Demolition",        total: demoTotal,    color: WP_COLORS["Demolition"],        desc: "C25-102",
+            rows: allPayments.filter(p => p.work_package === "Demolition") },
+          { name: "Phase 1.1",         total: phase11Total, color: WP_COLORS["Phase 1.1"],         desc: "C25-104 — Taconic Builders",
+            rows: allPayments.filter(p => p.work_package === "Phase 1.1") },
+        ].map(ph => (
+          <button key={ph.name} onClick={() => setModal(ph)}
+            className="w-full flex items-center px-5 py-4 border-b border-gray-50 hover:bg-indigo-50/40 transition-colors text-left group">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0 mr-4" style={{ background: ph.color }} />
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
+              <span className="text-sm text-gray-400 ml-2">{ph.desc}</span>
+            </div>
+            <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
+            <span className="text-sm font-semibold text-gray-900 tabular-nums w-32 text-right mr-3">{$f(ph.total)}</span>
+            <span className="text-gray-300 group-hover:text-indigo-400 text-sm transition-colors">›</span>
+          </button>
+        ))}
+        <div className="px-5 py-3 bg-gray-50 flex items-center justify-between border-b border-gray-100">
+          <span className="text-xs font-semibold text-gray-500">Construction subtotal</span>
+          <div className="flex items-center gap-6">
+            <span className="text-sm text-gray-400 tabular-nums">{grandTotal > 0 ? pf(conTotal/grandTotal) : "—"}</span>
+            <span className="text-sm font-bold text-gray-700 tabular-nums w-32 text-right">{$f(conTotal)}</span>
+            <span className="w-4" />
+          </div>
+        </div>
+
+        {/* Grand total */}
+        <div className="px-5 py-4 bg-gray-900 flex items-center justify-between">
+          <span className="text-sm font-bold text-white uppercase tracking-widest">Total — Inception to Date</span>
+          <div className="flex items-center gap-6">
+            <span className="text-sm text-gray-400 tabular-nums">100%</span>
+            <span className="text-lg font-bold text-white tabular-nums w-32 text-right">{$f(grandTotal)}</span>
+            <span className="w-4" />
+          </div>
+        </div>
       </div>
 
-      {/* ── BY STAGE ── */}
+      {/* View toggle — By Vendor | Phase Mapping (subtle) */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+          {[["vendor","By Vendor"],["stage","By Phase"]].map(([id,lbl]) => (
+            <button key={id} onClick={() => setViewMode(id)}
+              className={cx("px-4 py-2 rounded-lg text-sm font-semibold transition-all",
+                viewMode === id ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600")}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setViewMode(viewMode === "mapping" ? "vendor" : "mapping")}
+          className={cx("px-3 py-2 rounded-lg text-xs font-medium transition-colors border",
+            viewMode === "mapping" ? "border-gray-300 text-gray-500 bg-white" : "border-transparent text-gray-300 hover:text-gray-400 hover:border-gray-200")}>
+          Phase Mapping
+        </button>
+      </div>
+
+      {/* ── BY PHASE (was By Stage) ── */}
       {viewMode === "stage" && (
         <div className="space-y-3">
           {[
@@ -2805,269 +2828,216 @@ function TotalSpendView() {
               stage: "Pre-Construction", total: preConTotal, color: STAGE_COLORS["Pre-Construction"],
               phases: [
                 { name: "Land Acquisition",    total: landAcqTotal,    color: WP_COLORS["Land Acquisition"],
-                  description: "Cost of land purchase",
+                  desc: "Cost of land purchase",
                   rows: allPayments.filter(p => p.work_package === "Land Acquisition") },
-                { name: "Design & Permitting", total: designPermTotal,  color: WP_COLORS["Design & Permitting"],
-                  description: "Architecture, engineering & permit fees",
+                { name: "Design & Permitting", total: designPermTotal, color: WP_COLORS["Design & Permitting"],
+                  desc: "Architecture, engineering & permits",
                   rows: allPayments.filter(p => p.work_package === "Design & Permitting") },
               ]
             },
             {
               stage: "Construction", total: conTotal, color: STAGE_COLORS["Construction"],
               phases: [
-                { name: "Road Construction",   total: roadTotal,   color: WP_COLORS["Road Construction"],
-                  description: "Contract C23-101",
-                  rows: allPayments.filter(p => p.work_package === "Road Construction").map(p => ({vendor:p.vendor,amount_usd:p.amount_usd,payment_date:p.payment_date,description:p.description})) },
-                { name: "Demolition",          total: demoTotal,   color: WP_COLORS["Demolition"],
-                  description: "Contract C25-102",
-                  rows: allPayments.filter(p => p.work_package === "Demolition").map(p => ({vendor:p.vendor,amount_usd:p.amount_usd,payment_date:p.payment_date,description:p.description})) },
-                { name: "Phase 1.1",           total: phase11Total, color: WP_COLORS["Phase 1.1"],
-                  description: "Contract C25-104 — Taconic Builders",
-                  rows: allPayments.filter(p => p.work_package === "Phase 1.1").map(p => ({vendor:p.vendor,amount_usd:p.amount_usd,payment_date:p.payment_date,description:p.description})) },
+                { name: "Road Construction", total: roadTotal,    color: WP_COLORS["Road Construction"],
+                  desc: "C23-101", rows: allPayments.filter(p => p.work_package === "Road Construction") },
+                { name: "Demolition",        total: demoTotal,    color: WP_COLORS["Demolition"],
+                  desc: "C25-102", rows: allPayments.filter(p => p.work_package === "Demolition") },
+                { name: "Phase 1.1",         total: phase11Total, color: WP_COLORS["Phase 1.1"],
+                  desc: "C25-104 — Taconic Builders", rows: allPayments.filter(p => p.work_package === "Phase 1.1") },
               ]
             }
           ].map(stageData => (
-            <div key={stageData.stage} className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-              {/* Stage header row */}
+            <div key={stageData.stage} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
               <button
                 onClick={() => setExpandedStage(expandedStage === stageData.stage ? null : stageData.stage)}
-                className={cx("w-full flex items-center px-5 py-3.5 transition-colors text-left border-b",
-                  expandedStage === stageData.stage ? "bg-stone-50 border-stone-200" : "border-transparent hover:bg-stone-50")}>
+                className="w-full flex items-center px-5 py-4 hover:bg-gray-50 transition-colors text-left">
                 <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: stageData.color }} />
-                <span className="flex-1 text-xs font-bold text-stone-800 uppercase tracking-widest">{stageData.stage}</span>
-                <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(stageData.total/grandTotal) : "—"}</span>
-                <span className="text-sm font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(stageData.total)}</span>
-                <span className="text-stone-300 text-xs w-4 text-center">{expandedStage === stageData.stage ? "▾" : "›"}</span>
+                <span className="flex-1 text-sm font-bold text-gray-800">{stageData.stage}</span>
+                <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(stageData.total/grandTotal) : "—"}</span>
+                <span className="text-sm font-bold text-gray-900 tabular-nums w-32 text-right mr-3">{$f(stageData.total)}</span>
+                <span className="text-gray-300 text-sm w-4 text-center">{expandedStage === stageData.stage ? "▾" : "›"}</span>
               </button>
               {expandedStage === stageData.stage && (
-                <div>
-                  {stageData.phases.map((ph, idx) => (
-                    <div key={ph.name}>
-                      <button
-                        onClick={() => ph.rows?.length > 0 ? setModal(ph) : null}
-                        className={cx("w-full flex items-center px-5 py-3 border-b border-stone-50 transition-colors text-left",
-                          ph.rows?.length > 0 ? "hover:bg-indigo-50/50 cursor-pointer" : "cursor-default",
-                          idx === stageData.phases.length - 1 ? "border-b-0" : "")}>
-                        <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-4" style={{ background: ph.color }} />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-xs font-semibold text-stone-700">{ph.name}</span>
-                          {ph.description && <span className="text-xs text-stone-400 ml-2">— {ph.description}</span>}
-                        </div>
-                        <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
-                        <span className="text-xs font-semibold text-stone-800 tabular-nums w-28 text-right mr-4">{$f(ph.total)}</span>
-                        {ph.rows?.length > 0
-                          ? <span className="text-indigo-400 text-xs w-4 text-center">›</span>
-                          : <span className="w-4" />}
-                      </button>
-                    </div>
+                <div className="border-t border-gray-100">
+                  {stageData.phases.map((ph) => (
+                    <button key={ph.name} onClick={() => setModal(ph)}
+                      className="w-full flex items-center px-5 py-3.5 border-b border-gray-50 hover:bg-indigo-50/40 transition-colors text-left group">
+                      <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-4" style={{ background: ph.color }} />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-semibold text-gray-700">{ph.name}</span>
+                        {ph.desc && <span className="text-sm text-gray-400 ml-2">— {ph.desc}</span>}
+                      </div>
+                      <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
+                      <span className="text-sm font-semibold text-gray-900 tabular-nums w-32 text-right mr-3">{$f(ph.total)}</span>
+                      <span className="text-gray-300 group-hover:text-indigo-400 text-sm w-4 text-center transition-colors">›</span>
+                    </button>
                   ))}
                 </div>
               )}
             </div>
           ))}
-          {/* Grand total */}
-          <div className="flex items-center px-5 py-3.5 bg-stone-100 border border-stone-200 rounded-xl">
-            <span className="flex-1 text-xs font-bold text-stone-900 uppercase tracking-widest">Total — Inception to Date</span>
-            <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">100%</span>
-            <span className="text-sm font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(grandTotal)}</span>
-            <span className="w-4" />
-          </div>
         </div>
       )}
 
       {/* ── BY VENDOR ── */}
       {viewMode === "vendor" && (
         <div className="space-y-3">
-
-          {/* Land Acquisition */}
-          <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-            <button onClick={() => setExpandedVendor(expandedVendor === "land" ? null : "land")}
-              className={cx("w-full flex items-center px-5 py-3.5 transition-colors text-left border-b",
-                expandedVendor === "land" ? "bg-stone-50 border-stone-200" : "border-transparent hover:bg-stone-50")}>
-              <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: WP_COLORS["Land Acquisition"] }} />
-              <div className="flex-1 min-w-0">
-                <span className="text-xs font-semibold text-stone-800">Timothy R Smith</span>
-                <span className="ml-2 px-2 py-0.5 rounded text-xs bg-indigo-50 text-indigo-600 font-medium">Pre-Construction</span>
-              </div>
-              <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(landAcqTotal/grandTotal) : "—"}</span>
-              <span className="text-xs font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(landAcqTotal)}</span>
-              <span className="text-stone-300 text-xs w-4 text-center">{expandedVendor === "land" ? "▾" : "›"}</span>
-            </button>
-            {expandedVendor === "land" && (
-              <table className="w-full">
-                <thead><tr>
-                  <TH>Date</TH><TH>Description</TH><TH right>Amount (USD)</TH>
-                </tr></thead>
-                <tbody>
-                  {landAcqVendor.map((p,i) => (
-                    <TR key={i}><TD muted>{p.payment_date}</TD><TD className="text-stone-600">{p.description}</TD><TD right bold className="text-stone-900">{$f(p.amount_usd)}</TD></TR>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          {/* Major vendors */}
-          {Object.entries(byVendor).sort((a,b) => b[1].total - a[1].total).map(([key, v]) => (
-            <div key={key} className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-              <button onClick={() => setExpandedVendor(expandedVendor === key ? null : key)}
-                className={cx("w-full flex items-center px-5 py-3.5 transition-colors text-left border-b",
-                  expandedVendor === key ? "bg-stone-50 border-stone-200" : "border-transparent hover:bg-stone-50")}>
-                <span className="w-3 h-3 rounded-full shrink-0 mr-3 bg-stone-300" />
-                <span className="flex-1 text-xs font-semibold text-stone-800">{v.name}</span>
-                <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(v.total/grandTotal) : "—"}</span>
-                <span className="text-xs font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(v.total)}</span>
-                <span className="text-stone-300 text-xs w-4 text-center">{expandedVendor === key ? "▾" : "›"}</span>
+          {/* All vendors: Timothy + big 4, all same dot style, color from their category */}
+          {[
+            { key: "land",    name: "Timothy R Smith",        total: landAcqTotal,              color: WP_COLORS["Land Acquisition"],    tag: "Land Acquisition",
+              phases: landAcqVendor.map(p => ({ phase: p.description || p.vendor, invoiced: p.amount_usd, status: "Complete", work_package: "Land Acquisition", stage: "Pre-Construction" })) },
+            ...Object.entries(byVendor).sort((a,b) => b[1].total - a[1].total).map(([key, v]) => ({
+              key, name: v.name, total: v.total,
+              color: VENDOR_COLORS[key] || "#6b7280",
+              tag: null,
+              phases: v.phases,
+            })),
+          ].map(v => (
+            <div key={v.key} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+              <button onClick={() => setExpandedVendor(expandedVendor === v.key ? null : v.key)}
+                className="w-full flex items-center px-5 py-4 hover:bg-gray-50 transition-colors text-left">
+                <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: v.color }} />
+                <div className="flex-1 min-w-0 flex items-center gap-3">
+                  <span className="text-sm font-semibold text-gray-800">{v.name}</span>
+                  {v.tag && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">{v.tag}</span>}
+                </div>
+                <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(v.total/grandTotal) : "—"}</span>
+                <span className="text-sm font-bold text-gray-900 tabular-nums w-32 text-right mr-3">{$f(v.total)}</span>
+                <span className="text-gray-300 text-sm w-4 text-center">{expandedVendor === v.key ? "▾" : "›"}</span>
               </button>
-              {expandedVendor === key && (
-                <table className="w-full">
-                  <thead><tr>
-                    <TH>Phase / Contract</TH><TH>Timeline</TH><TH>Phase</TH><TH>Status</TH><TH right>Invoiced (USD)</TH>
-                  </tr></thead>
-                  <tbody>
-                    {v.phases.filter(p => p.invoiced > 0 || p.budget > 0).map((p, i) => (
-                      <TR key={i}>
-                        <TD bold className="text-stone-800">{p.phase}</TD>
-                        <TD>{p.stage && <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (STAGE_COLORS[p.stage]||"#9ca3af")+"20", color: STAGE_COLORS[p.stage]||"#9ca3af" }}>{p.stage}</span>}</TD>
-                        <TD>{p.work_package && <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (WP_COLORS[p.work_package]||"#9ca3af")+"20", color: WP_COLORS[p.work_package]||"#9ca3af" }}>{p.work_package}</span>}</TD>
-                        <TD>{statusTag(p.status)}</TD>
-                        <TD right bold className="text-stone-900">{$f(p.invoiced)}</TD>
-                      </TR>
-                    ))}
-                  </tbody>
-                  <tfoot><TR subtle><TD bold colSpan={4} muted>Total</TD><TD right bold className="text-stone-900">{$f(v.total)}</TD></TR></tfoot>
-                </table>
+              {expandedVendor === v.key && (
+                <div className="border-t border-gray-100">
+                  <table className="w-full">
+                    <thead><tr>
+                      <TH>Phase / Contract</TH><TH>Timeline</TH><TH>Phase</TH><TH>Status</TH><TH right>Invoiced</TH>
+                    </tr></thead>
+                    <tbody>
+                      {v.phases.filter(p => p.invoiced > 0 || p.budget > 0).map((p, i) => (
+                        <TR key={i}>
+                          <TD bold>{p.phase}</TD>
+                          <TD>{p.stage && <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: (STAGE_COLORS[p.stage]||"#9ca3af")+"18", color: STAGE_COLORS[p.stage]||"#9ca3af" }}>{p.stage}</span>}</TD>
+                          <TD>{p.work_package && <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: (WP_COLORS[p.work_package]||"#9ca3af")+"18", color: WP_COLORS[p.work_package]||"#9ca3af" }}>{p.work_package}</span>}</TD>
+                          <TD>{statusTag(p.status)}</TD>
+                          <TD right bold>{$f(p.invoiced)}</TD>
+                        </TR>
+                      ))}
+                    </tbody>
+                    <tfoot><TR subtle><TD bold colSpan={4} muted>Total</TD><TD right bold>{$f(v.total)}</TD></TR></tfoot>
+                  </table>
+                </div>
               )}
             </div>
           ))}
 
-          {/* Other vendors */}
-          {Object.keys(otherVendorMap).length > 0 && (
-            <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+          {/* Other vendors — excluding intercompany */}
+          {Object.keys(otherVendorMap).filter(k => !isExcluded(k)).length > 0 && (
+            <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
               <button onClick={() => setExpandedVendor(expandedVendor === "other" ? null : "other")}
-                className={cx("w-full flex items-center px-5 py-3.5 transition-colors text-left border-b",
-                  expandedVendor === "other" ? "bg-stone-50 border-stone-200" : "border-transparent hover:bg-stone-50")}>
-                <span className="w-3 h-3 rounded-full shrink-0 mr-3 bg-stone-300" />
-                <span className="flex-1 text-xs font-semibold text-stone-800">Other Vendors</span>
-                <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(otherVendorTotal/grandTotal) : "—"}</span>
-                <span className="text-xs font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(otherVendorTotal)}</span>
-                <span className="text-stone-300 text-xs w-4 text-center">{expandedVendor === "other" ? "▾" : "›"}</span>
+                className="w-full flex items-center px-5 py-4 hover:bg-gray-50 transition-colors text-left">
+                <span className="w-3 h-3 rounded-full shrink-0 mr-3 bg-gray-300" />
+                <span className="flex-1 text-sm font-semibold text-gray-800">Other Vendors</span>
+                <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(Object.entries(otherVendorMap).filter(([k])=>!isExcluded(k)).reduce((s,[,v])=>s+v.total,0)/grandTotal) : "—"}</span>
+                <span className="text-sm font-bold text-gray-900 tabular-nums w-32 text-right mr-3">{$f(Object.entries(otherVendorMap).filter(([k])=>!isExcluded(k)).reduce((s,[,v])=>s+v.total,0))}</span>
+                <span className="text-gray-300 text-sm w-4 text-center">{expandedVendor === "other" ? "▾" : "›"}</span>
               </button>
               {expandedVendor === "other" && (
-                <table className="w-full">
-                  <thead><tr><TH>Vendor</TH><TH>Category</TH><TH right>Total (USD)</TH></tr></thead>
-                  <tbody>
-                    {Object.entries(otherVendorMap).sort((a,b) => b[1].total - a[1].total).map(([vendor, d]) => (
-                      <TR key={vendor} onClick={() => setModal({ name: vendor, total: d.total, rows: d.payments })}>
-                        <TD bold className="text-stone-800">{vendor}</TD>
-                        <TD muted>{d.payments[0]?.category || "—"}</TD>
-                        <TD right bold className="text-stone-900">{$f(d.total)}</TD>
-                      </TR>
-                    ))}
-                  </tbody>
-                  <tfoot><TR subtle><TD bold colSpan={2} muted>Total</TD><TD right bold className="text-stone-900">{$f(otherVendorTotal)}</TD></TR></tfoot>
-                </table>
+                <div className="border-t border-gray-100">
+                  <table className="w-full">
+                    <thead><tr><TH>Vendor</TH><TH>Category</TH><TH right>Total</TH></tr></thead>
+                    <tbody>
+                      {Object.entries(otherVendorMap).filter(([k]) => !isExcluded(k)).sort((a,b) => b[1].total - a[1].total).map(([vendor, d]) => (
+                        <TR key={vendor} onClick={() => setModal({ name: vendor, total: d.total, rows: d.payments })}>
+                          <TD bold>{vendor}</TD>
+                          <TD muted>{d.payments[0]?.category || "—"}</TD>
+                          <TD right bold>{$f(d.total)}</TD>
+                        </TR>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           )}
 
-          {/* Batched / To Be Reconciled */}
+          {/* Batched */}
           {batchedVendors.length > 0 && (
             <div className="bg-white border border-amber-200 rounded-xl overflow-hidden shadow-sm">
               <button onClick={() => setExpandedVendor(expandedVendor === "batched" ? null : "batched")}
-                className={cx("w-full flex items-center px-5 py-3.5 transition-colors text-left border-b",
-                  expandedVendor === "batched" ? "bg-amber-50 border-amber-200" : "border-transparent hover:bg-amber-50")}>
+                className="w-full flex items-center px-5 py-4 hover:bg-amber-50/40 transition-colors text-left">
                 <span className="text-amber-400 text-sm mr-3">⚑</span>
-                <span className="flex-1 text-xs font-semibold text-amber-800">Batched Payments — To Be Reconciled</span>
-                <span className="text-xs text-amber-500 tabular-nums w-20 text-right mr-4">{grandTotal > 0 ? pf(batchedTotal/grandTotal) : "—"}</span>
-                <span className="text-xs font-bold text-amber-800 tabular-nums w-28 text-right mr-4">{$f(batchedTotal)}</span>
-                <span className="text-amber-300 text-xs w-4 text-center">{expandedVendor === "batched" ? "▾" : "›"}</span>
+                <span className="flex-1 text-sm font-semibold text-amber-800">Batched Payments — To Be Reconciled</span>
+                <span className="text-sm font-bold text-amber-700 tabular-nums w-32 text-right mr-3">{$f(batchedTotal)}</span>
+                <span className="text-amber-300 text-sm w-4 text-center">{expandedVendor === "batched" ? "▾" : "›"}</span>
               </button>
               {expandedVendor === "batched" && (
-                <table className="w-full">
-                  <thead><tr><TH>Date</TH><TH>Description</TH><TH>Notes</TH><TH right>Amount (USD)</TH></tr></thead>
-                  <tbody>
-                    {batchedVendors.map((p,i) => (
-                      <TR key={i}>
-                        <TD muted>{p.payment_date}</TD>
-                        <TD bold className="text-stone-800">{p.vendor}</TD>
-                        <TD muted className="text-amber-600">{p.notes}</TD>
-                        <TD right bold className="text-stone-900">{$f(p.amount_usd)}</TD>
-                      </TR>
-                    ))}
-                  </tbody>
-                  <tfoot><TR subtle><TD bold colSpan={3} muted>Total (pending breakdown)</TD><TD right bold className="text-amber-700">{$f(batchedTotal)}</TD></TR></tfoot>
-                </table>
+                <div className="border-t border-amber-100">
+                  <table className="w-full">
+                    <thead><tr><TH>Date</TH><TH>Description</TH><TH right>Amount</TH></tr></thead>
+                    <tbody>
+                      {batchedVendors.map((p,i) => (
+                        <TR key={i}>
+                          <TD muted>{p.payment_date}</TD>
+                          <TD bold>{p.vendor}</TD>
+                          <TD right bold>{$f(p.amount_usd)}</TD>
+                        </TR>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           )}
-
-          {/* Grand total */}
-          <div className="flex items-center px-5 py-3.5 bg-stone-100 border border-stone-200 rounded-xl">
-            <span className="flex-1 text-xs font-bold text-stone-900 uppercase tracking-widest">Total — Inception to Date</span>
-            <span className="text-xs text-stone-400 tabular-nums w-20 text-right mr-4">100%</span>
-            <span className="text-sm font-bold text-stone-900 tabular-nums w-28 text-right mr-4">{$f(grandTotal)}</span>
-            <span className="w-4" />
-          </div>
         </div>
       )}
 
-      {/* ── PHASE MAPPING ── */}
+      {/* ── PHASE MAPPING (admin / subtle) ── */}
       {viewMode === "mapping" && (
         <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-blue-700">Phase Mapping Reference</p>
-              <p className="text-xs text-blue-600 mt-0.5">Shows how each vendor contract phase maps to a timeline and project phase. Click Edit to update any assignment.</p>
-            </div>
+          <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between">
+            <p className="text-sm text-gray-500">Phase tagging — assigns each vendor contract phase to a timeline and project phase.</p>
             <button onClick={async () => {
               try {
                 const r = await apiFetch('/admin/migrate-phase-tags', { method: 'POST' });
-                if (r.ok) { alert(`✓ Phase tags applied to ${r.updated} phases. Refreshing...`); load(); }
-              } catch(e) { alert('Migration failed: ' + e.message); }
-            }} className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg shrink-0 transition-colors">
-              Apply Tags →
+                if (r.ok) { alert(`✓ Tags applied to ${r.updated} phases.`); load(); }
+              } catch(e) { alert('Failed: ' + e.message); }
+            }} className="ml-4 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-semibold rounded-lg shrink-0 transition-colors">
+              Apply Tags
             </button>
           </div>
           <Card className="overflow-hidden">
             <table className="w-full">
               <thead><tr>
-                <TH>Vendor</TH><TH>Contract Phase</TH><TH>Timeline</TH><TH>Phase</TH><TH right>Invoiced (USD)</TH><TH>Status</TH><TH>Edit</TH>
+                <TH>Vendor</TH><TH>Contract Phase</TH><TH>Timeline</TH><TH>Phase</TH><TH right>Invoiced</TH><TH>Status</TH><TH>Edit</TH>
               </tr></thead>
               <tbody>
                 {vendorPhaseMapping.map((vp, i) => {
                   const isEditing = editingPhase === vp.id;
+                  const inp = "bg-white border border-gray-200 rounded-lg px-2 py-1 text-sm outline-none focus:border-indigo-400";
                   return (
                     <TR key={i}>
-                      <TD bold className="text-stone-800">{vp.vendor_name}</TD>
-                      <TD className="text-stone-600 max-w-xs truncate">{vp.phase}</TD>
+                      <TD bold>{vp.vendor_name}</TD>
+                      <TD muted>{vp.phase}</TD>
                       <TD>
                         {isEditing ? (
-                          <select value={editForm.stage || ""} onChange={e => setEditForm(f => ({...f, stage: e.target.value}))}
-                            className={inp}>
-                            <option value="">— unassigned —</option>
+                          <select value={editForm.stage || ""} onChange={e => setEditForm(f => ({...f, stage: e.target.value}))} className={inp}>
+                            <option value="">—</option>
                             {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                         ) : (
-                          vp.stage
-                            ? <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (STAGE_COLORS[vp.stage]||"#9ca3af")+"20", color: STAGE_COLORS[vp.stage]||"#9ca3af" }}>{vp.stage}</span>
-                            : <span className="text-stone-300 text-xs">—</span>
+                          vp.stage ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: (STAGE_COLORS[vp.stage]||"#9ca3af")+"18", color: STAGE_COLORS[vp.stage]||"#9ca3af" }}>{vp.stage}</span> : <span className="text-gray-300">—</span>
                         )}
                       </TD>
                       <TD>
                         {isEditing ? (
-                          <select value={editForm.work_package || ""} onChange={e => setEditForm(f => ({...f, work_package: e.target.value}))}
-                            className={inp}>
-                            <option value="">— unassigned —</option>
+                          <select value={editForm.work_package || ""} onChange={e => setEditForm(f => ({...f, work_package: e.target.value}))} className={inp}>
+                            <option value="">—</option>
                             {WORK_PACKAGES.map(w => <option key={w} value={w}>{w}</option>)}
                           </select>
                         ) : (
-                          vp.work_package
-                            ? <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: (WP_COLORS[vp.work_package]||"#9ca3af")+"20", color: WP_COLORS[vp.work_package]||"#9ca3af" }}>{vp.work_package}</span>
-                            : <span className="text-stone-300 text-xs">—</span>
+                          vp.work_package ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: (WP_COLORS[vp.work_package]||"#9ca3af")+"18", color: WP_COLORS[vp.work_package]||"#9ca3af" }}>{vp.work_package}</span> : <span className="text-gray-300">—</span>
                         )}
                       </TD>
-                      <TD right bold className="text-stone-900">{$f(vp.invoiced)}</TD>
+                      <TD right bold>{$f(vp.invoiced)}</TD>
                       <TD>{statusTag(vp.status)}</TD>
                       <TD>
                         {isEditing ? (
@@ -3077,15 +3047,11 @@ function TotalSpendView() {
                               {saving ? "…" : "Save"}
                             </button>
                             <button onClick={() => setEditingPhase(null)}
-                              className="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-semibold rounded transition-colors">
-                              ✕
-                            </button>
+                              className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold rounded transition-colors">✕</button>
                           </div>
                         ) : (
                           <button onClick={() => { setEditingPhase(vp.id); setEditForm({ stage: vp.stage || "", work_package: vp.work_package || "" }); }}
-                            className="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-semibold rounded transition-colors">
-                            Edit
-                          </button>
+                            className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold rounded transition-colors">Edit</button>
                         )}
                       </TD>
                     </TR>
@@ -3099,25 +3065,25 @@ function TotalSpendView() {
 
       {/* ── DRILL-DOWN MODAL ── */}
       {modal && (
-        <Modal title={modal.name} subtitle={modal.description || "Payment detail"} onClose={() => setModal(null)} wide>
-          <table className="w-full text-xs">
+        <Modal title={modal.name} subtitle={modal.desc || modal.description || "Payment detail"} onClose={() => setModal(null)} wide>
+          <table className="w-full">
             <thead><tr>
-              <TH>Date</TH><TH>Vendor</TH><TH>Description</TH><TH right>Amount (USD)</TH>
+              <TH>Date</TH><TH>Vendor</TH><TH>Description</TH><TH right>Amount</TH>
             </tr></thead>
             <tbody>
               {(modal.rows || []).map((p, i) => (
                 <TR key={i}>
                   <TD muted className="whitespace-nowrap">{p.payment_date || "—"}</TD>
-                  <TD bold className="text-stone-800">{p.vendor || "—"}</TD>
-                  <TD className="text-stone-600">{p.description || "—"}</TD>
-                  <TD right bold className="text-stone-900">{$f(p.amount_usd)}</TD>
+                  <TD bold>{p.vendor || "—"}</TD>
+                  <TD muted>{p.description || "—"}</TD>
+                  <TD right bold>{$f(p.amount_usd)}</TD>
                 </TR>
               ))}
             </tbody>
             <tfoot>
               <TR subtle>
                 <TD bold colSpan={3} muted>Total</TD>
-                <TD right bold className="text-stone-900">{$f((modal.rows||[]).reduce((s,p) => s+(p.amount_usd||0), 0))}</TD>
+                <TD right bold>{$f((modal.rows||[]).reduce((s,p) => s+(p.amount_usd||0), 0))}</TD>
               </TR>
             </tfoot>
           </table>
@@ -3125,7 +3091,6 @@ function TotalSpendView() {
       )}
     </div>
   );
-}
 
 
 // ─── PHASE 1.1 SHELL ──────────────────────────────────────────────────────────
@@ -4177,7 +4142,7 @@ function AppShell() {
   const page = PAGE_TITLES[tab] || { title: tab, sub: "" };
 
   return (
-    <div style={{ fontFamily: "'Inter', system-ui, sans-serif", background: "#f5f6f8", minHeight: "100vh" }}>
+    <div style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif", background: "#f5f6f8", minHeight: "100vh" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
         * { box-sizing: border-box; }
@@ -4195,8 +4160,8 @@ function AppShell() {
       }}>
         {/* Logo */}
         <div style={{ padding: "24px 20px 20px", borderBottom: "1px solid #f3f4f6", marginBottom: 8 }}>
-          <div style={{ fontWeight: 600, fontSize: 14, color: "#111827", letterSpacing: "-0.2px", lineHeight: 1 }}>Camp Forestmere</div>
-          <div style={{ fontWeight: 400, fontSize: 11, color: "#9ca3af", marginTop: 4, letterSpacing: "0.01em" }}>Construction Dashboard</div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#111827", letterSpacing: "-0.2px", lineHeight: 1, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>Camp Forestmere</div>
+          <div style={{ fontWeight: 400, fontSize: 11, color: "#9ca3af", marginTop: 4, letterSpacing: "0.02em", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>Construction Dashboard</div>
         </div>
 
         {/* Nav */}
@@ -4252,7 +4217,7 @@ function AppShell() {
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <h1 style={{ fontSize: 20, fontWeight: 700, color: "#111827", margin: 0, letterSpacing: "-0.4px" }}>
+              <h1 style={{ fontSize: 18, fontWeight: 700, color: "#111827", margin: 0, letterSpacing: "-0.3px", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
                 {page.title}
               </h1>
               <p style={{ fontSize: 12, color: "#9ca3af", margin: "3px 0 0", fontWeight: 500 }}>
