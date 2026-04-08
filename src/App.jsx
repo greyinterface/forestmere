@@ -5866,17 +5866,7 @@ function AppShell() {
 
   return (
     <div style={{ fontFamily: "'Inter', 'Plus Jakarta Sans', system-ui, sans-serif", background: "#f7f5f0", minHeight: "100vh" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-        * { box-sizing: border-box; }
-        body { -webkit-font-smoothing: antialiased; }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
-        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
-        button { font-family: inherit; }
-        input, select, textarea { font-family: inherit; }
-      `}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');*{box-sizing:border-box}body{-webkit-font-smoothing:antialiased}::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:2px}::-webkit-scrollbar-thumb:hover{background:#9ca3af}button,input,select,textarea{font-family:inherit}`}</style>
 
       {/* ── Sidebar ────────────────────────────────────── */}
       <aside style={{
