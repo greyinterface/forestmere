@@ -45,7 +45,7 @@ function DataProvider({ children }) {
       <div className="text-center max-w-sm">
         <p className="text-red-500 font-semibold mb-2">Failed to connect to database</p>
         <p className="text-sm text-gray-400 mb-4">{error}</p>
-        <button onClick={refresh} className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-semibold hover:bg-gray-800">Retry</button>
+        <button onClick={refresh} className="px-4 py-2 bg-[#1c2b3a] text-white rounded-lg text-sm font-semibold hover:bg-gray-800">Retry</button>
       </div>
     </div>
   );
@@ -197,13 +197,13 @@ const Card = ({ children, className = "" }) => (
 
 // Table primitives — text-sm throughout, generous row height
 const TH = ({ children, right, className = "" }) => (
-  <th className={cx("px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-gray-400 bg-[#f9f9f7] whitespace-nowrap border-b border-[#e8e8e6]", right ? "text-right" : "text-left", className)}>{children}</th>
+  <th className={cx("px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-gray-400 bg-[#faf8f5] whitespace-nowrap border-b border-[#e8e8e6]", right ? "text-right" : "text-left", className)}>{children}</th>
 );
 const TD = ({ children, right, muted, bold, colSpan, className = "" }) => (
   <td colSpan={colSpan} className={cx("px-4 py-2.5 text-sm", right && "text-right tabular-nums", muted ? "text-gray-400" : "text-gray-700", bold && "font-semibold text-gray-900", className)}>{children}</td>
 );
 const TR = ({ children, onClick, subtle }) => (
-  <tr onClick={onClick} className={cx("border-b border-[#f0f0ee] transition-colors", onClick && "cursor-pointer hover:bg-[#f5f5f2]", subtle && "bg-[#f9f9f7]")}>{children}</tr>
+  <tr onClick={onClick} className={cx("border-b border-[#f0f0ee] transition-colors", onClick && "cursor-pointer hover:bg-[#f5f1ea]", subtle && "bg-[#faf8f5]")}>{children}</tr>
 );
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
@@ -232,7 +232,7 @@ function KVGrid({ rows }) {
   return (
     <div className="grid grid-cols-2 gap-2.5">
       {rows.filter(Boolean).map(([k, v]) => (
-        <div key={k} className="bg-[#f9f9f7] rounded-lg px-4 py-3 border border-gray-100">
+        <div key={k} className="bg-[#faf8f5] rounded-lg px-4 py-3 border border-gray-100">
           <div className={cx(T.label, "mb-1")}>{k}</div>
           <div className="text-sm font-semibold text-gray-800 break-words">{v ?? "—"}</div>
         </div>
@@ -319,14 +319,14 @@ function Dashboard({ setTab }) {
       {/* ── Total Project Spend ── */}
       <div>
         <SectionHeader label="Total Project Spend" action={() => setTab("totalspend")} actionLabel="Full breakdown" />
-        <div className="bg-white border border-[#e8e8e6] rounded-lg overflow-hidden">
+        <div className="bg-white border border-[#ede9e3] rounded-lg overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#f0f0ee]">
             <div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Inception to Date · All Phases</p>
               <p className="text-xl font-bold text-gray-900 tabular-nums">{$f(inceptionToDateTotal)}</p>
             </div>
             <button onClick={() => setModal("spend")}
-              className="px-4 py-2 bg-[#111111] hover:bg-[#1f1f1f] text-white text-xs font-medium rounded-md transition-colors tracking-wide">
+              className="px-4 py-2 bg-[#1c2b3a] hover:bg-[#243447] text-white text-xs font-medium rounded-md transition-colors">
               View Breakdown →
             </button>
           </div>
@@ -486,7 +486,7 @@ function Dashboard({ setTab }) {
                 </tfoot>
               </table>
             )}
-            <button onClick={() => { setModal(null); setTab("totalspend"); }} className="mt-3 w-full py-3 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-lg transition-colors">View Full Breakdown in Total Spend →</button>
+            <button onClick={() => { setModal(null); setTab("totalspend"); }} className="mt-3 w-full py-3 bg-[#1c2b3a] hover:bg-[#243447] text-white text-sm font-semibold rounded-lg transition-colors">View Full Breakdown in Total Spend →</button>
           </Modal>
         );
       })()}
@@ -560,7 +560,7 @@ function PriorPhaseShell({ phaseId }) {
   const variance = phase.final_contract - phase.original_contract;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Sub-tab nav */}
       <div className="flex gap-0 border-b border-[#e8e8e6] -mt-2">
         {SUB_TABS.map(t => (
@@ -574,7 +574,7 @@ function PriorPhaseShell({ phaseId }) {
 
       {/* ── SUMMARY ── */}
       {subTab === "summary" && (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {/* Status banner */}
           <div className="flex items-center gap-3 px-5 py-3.5 rounded-lg border" style={{ background: meta.color + "10", borderColor: meta.color + "40" }}>
             <span className="w-3 h-3 rounded-full shrink-0" style={{ background: meta.color }} />
@@ -615,7 +615,7 @@ function PriorPhaseShell({ phaseId }) {
       {subTab === "budget" && (
         <div className="space-y-4">
           {/* Contract summary ledger */}
-          <div className="bg-white border border-[#e8e8e6] rounded-lg overflow-hidden">
+          <div className="bg-white border border-[#ede9e3] rounded-lg overflow-hidden">
             <div className="px-5 py-2.5 border-b border-[#e8e8e6]">
               <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Contract Summary</span>
             </div>
@@ -798,7 +798,7 @@ function PriorPhaseInvoices({ phaseId, phaseMeta, phaseTotalPaid }) {
         <p className="text-sm text-gray-400">{invoices.length} invoice{invoices.length !== 1 ? "s" : ""} recorded for {phaseMeta.label}</p>
         {!adding && (
           <button onClick={() => setAdding(true)}
-            className="px-3 py-1.5 bg-[#111111] hover:bg-[#1f1f1f] text-white text-xs font-medium rounded-md transition-colors">
+            className="px-3 py-1.5 bg-[#1c2b3a] hover:bg-[#243447] text-white text-xs font-medium rounded-md transition-colors">
             + Add Invoice
           </button>
         )}
@@ -983,7 +983,7 @@ function VendorsView() {
 
         {/* OVERVIEW */}
         {subTab==="overview" && (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <Stat label="Total Invoiced" value={$f(inv)} sub="All budget phases" accent onClick={() => setSubTab("invoices")} />
               {rem != null ? <Stat label="Remaining Budget" value={$f(rem)} sub="Against fixed fees" onClick={() => setSubTab("phases")} /> : <Stat label="Billing Type" value="T&M" sub="Billed monthly" />}
@@ -994,7 +994,7 @@ function VendorsView() {
                 <SectionTitle>Budget Status</SectionTitle>
                 <div className="flex gap-1 -mt-4">
                   {[["table","Table"],["cards","Cards"],["timeline","List"]].map(([v,l]) => (
-                    <button key={v} onClick={() => setPhaseView(v)} className={cx("px-2.5 py-1 text-sm rounded-lg font-medium", phaseView===v ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-400 hover:text-gray-700")}>{l}</button>
+                    <button key={v} onClick={() => setPhaseView(v)} className={cx("px-2.5 py-1 text-sm rounded-lg font-medium", phaseView===v ? "bg-[#1c2b3a] text-white" : "bg-gray-100 text-gray-400 hover:text-gray-700")}>{l}</button>
                   ))}
                 </div>
               </div>
@@ -1093,7 +1093,7 @@ function VendorsView() {
           <div className="space-y-3">
             <div className="flex justify-end">
               <button onClick={() => { setAddingInv(v=>!v); setEditingId(null); }}
-                className={cx("px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors", addingInv ? "bg-gray-200 text-gray-600" : "bg-gray-900 text-white")}>
+                className={cx("px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors", addingInv ? "bg-gray-200 text-gray-600" : "bg-[#1c2b3a] text-white")}>
                 {addingInv?"Cancel":"+ Add Invoice"}
               </button>
             </div>
@@ -1108,7 +1108,7 @@ function VendorsView() {
                   <div><label className="block text-sm text-gray-400 mb-1">Status</label><select value={addForm.status} onChange={e=>setAddForm(f=>({...f,status:e.target.value}))} className={inp}>{["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}</select></div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={saveNewInv} disabled={!addForm.invNum||!addForm.amount||saving} className={cx("px-4 py-2 text-sm font-bold rounded-lg transition-colors", addForm.invNum&&addForm.amount&&!saving?"bg-gray-900 text-white":"bg-gray-100 text-gray-400 cursor-not-allowed")}>{saving?"Saving…":"Save Invoice"}</button>
+                  <button onClick={saveNewInv} disabled={!addForm.invNum||!addForm.amount||saving} className={cx("px-4 py-2 text-sm font-bold rounded-lg transition-colors", addForm.invNum&&addForm.amount&&!saving?"bg-[#1c2b3a] text-white":"bg-gray-100 text-gray-400 cursor-not-allowed")}>{saving?"Saving…":"Save Invoice"}</button>
                   <button onClick={()=>setAddingInv(false)} className="px-4 py-2 text-sm font-semibold rounded-lg bg-gray-100 text-gray-500 hover:text-gray-700">Cancel</button>
                 </div>
               </Card>
@@ -1126,7 +1126,7 @@ function VendorsView() {
                         <TD><input value={editForm.description||""} onChange={e=>setEditForm(f=>({...f,description:e.target.value}))} className={inp+" w-48"}/></TD>
                         <TD right><input value={editForm.amount||""} onChange={e=>setEditForm(f=>({...f,amount:e.target.value}))} className={inp+" w-24 text-right"}/></TD>
                         <TD><select value={editForm.status||"Pending"} onChange={e=>setEditForm(f=>({...f,status:e.target.value}))} className={inp+" w-24"}>{["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}</select></TD>
-                        <TD><div className="flex gap-1"><button onClick={saveEdit} className="text-sm px-2 py-1 bg-gray-900 text-white rounded">{saving?"…":"Save"}</button><button onClick={()=>setEditingId(null)} className="text-sm px-2 py-1 bg-gray-100 text-gray-500 rounded">Cancel</button></div></TD>
+                        <TD><div className="flex gap-1"><button onClick={saveEdit} className="text-sm px-2 py-1 bg-[#1c2b3a] text-white rounded">{saving?"…":"Save"}</button><button onClick={()=>setEditingId(null)} className="text-sm px-2 py-1 bg-gray-100 text-gray-500 rounded">Cancel</button></div></TD>
                       </tr>
                     ) : (
                       <TR key={vinv.id} onClick={() => setModal({_inv:true,...vinv})}>
@@ -1213,7 +1213,7 @@ function DocumentsView() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Tab toggle */}
       <div className="flex gap-1 border-b border-gray-200">
         <button onClick={() => setView("upload")} className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all ${view==="upload" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
@@ -1350,7 +1350,7 @@ function ZohoReconcileView() {
   );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Summary KPIs */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-4">
@@ -1421,9 +1421,9 @@ function ZohoReconcileView() {
       )}
 
       {/* Grand total */}
-      <div className="flex items-center justify-between px-5 py-3 bg-[#111111] rounded-lg">
+      <div className="flex items-center justify-between px-5 py-3 bg-[#f0ece6] rounded-lg border border-[#d4cfc8]">
         <span className="text-sm font-bold text-white">Total Taconic — All Phases</span>
-        <span className="text-sm font-bold text-white tabular-nums">{$f(grandTotal)}</span>
+        <span className="text-sm font-bold text-gray-900 tabular-nums">{$f(grandTotal)}</span>
       </div>
     </div>
   );
@@ -1469,7 +1469,7 @@ function ReconcileView({ setTab }) {
   if (!recon) return (
     <div className="bg-white rounded-lg border border-gray-100 p-8 text-center ">
       <p className="text-gray-400 text-sm mb-3">Could not load reconciliation data.</p>
-      <button onClick={load} className="px-4 py-2 bg-gray-900 text-white text-sm font-bold rounded-lg">Retry</button>
+      <button onClick={load} className="px-4 py-2 bg-[#1c2b3a] text-white text-sm font-bold rounded-lg">Retry</button>
     </div>
   );
 
@@ -1525,7 +1525,7 @@ function ReconcileView({ setTab }) {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
 
       {/* Header scorecard */}
       <div className={`rounded-lg p-5 border ${issues.length === 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-200'}`}>
@@ -1625,7 +1625,7 @@ function ReconcileView({ setTab }) {
                   {action.tab && (
                     <button
                       onClick={() => { if (setTab) setTab(action.tab); }}
-                      className="w-full py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold rounded-lg transition-colors"
+                      className="w-full py-2 bg-[#1c2b3a] hover:bg-[#243447] text-white text-sm font-bold rounded-lg transition-colors"
                     >
                       {action.btnLabel}
                     </button>
@@ -1769,7 +1769,7 @@ function ZohoSyncButton({ onSynced }) {
     <div className="flex items-center gap-3">
       <span className="text-sm text-gray-400">Last sync: <span className="text-gray-600 font-medium">{lastSyncStr}</span></span>
       <button onClick={forceSync} disabled={syncing}
-        className="px-3 py-1.5 bg-gray-900 hover:bg-gray-700 disabled:bg-gray-300 text-white text-sm font-semibold rounded-lg transition-colors">
+        className="px-3 py-1.5 bg-[#1c2b3a] hover:bg-[#243447] disabled:bg-gray-300 text-white text-sm font-semibold rounded-lg transition-colors">
         {syncing ? "Syncing…" : "Sync now"}
       </button>
     </div>
@@ -1896,7 +1896,7 @@ function TotalSpendView() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Sync bar — clean, minimal */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border border-gray-100 rounded-lg shadow-sm">
         <ZohoSyncButton onSynced={load} />
@@ -1906,7 +1906,7 @@ function TotalSpendView() {
       </div>
 
       {/* ── SPEND SUMMARY (clickable rows = the drill-down) ── */}
-      <div className="bg-white border border-[#e8e8e6] rounded-lg overflow-hidden">
+      <div className="bg-white border border-[#ede9e3] rounded-lg overflow-hidden">
         {/* Header */}
         <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <div>
@@ -1930,7 +1930,7 @@ function TotalSpendView() {
             rows: allPayments.filter(p => p.work_package === "Design & Permitting") },
         ].map(ph => (
           <button key={ph.name} onClick={() => setModal(ph)}
-            className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-[#f5f5f2] transition-colors text-left group">
+            className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-[#f5f1ea] transition-colors text-left group">
             <span className="w-2.5 h-2.5 rounded-full shrink-0 mr-4" style={{ background: ph.color }} />
             <div className="flex-1 min-w-0">
               <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
@@ -1963,7 +1963,7 @@ function TotalSpendView() {
             rows: allPayments.filter(p => p.work_package === "Phase 1.1") },
         ].map(ph => (
           <button key={ph.name} onClick={() => setModal(ph)}
-            className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-[#f5f5f2] transition-colors text-left group">
+            className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-[#f5f1ea] transition-colors text-left group">
             <span className="w-2.5 h-2.5 rounded-full shrink-0 mr-4" style={{ background: ph.color }} />
             <div className="flex-1 min-w-0">
               <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
@@ -1984,8 +1984,8 @@ function TotalSpendView() {
         </div>
 
         {/* Grand total */}
-        <div className="px-5 py-3 bg-[#111111] flex items-center justify-between">
-          <span className="text-sm font-bold text-white uppercase tracking-widest">Total — Inception to Date</span>
+        <div className="px-5 py-3 bg-[#f5f1ea] flex items-center justify-between border-t-2 border-[#d4cfc8]">
+          <span className="text-sm font-bold text-gray-800 uppercase tracking-widest">Total — Inception to Date</span>
           <div className="flex items-center gap-6">
             <span className="text-sm text-gray-400 tabular-nums">100%</span>
             <span className="text-sm font-bold text-white tabular-nums w-32 text-right">{$f(grandTotal)}</span>
@@ -2039,10 +2039,10 @@ function TotalSpendView() {
               ]
             }
           ].map(stageData => (
-            <div key={stageData.stage} className="bg-white border border-[#e8e8e6] rounded-lg overflow-hidden">
+            <div key={stageData.stage} className="bg-white border border-[#ede9e3] rounded-lg overflow-hidden">
               <button
                 onClick={() => setExpandedStage(expandedStage === stageData.stage ? null : stageData.stage)}
-                className="w-full flex items-center px-5 py-2.5 hover:bg-[#f9f9f7] transition-colors text-left">
+                className="w-full flex items-center px-5 py-2.5 hover:bg-[#faf8f5] transition-colors text-left">
                 <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: stageData.color }} />
                 <span className="flex-1 text-sm font-bold text-gray-800">{stageData.stage}</span>
                 <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(stageData.total/grandTotal) : "—"}</span>
@@ -2053,7 +2053,7 @@ function TotalSpendView() {
                 <div className="border-t border-gray-100">
                   {stageData.phases.map((ph) => (
                     <button key={ph.name} onClick={() => setModal(ph)}
-                      className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-[#f5f5f2] transition-colors text-left group">
+                      className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-[#f5f1ea] transition-colors text-left group">
                       <span className="w-2 h-2 rounded-full shrink-0 mr-3 ml-4" style={{ background: ph.color }} />
                       <div className="flex-1 min-w-0">
                         <span className="text-sm font-semibold text-gray-700">{ph.name}</span>
@@ -2085,9 +2085,9 @@ function TotalSpendView() {
               phases: v.phases,
             })),
           ].map(v => (
-            <div key={v.key} className="bg-white border border-[#e8e8e6] rounded-lg overflow-hidden">
+            <div key={v.key} className="bg-white border border-[#ede9e3] rounded-lg overflow-hidden">
               <button onClick={() => setExpandedVendor(expandedVendor === v.key ? null : v.key)}
-                className="w-full flex items-center px-5 py-2.5 hover:bg-[#f9f9f7] transition-colors text-left">
+                className="w-full flex items-center px-5 py-2.5 hover:bg-[#faf8f5] transition-colors text-left">
                 <span className="w-3 h-3 rounded-full shrink-0 mr-3" style={{ background: v.color }} />
                 <div className="flex-1 min-w-0 flex items-center gap-3">
                   <span className="text-sm font-semibold text-gray-800">{v.name}</span>
@@ -2123,9 +2123,9 @@ function TotalSpendView() {
 
           {/* Other vendors — excluding intercompany */}
           {Object.keys(otherVendorMap).filter(k => !isExcluded(k)).length > 0 && (
-            <div className="bg-white border border-[#e8e8e6] rounded-lg overflow-hidden">
+            <div className="bg-white border border-[#ede9e3] rounded-lg overflow-hidden">
               <button onClick={() => setExpandedVendor(expandedVendor === "other" ? null : "other")}
-                className="w-full flex items-center px-5 py-2.5 hover:bg-[#f9f9f7] transition-colors text-left">
+                className="w-full flex items-center px-5 py-2.5 hover:bg-[#faf8f5] transition-colors text-left">
                 <span className="w-3 h-3 rounded-full shrink-0 mr-3 bg-gray-300" />
                 <span className="flex-1 text-sm font-semibold text-gray-800">Other Vendors</span>
                 <span className="text-sm text-gray-400 tabular-nums w-16 text-right mr-6">{grandTotal > 0 ? pf(Object.entries(otherVendorMap).filter(([k])=>!isExcluded(k)).reduce((s,[,v])=>s+v.total,0)/grandTotal) : "—"}</span>
@@ -2307,7 +2307,7 @@ function Phase11Shell({ initialSubTab = 'landing' }) {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Sub-tab nav */}
       <div className="flex gap-0 border-b border-[#e8e8e6] -mt-2">
         {SUB_TABS.map(t => (
@@ -2321,7 +2321,7 @@ function Phase11Shell({ initialSubTab = 'landing' }) {
 
       {/* Landing */}
       {subTab === "landing" && (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {/* KPI summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Stat label="Revised Contract"    value={$f(revisedContractTotal)} sub={`Original $13,093,419 + ${$f(revisedContractTotal - 13093419.47)} COs`} />
@@ -2414,7 +2414,7 @@ function DesignEngShell() {
   const grandInvoiced = vendorSummary.reduce((s,v) => s+v.invoiced, 0);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Sub-tab nav */}
       <div className="flex gap-0 border-b border-[#e8e8e6] -mt-2">
         {VENDOR_TABS.map(t => (
@@ -2428,7 +2428,7 @@ function DesignEngShell() {
 
       {/* Landing */}
       {subTab === "landing" && (
-        <div className="space-y-5">
+        <div className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
             {vendorSummary.map(v => (
               <button key={v.key} onClick={() => setSubTab(v.key)}
@@ -2672,7 +2672,7 @@ function InvoiceWorkflow({ vendorKey }) {
           <p className="text-sm text-gray-400">Upload and review invoices · map to budget phases · approve · reconcile to Zoho</p>
         </div>
         <button onClick={() => { setView("new"); setLines([]); }}
-          className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold rounded-lg transition-colors">
+          className="px-4 py-2 bg-[#1c2b3a] hover:bg-[#243447] text-white text-sm font-bold rounded-lg transition-colors">
           + New Invoice
         </button>
       </div>
@@ -2777,7 +2777,7 @@ function InvoiceWorkflow({ vendorKey }) {
       <Card className="p-5 space-y-3">
         <div className="flex items-center justify-between">
           <SectionTitle>Line Items</SectionTitle>
-          <button onClick={addLine} className="text-sm px-3 py-1.5 bg-gray-900 text-white rounded-lg font-semibold">+ Add Line</button>
+          <button onClick={addLine} className="text-sm px-3 py-1.5 bg-[#1c2b3a] text-white rounded-lg font-semibold">+ Add Line</button>
         </div>
         {lines.length === 0 && (
           <div className="text-center py-6 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
@@ -2854,7 +2854,7 @@ function InvoiceWorkflow({ vendorKey }) {
         <button onClick={saveInvoice}
           disabled={!form.invoice_num||!form.invoice_date||lines.length===0||saving}
           className={cx("px-6 py-2.5 text-sm font-bold rounded-lg transition-colors",
-            form.invoice_num&&form.invoice_date&&lines.length>0&&!saving ? "bg-gray-900 hover:bg-gray-800 text-white" : "bg-gray-100 text-gray-400 cursor-not-allowed")}>
+            form.invoice_num&&form.invoice_date&&lines.length>0&&!saving ? "bg-[#1c2b3a] hover:bg-[#243447] text-white" : "bg-gray-100 text-gray-400 cursor-not-allowed")}>
           {saving ? "Saving…" : "Submit Invoice →"}
         </button>
         <button onClick={()=>setView("list")} className="px-6 py-2.5 text-sm font-semibold rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-gray-700">Cancel</button>
@@ -3118,7 +3118,7 @@ function VendorsViewSingle({ vendorKey }) {
       </div>
 
       {subTab==="overview" && (
-        <div className="space-y-5">
+        <div className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
             <Stat label="Total Invoiced" value={$f(vendor.phases.reduce((s,p)=>s+(p.invoiced||0),0))} sub="All budget phases" accent onClick={() => setSubTab("phases")} />
             {rem != null ? <Stat label="Remaining Budget" value={$f(rem)} sub="Against fixed fees" onClick={() => setSubTab("phases")} /> : <Stat label="Billing Type" value="T&M" sub="Billed monthly" />}
@@ -3129,7 +3129,7 @@ function VendorsViewSingle({ vendorKey }) {
               <SectionTitle>Budget Phases</SectionTitle>
               <div className="flex gap-1 -mt-4">
                 {[["table","Table"],["cards","Cards"],["timeline","List"]].map(([v,l]) => (
-                  <button key={v} onClick={() => setPhaseView(v)} className={cx("px-2.5 py-1 text-sm rounded-lg font-medium", phaseView===v ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-400 hover:text-gray-700")}>{l}</button>
+                  <button key={v} onClick={() => setPhaseView(v)} className={cx("px-2.5 py-1 text-sm rounded-lg font-medium", phaseView===v ? "bg-[#1c2b3a] text-white" : "bg-gray-100 text-gray-400 hover:text-gray-700")}>{l}</button>
                 ))}
               </div>
             </div>
@@ -3218,7 +3218,7 @@ function VendorsViewSingle({ vendorKey }) {
         <div className="space-y-3">
           <div className="flex justify-end">
             <button onClick={() => { setAddingInv(v=>!v); setEditingId(null); }}
-              className={cx("px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors", addingInv ? "bg-gray-200 text-gray-600" : "bg-gray-900 text-white")}>
+              className={cx("px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors", addingInv ? "bg-gray-200 text-gray-600" : "bg-[#1c2b3a] text-white")}>
               {addingInv?"Cancel":"+ Add Invoice"}
             </button>
           </div>
@@ -3233,7 +3233,7 @@ function VendorsViewSingle({ vendorKey }) {
                 <div><label className="block text-sm text-gray-400 mb-1">Status</label><select value={addForm.status} onChange={e=>setAddForm(f=>({...f,status:e.target.value}))} className={inp}>{["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}</select></div>
               </div>
               <div className="flex gap-2">
-                <button onClick={saveNewInv} disabled={!addForm.invNum||!addForm.amount||saving} className={cx("px-4 py-2 text-sm font-bold rounded-lg", addForm.invNum&&addForm.amount&&!saving?"bg-gray-900 text-white":"bg-gray-100 text-gray-400 cursor-not-allowed")}>{saving?"Saving…":"Save Invoice"}</button>
+                <button onClick={saveNewInv} disabled={!addForm.invNum||!addForm.amount||saving} className={cx("px-4 py-2 text-sm font-bold rounded-lg", addForm.invNum&&addForm.amount&&!saving?"bg-[#1c2b3a] text-white":"bg-gray-100 text-gray-400 cursor-not-allowed")}>{saving?"Saving…":"Save Invoice"}</button>
                 <button onClick={()=>setAddingInv(false)} className="px-4 py-2 text-sm font-semibold rounded-lg bg-gray-100 text-gray-500">Cancel</button>
               </div>
             </Card>
@@ -3251,7 +3251,7 @@ function VendorsViewSingle({ vendorKey }) {
                       <TD><input value={editForm.description||""} onChange={e=>setEditForm(f=>({...f,description:e.target.value}))} className={inp+" w-48"}/></TD>
                       <TD right><input value={editForm.amount||""} onChange={e=>setEditForm(f=>({...f,amount:e.target.value}))} className={inp+" w-24 text-right"}/></TD>
                       <TD><select value={editForm.status||"Pending"} onChange={e=>setEditForm(f=>({...f,status:e.target.value}))} className={inp+" w-24"}>{["Pending","Paid","In Review"].map(s=><option key={s}>{s}</option>)}</select></TD>
-                      <TD><div className="flex gap-1"><button onClick={saveEdit} className="text-sm px-2 py-1 bg-gray-900 text-white rounded">{saving?"…":"Save"}</button><button onClick={()=>setEditingId(null)} className="text-sm px-2 py-1 bg-gray-100 text-gray-500 rounded">Cancel</button></div></TD>
+                      <TD><div className="flex gap-1"><button onClick={saveEdit} className="text-sm px-2 py-1 bg-[#1c2b3a] text-white rounded">{saving?"…":"Save"}</button><button onClick={()=>setEditingId(null)} className="text-sm px-2 py-1 bg-gray-100 text-gray-500 rounded">Cancel</button></div></TD>
                     </tr>
                   ) : (
                     <TR key={vinv.id} onClick={() => setModal({_inv:true,...vinv})}>
@@ -3335,7 +3335,7 @@ function AppShell() {
   const page = PAGE_TITLES[tab] || { title: tab, sub: "" };
 
   return (
-    <div style={{ fontFamily: "'Inter', 'Plus Jakarta Sans', system-ui, sans-serif", background: "#f6f5f3", minHeight: "100vh" }}>
+    <div style={{ fontFamily: "'Inter', 'Plus Jakarta Sans', system-ui, sans-serif", background: "#f7f5f0", minHeight: "100vh" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
         * { box-sizing: border-box; }
@@ -3351,13 +3351,13 @@ function AppShell() {
       {/* ── Sidebar ────────────────────────────────────── */}
       <aside style={{
         position: "fixed", top: 0, left: 0, bottom: 0, width: 196,
-        background: "#0f1117", borderRight: "none",
+        background: "#ffffff", borderRight: "1px solid #ede9e3",
         display: "flex", flexDirection: "column", zIndex: 30,
       }}>
         {/* Logo */}
-        <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid #1f2937", marginBottom: 4 }}>
-          <div style={{ fontWeight: 600, fontSize: 12, color: "#f9fafb", letterSpacing: "0.04em", lineHeight: 1, textTransform: "uppercase" }}>Camp Forestmere</div>
-          <div style={{ fontWeight: 400, fontSize: 10, color: "#6b7280", marginTop: 5, letterSpacing: "0.06em", textTransform: "uppercase" }}>Construction</div>
+        <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid #f0ece6", marginBottom: 4 }}>
+          <div style={{ fontWeight: 600, fontSize: 12, color: "#1a1a1a", letterSpacing: "0.02em", lineHeight: 1 }}>Camp Forestmere</div>
+          <div style={{ fontWeight: 400, fontSize: 10, color: "#9ca3af", marginTop: 4, letterSpacing: "0.01em" }}>Construction</div>
         </div>
 
         {/* Nav */}
@@ -3373,22 +3373,22 @@ function AppShell() {
                   width: "100%", textAlign: "left",
                   display: "flex", alignItems: "center", gap: 9,
                   padding: "7px 10px", borderRadius: 6, marginBottom: 1,
-                  background: active ? "rgba(255,255,255,0.08)" : "transparent",
-                  color: active ? "#f9fafb" : "#6b7280",
+                  background: active ? "#1a1a1a" : "transparent",
+                  color: active ? "#ffffff" : "#6b7280",
                   fontSize: 12, fontWeight: active ? 500 : 400,
                   border: "none", cursor: "pointer",
                   transition: "all 0.1s",
-                  borderLeft: active ? "2px solid #6366f1" : "2px solid transparent",
+                  borderRadius: 6,
                 }}
-                onMouseEnter={e => { if (!active) { e.currentTarget.style.color = "#d1d5db"; e.currentTarget.style.background = "rgba(255,255,255,0.04)"; } }}
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.color = "#374151"; e.currentTarget.style.background = "#f7f5f0"; } }}
                 onMouseLeave={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#6b7280"; } }}
               >
-                <span style={{ fontSize: 11, width: 16, textAlign: "center", flexShrink: 0, opacity: 0.7 }}>{n.icon}</span>
+                <span style={{ fontSize: 11, width: 16, textAlign: "center", flexShrink: 0, opacity: 0.5 }}>{n.icon}</span>
                 <span style={{ flex: 1 }}>{n.label}</span>
                 {docsCount && (
                   <span style={{
-                    background: active ? "rgba(255,255,255,0.15)" : "#1f2937",
-                    color: active ? "#d1d5db" : "#4b5563",
+                    background: active ? "rgba(255,255,255,0.2)" : "#f0ece6",
+                    color: active ? "#e5e7eb" : "#9ca3af",
                     borderRadius: 4, padding: "1px 6px", fontSize: 10, fontWeight: 500,
                   }}>{docsCount}</span>
                 )}
@@ -3398,9 +3398,9 @@ function AppShell() {
         </nav>
 
         {/* Footer */}
-        <div style={{ padding: "14px 16px", borderTop: "1px solid #1f2937" }}>
-          <div style={{ fontSize: 10, color: "#4b5563", fontWeight: 500, letterSpacing: "0.03em" }}>JXM / Camp Forestmere Corp.</div>
-          <div style={{ fontSize: 10, color: "#374151", marginTop: 2, letterSpacing: "0.03em" }}>Paul Smiths, NY</div>
+        <div style={{ padding: "14px 16px", borderTop: "1px solid #f0ece6" }}>
+          <div style={{ fontSize: 10, color: "#9ca3af", fontWeight: 400, letterSpacing: "0.01em" }}>JXM / Camp Forestmere Corp.</div>
+          <div style={{ fontSize: 10, color: "#b5b0a8", marginTop: 2 }}>Paul Smiths, NY</div>
         </div>
       </aside>
 
