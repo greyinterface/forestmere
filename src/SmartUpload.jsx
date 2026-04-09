@@ -386,7 +386,7 @@ export function SmartUploadView() {
   };
 
   const reset = () => {
-    setStage("upload"); setPendingFile(null); setPdfUrl(null); setError(null); setDoneMsg("");
+    setStage("upload"); setWizardStep(1); setPendingFile(null); setPdfUrl(null); setError(null); setDoneMsg("");
     setParseMsg(null);
     setInv({ payId:"",invNum:"",reqDate:"",periodTo:"",jobTotal:"",fees:"",deposit:"",retainage:"",
       amtDue:"",approved:"",paidDate:"",status:"Pending Payment",wire:"",credit:"",notes:"",lines:[] });
@@ -395,59 +395,116 @@ export function SmartUploadView() {
   };
 
 
-  // ── PHASE SELECTOR ──────────────────────────────────────────────────────────
-  const PHASES = [
-    { id: "phase11",    label: "Phase 1.1",          sub: "C25-104 · Taconic Builders" },
-    { id: "demolition", label: "Demolition",          sub: "C25-102" },
-    { id: "road",       label: "Road Construction",   sub: "C23-101" },
-    { id: "designeng",  label: "Design & Engineering",sub: "Arch · Reed · Ivan" },
-    { id: "general",    label: "General / Other",     sub: "Project-wide" },
+  // ── WIZARD CONFIG ──────────────────────────────────────────────────────────
+  const [wizardStep, setWizardStep] = useState(1); // 1=doctype 2=phase 3=upload
+
+  const DOC_TYPES = [
+    { id: "taconic_invoice", label: "Invoice",       icon: "≡",  sub: "Pay application or invoice" },
+    { id: "change_order",    label: "Change Order",  icon: "△",  sub: "Scope or cost change" },
+    { id: "award_letter",    label: "Award Letter",  icon: "◎",  sub: "Subcontract award" },
+    { id: "other",           label: "Other",         icon: "⊕",  sub: "General document" },
   ];
 
-  const PhaseSelector = () => (
-    <div className={card}>
-      <p className={sectionTitle}>Link to Phase</p>
-      <div className="flex flex-wrap gap-2">
-        {PHASES.map(ph => (
-          <button key={ph.id} onClick={() => setLinkedPhase(ph.id)}
-            className="px-3 py-2 rounded-lg border text-left transition-colors"
-            style={{
-              background: linkedPhase === ph.id ? "#111827" : "#f9f9f7",
-              borderColor: linkedPhase === ph.id ? "#111827" : "#e6e6e3",
-              minWidth: 130,
-            }}>
-            <div className="text-xs font-semibold" style={{color: linkedPhase === ph.id ? "#fff" : "#374151"}}>{ph.label}</div>
-            <div className="text-xs mt-0.5" style={{color: "#9ca3af"}}>{ph.sub}</div>
-          </button>
-        ))}
+  const PHASES = [
+    { id: "phase11",    label: "Phase 1.1",           sub: "C25-104 · Taconic" },
+    { id: "demolition", label: "Demolition",           sub: "C25-102" },
+    { id: "road",       label: "Road Construction",    sub: "C23-101" },
+    { id: "designeng",  label: "Design & Engineering", sub: "Arch · Reed · Ivan" },
+    { id: "general",    label: "Other / General",      sub: "Project-wide" },
+  ];
+
+  const PhaseSelector = () => null; // kept for compat, wizard handles phase selection now
+
+  const WizardStep = ({ n, label, active, done }) => (
+    <div className="flex items-center gap-2">
+      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+        style={{background: done ? "#10b981" : active ? "#111827" : "#e5e7eb", color: done||active ? "#fff" : "#9ca3af"}}>
+        {done ? "✓" : n}
       </div>
+      <span className="text-xs font-medium" style={{color: active ? "#111827" : done ? "#10b981" : "#9ca3af"}}>{label}</span>
     </div>
   );
 
   // ── UPLOAD ──────────────────────────────────────────────────────────────
   if (stage === "upload") return (
-    <div className="space-y-5 max-w-2xl">
-      <div className={card}>
-        <h2 className="text-sm font-bold text-gray-900 mb-1">Upload Document</h2>
-        <p className="text-xs text-gray-400 mb-5">All document types auto-parse and pre-fill fields from PDF.</p>
-        <div className="flex gap-2 mb-5 flex-wrap">
-          {[["taconic_invoice","Taconic Invoice (Phase 1.1)"],["prior_invoice","Road / Demo Invoice"],["change_order","Change Order"],["vendor_invoice","Vendor Invoice"],["award_letter","Award Letter"]].map(([id,lb]) => (
-            <button key={id} onClick={()=>setDocType(id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-              style={{background:docType===id?"#111827":"#f3f4f6",color:docType===id?"#fff":"#6b7280"}}>{lb}</button>
-          ))}
-        </div>
-        {error && <div className="mb-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
-        <div className="border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors"
-          style={{borderColor:dragOver?"#6366f1":"#e5e7eb",background:dragOver?"#eef2ff":"#fafafa"}}
-          onClick={()=>fileRef.current?.click()}
-          onDragOver={e=>{e.preventDefault();setDragOver(true);}}
-          onDragLeave={()=>setDragOver(false)}
-          onDrop={e=>{e.preventDefault();setDragOver(false);handleFile(e.dataTransfer.files[0]);}}>
-          <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={e=>handleFile(e.target.files[0])}/>
-          <div className="text-3xl mb-3">📄</div>
-          <p className="text-sm font-semibold text-gray-700">Drop PDF here or click to browse</p>
-          <p className="text-xs text-gray-400 mt-1">AI extracts all fields automatically</p>
-        </div>
+    <div className="max-w-xl space-y-4">
+      {/* Step indicators */}
+      <div className="flex items-center gap-3 px-1">
+        <WizardStep n={1} label="Document type" active={wizardStep===1} done={wizardStep>1} />
+        <div className="flex-1 h-px bg-gray-200" />
+        <WizardStep n={2} label="Phase" active={wizardStep===2} done={wizardStep>2} />
+        <div className="flex-1 h-px bg-gray-200" />
+        <WizardStep n={3} label="Upload & parse" active={wizardStep===3} done={false} />
+      </div>
+
+      <div className="bg-white border border-[#ede9e3] rounded-lg overflow-hidden">
+        {/* Step 1: Document type */}
+        {wizardStep === 1 && (
+          <div className="p-5 space-y-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">What type of document?</p>
+              <div className="grid grid-cols-2 gap-2">
+                {DOC_TYPES.map(dt => (
+                  <button key={dt.id} onClick={() => { setDocType(dt.id === "other" ? "vendor_invoice" : dt.id); setWizardStep(2); }}
+                    className="flex items-start gap-3 px-4 py-3.5 rounded-lg border border-[#ede9e3] hover:border-gray-400 hover:bg-[#faf8f5] transition-all text-left">
+                    <span className="text-base text-gray-400 mt-0.5 shrink-0">{dt.icon}</span>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-800">{dt.label}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">{dt.sub}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Phase */}
+        {wizardStep === 2 && (
+          <div className="p-5 space-y-4">
+            <div className="flex items-center gap-2 mb-1">
+              <button onClick={() => setWizardStep(1)} className="text-xs text-gray-400 hover:text-gray-600">← Back</button>
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Which phase does this belong to?</p>
+            <div className="space-y-2">
+              {PHASES.map(ph => (
+                <button key={ph.id} onClick={() => { setLinkedPhase(ph.id); setWizardStep(3); }}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-[#ede9e3] hover:border-gray-400 hover:bg-[#faf8f5] transition-all text-left">
+                  <span className="text-sm font-semibold text-gray-800">{ph.label}</span>
+                  <span className="text-xs text-gray-400">{ph.sub}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Upload */}
+        {wizardStep === 3 && (
+          <div className="p-5 space-y-4">
+            <div className="flex items-center gap-2 mb-1">
+              <button onClick={() => setWizardStep(2)} className="text-xs text-gray-400 hover:text-gray-600">← Back</button>
+            </div>
+            <div className="flex items-center gap-3 px-3 py-2 bg-[#faf8f5] rounded-lg border border-[#ede9e3] text-xs">
+              <span className="text-gray-400">Type:</span>
+              <span className="font-medium text-gray-700">{DOC_TYPES.find(d => d.id === docType || (d.id === "other" && docType === "vendor_invoice"))?.label || docType}</span>
+              <span className="text-gray-300">·</span>
+              <span className="text-gray-400">Phase:</span>
+              <span className="font-medium text-gray-700">{PHASES.find(p => p.id === linkedPhase)?.label}</span>
+            </div>
+            {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
+            <div className="border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors"
+              style={{borderColor:dragOver?"#111827":"#d1d5db",background:dragOver?"#f9f9f7":"#fafaf8"}}
+              onClick={()=>fileRef.current?.click()}
+              onDragOver={e=>{e.preventDefault();setDragOver(true);}}
+              onDragLeave={()=>setDragOver(false)}
+              onDrop={e=>{e.preventDefault();setDragOver(false);handleFile(e.dataTransfer.files[0]);}}>
+              <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={e=>handleFile(e.target.files[0])}/>
+              <div className="text-2xl mb-2 text-gray-300">+</div>
+              <p className="text-sm font-semibold text-gray-700">Drop PDF here or click to browse</p>
+              <p className="text-xs text-gray-400 mt-1">Fields auto-extracted on upload</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
