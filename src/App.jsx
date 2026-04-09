@@ -3060,23 +3060,20 @@ function TotalSpendView() {
         ].map(ph => (
           <button key={ph.name} onClick={() => setModal(ph)}
             className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-[#f5f1ea] transition-colors text-left group">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0 mr-4" style={{ background: ph.color }} />
             <div className="flex-1 min-w-0">
               <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
               <span className="text-sm text-gray-400 ml-2">{ph.desc}</span>
             </div>
-            
-            <span className="text-sm font-semibold text-gray-900 tabular-nums w-36 text-right">{$f(ph.total)}</span>
-            <span className="text-gray-300 group-hover:text-indigo-400 text-sm transition-colors">›</span>
+            <span className="text-sm text-gray-400 tabular-nums ml-auto pl-4 shrink-0">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
+            <span className="text-sm font-semibold text-gray-900 tabular-nums pl-5 shrink-0">{$f(ph.total)}</span>
+            <span className="text-gray-300 group-hover:text-indigo-400 text-sm shrink-0 pl-3">›</span>
           </button>
         ))}
-        <div className="px-5 py-2 bg-gray-50 flex items-center justify-between border-b border-gray-100">
-          <span className="text-sm font-semibold text-gray-500">Pre-Construction subtotal</span>
-          <div className="flex items-center gap-6">
-            <span className="text-sm text-gray-400 tabular-nums">{grandTotal > 0 ? pf(preConTotal/grandTotal) : "—"}</span>
-            <span className="text-sm font-bold text-gray-700 tabular-nums w-32 text-right">{$f(preConTotal)}</span>
-            <span className="w-4" />
-          </div>
+        <div className="px-5 py-2 bg-gray-50 flex items-center border-b border-gray-100">
+          <span className="flex-1 text-sm font-semibold text-gray-500">Pre-Construction subtotal</span>
+          <span className="text-sm text-gray-400 tabular-nums ml-auto pl-4 shrink-0">{grandTotal > 0 ? pf(preConTotal/grandTotal) : "—"}</span>
+          <span className="text-sm font-bold text-gray-700 tabular-nums pl-5 shrink-0">{$f(preConTotal)}</span>
+          <span className="w-3 shrink-0" />
         </div>
 
         {/* Section: Construction */}
@@ -3093,31 +3090,28 @@ function TotalSpendView() {
         ].map(ph => (
           <button key={ph.name} onClick={() => setModal(ph)}
             className="w-full flex items-center px-5 py-2.5 border-b border-gray-50 hover:bg-[#f5f1ea] transition-colors text-left group">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0 mr-4" style={{ background: ph.color }} />
             <div className="flex-1 min-w-0">
               <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
               <span className="text-sm text-gray-400 ml-2">{ph.desc}</span>
             </div>
-            
-            <span className="text-sm font-semibold text-gray-900 tabular-nums w-36 text-right">{$f(ph.total)}</span>
-            <span className="text-gray-300 group-hover:text-indigo-400 text-sm transition-colors">›</span>
+            <span className="text-sm text-gray-400 tabular-nums ml-auto pl-4 shrink-0">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
+            <span className="text-sm font-semibold text-gray-900 tabular-nums pl-5 shrink-0">{$f(ph.total)}</span>
+            <span className="text-gray-300 group-hover:text-indigo-400 text-sm shrink-0 pl-3">›</span>
           </button>
         ))}
-        <div className="px-5 py-2 bg-gray-50 flex items-center justify-between border-b border-gray-100">
-          <span className="text-sm font-semibold text-gray-500">Construction subtotal</span>
-          <div className="flex items-center gap-6">
-            <span className="text-sm text-gray-400 tabular-nums">{grandTotal > 0 ? pf(conTotal/grandTotal) : "—"}</span>
-            <span className="text-sm font-bold text-gray-700 tabular-nums w-32 text-right">{$f(conTotal)}</span>
-            <span className="w-4" />
-          </div>
+        <div className="px-5 py-2 bg-gray-50 flex items-center border-b border-gray-100">
+          <span className="flex-1 text-sm font-semibold text-gray-500">Construction subtotal</span>
+          <span className="text-sm text-gray-400 tabular-nums ml-auto pl-4 shrink-0">{grandTotal > 0 ? pf(conTotal/grandTotal) : "—"}</span>
+          <span className="text-sm font-bold text-gray-700 tabular-nums pl-5 shrink-0">{$f(conTotal)}</span>
+          <span className="w-3 shrink-0" />
         </div>
 
         {/* Grand total */}
         <div className="px-5 py-3 bg-[#f0ece6] flex items-center border-t-2 border-[#d4cfc8]">
           <span className="flex-1 text-sm font-bold text-gray-900 uppercase tracking-widest">Total — Inception to Date</span>
-          <span className="text-sm text-gray-500 tabular-nums w-16 text-right mr-4">100%</span>
-          <span className="text-sm font-bold text-gray-900 tabular-nums w-36 text-right">{$f(grandTotal)}</span>
-          <span className="w-4" />
+          <span className="text-sm text-gray-500 tabular-nums ml-auto pl-4 shrink-0">100%</span>
+          <span className="text-sm font-bold text-gray-900 tabular-nums pl-5 shrink-0">{$f(grandTotal)}</span>
+          <span className="w-3 shrink-0" />
         </div>
       </div>
 
