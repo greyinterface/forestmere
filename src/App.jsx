@@ -3219,7 +3219,7 @@ function TotalSpendView() {
                 className="w-full flex items-center px-5 py-2.5 hover:bg-[#faf8f5] transition-colors text-left">
                 <div className="flex-1 min-w-0 flex items-center gap-3">
                   <span className="text-sm font-semibold text-gray-800">{v.name}</span>
-                  {v.tag && <span className="text-sm font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">{v.tag}</span>}
+                  {v.tag && null}
                 </div>
                 <span className="text-sm font-bold text-gray-900 tabular-nums w-36 text-right mr-3">{$f(v.total)}</span>
                 <span className="text-gray-300 text-sm w-4 text-center">{expandedVendor === v.key ? "▾" : "›"}</span>
