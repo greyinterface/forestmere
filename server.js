@@ -1115,30 +1115,60 @@ app.post('/api/parse-document', upload.single('file'), async (req, res) => {
 
 function parseTaconicInvoice(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  const parseAmt = (s) => parseFloat((s||'').replace(/[$,()\\s]/g,'')) || 0;
+  const parseAmt = (s) => parseFloat((s||'').replace(/[$,\s]/g,'').replace(/[()]/g,'')) || 0;
 
+  // ── Invoice number ──────────────────────────────────────────────────────────
+  // Try "Invoice: 1559" or "Invoice #: 1559" first, then fallback to bare number
   let invNum = '';
-  for (let i = 0; i < lines.length; i++) {
-    if (/^\d{3,5}$/.test(lines[i]) && i > 0) { invNum = lines[i]; break; }
-  }
-
-  const invoiceDate = (text.match(/^(\d{1,2}\/\d{1,2}\/\d{4})/m)||[])[1] || '';
-  const periodTo = (text.match(/Date:\s*([A-Za-z]+ \d+,\s*\d{4})/)||
-                    text.match(/Period\s*To[:\s]+([A-Za-z]+ \d+,\s*\d{4})/i)||[])[1] || '';
-
-  let currentAmountDue = 0;
-  const wireMatch = text.match(/\$([\d,]+\.\d{2})\s*\nWire Fee/);
-  if (wireMatch) {
-    currentAmountDue = parseAmt(wireMatch[1]);
+  const invLabelMatch = text.match(/Invoice[:\s#]+(\d{3,6})\b/i);
+  if (invLabelMatch) {
+    invNum = invLabelMatch[1];
   } else {
-    const amtMatch = text.match(/Total Amount Due\$?([\d,]+\.\d{2})/);
-    if (amtMatch) currentAmountDue = parseAmt(amtMatch[1]);
+    for (let i = 0; i < lines.length; i++) {
+      if (/^\d{3,6}$/.test(lines[i]) && i > 0) { invNum = lines[i]; break; }
+    }
   }
 
+  // ── Invoice date ────────────────────────────────────────────────────────────
+  // Handles "Jun 19, 2025", "June 19, 2025", "06/19/2025", "6/19/2025"
+  const monthName = /(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+\d{4}/i;
+  const invoiceDateMatch = text.match(/Invoice\s*Date[:\s]+(.{5,20}?)(?:\n|Period)/i)
+    || text.match(/Invoice\s*Date[:\s]+(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  const invoiceDate = invoiceDateMatch ? invoiceDateMatch[1].trim() :
+    (text.match(/^(\d{1,2}\/\d{1,2}\/\d{4})/m)||[])[1] || '';
+
+  // ── Period To ───────────────────────────────────────────────────────────────
+  const periodToMatch = text.match(/Period\s*To[:\s]+([A-Za-z]+\.?\s+\d{1,2},?\s+\d{4})/i)
+    || text.match(/Period\s*To[:\s]+(\d{1,2}\/\d{1,2}\/\d{2,4})/i)
+    || text.match(/Date:\s*([A-Za-z]+\.?\s+\d{1,2},?\s+\d{4})/i);
+  const periodTo = periodToMatch ? periodToMatch[1].trim() : '';
+
+  // ── Current amount due ──────────────────────────────────────────────────────
+  // Try multiple labels: "Current Amount Due", "Amount Due", "Total Amount Due", wire pattern
+  let currentAmountDue = 0;
+  const amtPatterns = [
+    /Current\s*Amount\s*Due[\s\n]+\$?([\d,]+\.\d{2})/i,
+    /10\.\s*Current\s*Amount\s*Due[\s\n]+\$?([\d,]+\.\d{2})/i,
+    /Total\s*Amount\s*Due\$?([\d,]+\.\d{2})/i,
+    /Amount\s*Due\s*\$?([\d,]+\.\d{2})/i,
+    /\$([\d,]+\.\d{2})\s*\nWire\s*Fee/i,
+  ];
+  for (const pat of amtPatterns) {
+    const m = text.match(pat);
+    if (m) { currentAmountDue = parseAmt(m[1]); break; }
+  }
+
+  // ── Line items ──────────────────────────────────────────────────────────────
+  // Format 1 (Phase 1.1 AIA): code name $orig $co $sched $prev $curr $complete %
+  // Format 2 (Demo/Road billing breakdown): code description ... curr_bill
+  // We try format 1 first, then fall back to simpler column extraction
   const lineItemsBilled = [];
-  const lineRe = /(\d{2}-\d{3}[a-z]?)([^$]+)\$([\d,]+\.\d{2})\s+\$?([\d,().\\-]+)\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})/g;
+
+  // Format 1: AIA continuation sheet or Taconic billing breakdown
+  // Columns: code name orig_or_budget co/adj sched prev curr complete [pct balance]
+  const lineRe1 = /(\d{2}-\d{3}[a-z]?)\s+([^\n$]{3,50}?)\s+\$?([\d,]+\.\d{2})\s+\(?\$?([\d,]+\.\d{2})\)?\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})/gm;
   let m;
-  while ((m = lineRe.exec(text)) !== null) {
+  while ((m = lineRe1.exec(text)) !== null) {
     const currentBill = parseAmt(m[7]);
     if (currentBill > 0) {
       lineItemsBilled.push({
@@ -1149,6 +1179,38 @@ function parseTaconicInvoice(text) {
     }
   }
 
+  // Format 2 (Taconic billing breakdown): "01-001 General Conditions $X $Y $Z ..."
+  // Columns: code desc orig_budget approved_cos sched_val prev_bill curr_bill complete pct balance pct2
+  if (lineItemsBilled.length === 0) {
+    const lineRe2 = /(\d{2}-\d{3}[a-z]?)\s+([^\n$\d]{3,50}?)\s+([\d,]+\.\d{2})\s+\(?([\d,]+\.\d{2})\)?\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/g;
+    while ((m = lineRe2.exec(text)) !== null) {
+      const currentBill = parseAmt(m[7]);
+      if (currentBill > 0) {
+        lineItemsBilled.push({
+          code: m[1], name: m[2].trim().replace(/\s+/g,' '),
+          previousBilled: parseAmt(m[6]), currentBill,
+          completedToDate: parseAmt(m[8]),
+        });
+      }
+    }
+  }
+
+  // Format 3: "This Period Transactions" style — extract items with amounts from named sections
+  if (lineItemsBilled.length === 0) {
+    // Look for code + label + dollar amount on same/adjacent lines
+    const lineRe3 = /(\d{2}-\d{3}[a-z]?)[^\n]*\n([^\n$\d]{3,60}?)\s*\$?([\d,]+\.\d{2})/gm;
+    while ((m = lineRe3.exec(text)) !== null) {
+      const currentBill = parseAmt(m[3]);
+      if (currentBill > 0 && currentBill < 5000000) {
+        lineItemsBilled.push({
+          code: m[1], name: m[2].trim().replace(/\s+/g,' '),
+          previousBilled: 0, currentBill, completedToDate: currentBill,
+        });
+      }
+    }
+  }
+
+  // ── Fee summary ─────────────────────────────────────────────────────────────
   const gcFeeRow = lineItemsBilled.find(l => l.code === '97-000');
   const insRow = lineItemsBilled.find(l => l.code === '98-000');
   const gcFee = gcFeeRow ? gcFeeRow.currentBill : 0;
