@@ -1086,29 +1086,21 @@ app.post('/api/parse-document', upload.single('file'), async (req, res) => {
   try {
     const docType = req.body.doc_type || 'taconic_invoice';
     const pdfParse = (await import('pdf-parse/lib/pdf-parse.js')).default;
+
+    if (docType === 'taconic_invoice') {
+      // Parse only first 4 pages — Taconic packages attach many sub-invoices
+      // Pages 1-2: REQUEST FOR PAYMENT cover + billing summary
+      // Pages 3-4: This Period Transactions (line item detail)
+      // Pages 5+: timesheets, expense reports, sub-vendor invoices (IGNORE)
+      const pdfData4 = await pdfParse(req.file.buffer, { max: 4 });
+      const text = pdfData4.text;
+      if (!text || !text.trim()) throw new Error('Could not extract text from PDF');
+      return res.json({ ok: true, parsed: parseTaconicInvoice(text) });
+    }
+
     const pdfData = await pdfParse(req.file.buffer);
     const fullText = pdfData.text;
     if (!fullText || !fullText.trim()) throw new Error('Could not extract text from PDF');
-
-    if (docType === 'taconic_invoice') {
-      // For multi-page Taconic packages, isolate the REQUEST FOR PAYMENT cover page
-      // and the Billing Breakdown page — ignore supporting sub-invoices after page 3
-      let text = fullText;
-      // If the doc has a REQUEST FOR PAYMENT header, extract from there through
-      // the first major section break (timesheets, sub-invoices start with known patterns)
-      const rfpIdx = fullText.indexOf('REQUEST FOR PAYMENT');
-      if (rfpIdx !== -1) {
-        // Find where the supporting docs start (timesheets, expense reports, sub-invoices)
-        const stopPatterns = ['Timesheet\nNAME', 'EXPENSES -', 'Verizon Wireless\nApril', 'Verizon Wireless\nMay', 'Krueger Electrical', 'Hyde Fuel', 'nationalgridus', 'Spectrum'];
-        let stopIdx = fullText.length;
-        for (const pat of stopPatterns) {
-          const idx = fullText.indexOf(pat, rfpIdx + 100);
-          if (idx !== -1 && idx < stopIdx) stopIdx = idx;
-        }
-        text = fullText.slice(rfpIdx, stopIdx);
-      }
-      return res.json({ ok: true, parsed: parseTaconicInvoice(text) });
-    }
     if (docType === 'change_order') {
       const parsed = parseChangeOrder(fullText);
       const lineItems = await pool.query('SELECT code, name FROM line_items ORDER BY code');
