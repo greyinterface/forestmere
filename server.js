@@ -1087,24 +1087,40 @@ app.post('/api/parse-document', upload.single('file'), async (req, res) => {
     const docType = req.body.doc_type || 'taconic_invoice';
     const pdfParse = (await import('pdf-parse/lib/pdf-parse.js')).default;
     const pdfData = await pdfParse(req.file.buffer);
-    const text = pdfData.text;
-    if (!text || !text.trim()) throw new Error('Could not extract text from PDF');
+    const fullText = pdfData.text;
+    if (!fullText || !fullText.trim()) throw new Error('Could not extract text from PDF');
 
     if (docType === 'taconic_invoice') {
+      // For multi-page Taconic packages, isolate the REQUEST FOR PAYMENT cover page
+      // and the Billing Breakdown page — ignore supporting sub-invoices after page 3
+      let text = fullText;
+      // If the doc has a REQUEST FOR PAYMENT header, extract from there through
+      // the first major section break (timesheets, sub-invoices start with known patterns)
+      const rfpIdx = fullText.indexOf('REQUEST FOR PAYMENT');
+      if (rfpIdx !== -1) {
+        // Find where the supporting docs start (timesheets, expense reports, sub-invoices)
+        const stopPatterns = ['Timesheet\nNAME', 'EXPENSES -', 'Verizon Wireless\nApril', 'Verizon Wireless\nMay', 'Krueger Electrical', 'Hyde Fuel', 'nationalgridus', 'Spectrum'];
+        let stopIdx = fullText.length;
+        for (const pat of stopPatterns) {
+          const idx = fullText.indexOf(pat, rfpIdx + 100);
+          if (idx !== -1 && idx < stopIdx) stopIdx = idx;
+        }
+        text = fullText.slice(rfpIdx, stopIdx);
+      }
       return res.json({ ok: true, parsed: parseTaconicInvoice(text) });
     }
     if (docType === 'change_order') {
-      const parsed = parseChangeOrder(text);
+      const parsed = parseChangeOrder(fullText);
       const lineItems = await pool.query('SELECT code, name FROM line_items ORDER BY code');
-      const matched = matchCOToLineItems(parsed, lineItems.rows, text);
+      const matched = matchCOToLineItems(parsed, lineItems.rows, fullText);
       return res.json({ ok: true, parsed: matched });
     }
     if (docType === 'vendor_invoice') {
-      return res.json({ ok: true, parsed: parseVendorInvoice(text) });
+      return res.json({ ok: true, parsed: parseVendorInvoice(fullText) });
     }
-    const amountMatch = text.match(/\$(\d[\d,]+(?:\.\d{2})?)/);
+    const amountMatch = fullText.match(/\$(\d[\d,]+(?:\.\d{2})?)/);
     res.json({ ok: true, parsed: {
-      vendor: text.split('\n').find(l => l.trim().length > 3 && l.trim().length < 50) || '',
+      vendor: fullText.split('\n').find(l => l.trim().length > 3 && l.trim().length < 50) || '',
       awardAmount: amountMatch ? parseFloat(amountMatch[1].replace(/,/g,'')) : 0,
     }});
   } catch (err) {
