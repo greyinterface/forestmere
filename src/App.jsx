@@ -3064,16 +3064,20 @@ function TotalSpendView() {
               <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
               <span className="text-sm text-gray-400 ml-2">{ph.desc}</span>
             </div>
-            <span className="text-sm text-gray-400 tabular-nums ml-auto pl-4 shrink-0">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
-            <span className="text-sm font-semibold text-gray-900 tabular-nums pl-5 shrink-0">{$f(ph.total)}</span>
-            <span className="text-gray-300 group-hover:text-indigo-400 text-sm shrink-0 pl-3">›</span>
+            <div className="flex items-center gap-4 ml-auto pl-4 shrink-0">
+              <span className="text-sm text-gray-400 tabular-nums">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
+              <span className="text-sm font-semibold text-gray-900 tabular-nums">{$f(ph.total)}</span>
+              <span className="text-gray-300 group-hover:text-indigo-400 text-sm">›</span>
+            </div>
           </button>
         ))}
         <div className="px-5 py-2 bg-gray-50 flex items-center border-b border-gray-100">
           <span className="flex-1 text-sm font-semibold text-gray-500">Pre-Construction subtotal</span>
-          <span className="text-sm text-gray-400 tabular-nums ml-auto pl-4 shrink-0">{grandTotal > 0 ? pf(preConTotal/grandTotal) : "—"}</span>
-          <span className="text-sm font-bold text-gray-700 tabular-nums pl-5 shrink-0">{$f(preConTotal)}</span>
-          <span className="w-3 shrink-0" />
+          <div className="flex items-center gap-4 ml-auto pl-4 shrink-0">
+            <span className="text-sm text-gray-400 tabular-nums">{grandTotal > 0 ? pf(preConTotal/grandTotal) : "—"}</span>
+            <span className="text-sm font-bold text-gray-700 tabular-nums">{$f(preConTotal)}</span>
+            <span className="w-3" />
+          </div>
         </div>
 
         {/* Section: Construction */}
@@ -3085,7 +3089,7 @@ function TotalSpendView() {
             rows: allPayments.filter(p => p.work_package === "Road Construction") },
           { name: "Demolition",        total: demoTotal,    color: WP_COLORS["Demolition"],        desc: "C25-102",
             rows: allPayments.filter(p => p.work_package === "Demolition") },
-          { name: "Phase 1.1",         total: phase11Total, color: WP_COLORS["Phase 1.1"],         desc: "C25-104 — Taconic Builders",
+          { name: "Phase 1.1",         total: phase11Total, color: WP_COLORS["Phase 1.1"],         desc: "C25-104",
             rows: allPayments.filter(p => p.work_package === "Phase 1.1") },
         ].map(ph => (
           <button key={ph.name} onClick={() => setModal(ph)}
@@ -3094,24 +3098,30 @@ function TotalSpendView() {
               <span className="text-sm font-semibold text-gray-800">{ph.name}</span>
               <span className="text-sm text-gray-400 ml-2">{ph.desc}</span>
             </div>
-            <span className="text-sm text-gray-400 tabular-nums ml-auto pl-4 shrink-0">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
-            <span className="text-sm font-semibold text-gray-900 tabular-nums pl-5 shrink-0">{$f(ph.total)}</span>
-            <span className="text-gray-300 group-hover:text-indigo-400 text-sm shrink-0 pl-3">›</span>
+            <div className="flex items-center gap-4 ml-auto pl-4 shrink-0">
+              <span className="text-sm text-gray-400 tabular-nums">{grandTotal > 0 ? pf(ph.total/grandTotal) : "—"}</span>
+              <span className="text-sm font-semibold text-gray-900 tabular-nums">{$f(ph.total)}</span>
+              <span className="text-gray-300 group-hover:text-indigo-400 text-sm">›</span>
+            </div>
           </button>
         ))}
         <div className="px-5 py-2 bg-gray-50 flex items-center border-b border-gray-100">
           <span className="flex-1 text-sm font-semibold text-gray-500">Construction subtotal</span>
-          <span className="text-sm text-gray-400 tabular-nums ml-auto pl-4 shrink-0">{grandTotal > 0 ? pf(conTotal/grandTotal) : "—"}</span>
-          <span className="text-sm font-bold text-gray-700 tabular-nums pl-5 shrink-0">{$f(conTotal)}</span>
-          <span className="w-3 shrink-0" />
+          <div className="flex items-center gap-4 ml-auto pl-4 shrink-0">
+            <span className="text-sm text-gray-400 tabular-nums">{grandTotal > 0 ? pf(conTotal/grandTotal) : "—"}</span>
+            <span className="text-sm font-bold text-gray-700 tabular-nums">{$f(conTotal)}</span>
+            <span className="w-3" />
+          </div>
         </div>
 
         {/* Grand total */}
         <div className="px-5 py-3 bg-[#f0ece6] flex items-center border-t-2 border-[#d4cfc8]">
           <span className="flex-1 text-sm font-bold text-gray-900 uppercase tracking-widest">Total — Inception to Date</span>
-          <span className="text-sm text-gray-500 tabular-nums ml-auto pl-4 shrink-0">100%</span>
-          <span className="text-sm font-bold text-gray-900 tabular-nums pl-5 shrink-0">{$f(grandTotal)}</span>
-          <span className="w-3 shrink-0" />
+          <div className="flex items-center gap-4 ml-auto pl-4 shrink-0">
+            <span className="text-sm text-gray-500 tabular-nums">100%</span>
+            <span className="text-sm font-bold text-gray-900 tabular-nums">{$f(grandTotal)}</span>
+            <span className="w-3" />
+          </div>
         </div>
       </div>
 
@@ -3156,7 +3166,7 @@ function TotalSpendView() {
                 { name: "Demolition",        total: demoTotal,    color: WP_COLORS["Demolition"],
                   desc: "C25-102", rows: allPayments.filter(p => p.work_package === "Demolition") },
                 { name: "Phase 1.1",         total: phase11Total, color: WP_COLORS["Phase 1.1"],
-                  desc: "C25-104 — Taconic Builders", rows: allPayments.filter(p => p.work_package === "Phase 1.1") },
+                  desc: "C25-104", rows: allPayments.filter(p => p.work_package === "Phase 1.1") },
               ]
             }
           ].map(stageData => (
