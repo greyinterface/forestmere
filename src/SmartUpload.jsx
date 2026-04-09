@@ -162,6 +162,8 @@ export function SmartUploadView() {
   const [vend, setVend] = useState({ vendorKey:"ivan", invNum:"", date:"", desc:"", amount:"", status:"Pending" });
   const [prior, setPrior] = useState({ phase:"road", invNum:"", date:"", vendor:"", description:"", amount:"", notes:"" });
   const sp = (k) => (e) => setPrior(f => ({...f, [k]: e.target.value}));
+  const [linkedPhase, setLinkedPhase] = useState("phase11"); // applies to all doc types
+  const [stage2, setStage2] = useState("form"); // "form" | "preview" | "saving"
 
   const si = (k) => (e) => setInv(f => ({...f, [k]: e.target.value}));
   const sc = (k) => (e) => setCo(f => ({...f, [k]: e.target.value}));
@@ -302,6 +304,7 @@ export function SmartUploadView() {
         fd.append("file",pendingFile); fd.append("name",pendingFile.name);
         fd.append("type","Invoice"); fd.append("vendor_key","taconic");
         fd.append("vendor_label","Taconic Builders"); fd.append("linked_id",inv.payId);
+        fd.append("phase", linkedPhase);
         fd.append("note",`${fmtInv} · Period: ${inv.periodTo}`);
         await fetch(API + '/documents', { method:'POST', body:fd });
       }
@@ -325,7 +328,8 @@ export function SmartUploadView() {
         const fd = new FormData();
         fd.append("file",pendingFile); fd.append("name",pendingFile.name);
         fd.append("type","Change Order"); fd.append("vendor_key","taconic");
-        fd.append("linked_id",co.no); fd.append("note",`Supporting document for ${co.no}`);
+        fd.append("linked_id",co.no);
+        fd.append("phase", linkedPhase); fd.append("note",`Supporting document for ${co.no}`);
         await fetch(API + '/documents', { method:'POST', body:fd });
       }
       setDoneMsg(`${co.no} saved.`); setStage("done");
@@ -390,6 +394,36 @@ export function SmartUploadView() {
     setVend({ vendorKey:"ivan",invNum:"",date:"",desc:"",amount:"",status:"Pending" });
   };
 
+
+  // ── PHASE SELECTOR ──────────────────────────────────────────────────────────
+  const PHASES = [
+    { id: "phase11",    label: "Phase 1.1",          sub: "C25-104 · Taconic Builders" },
+    { id: "demolition", label: "Demolition",          sub: "C25-102" },
+    { id: "road",       label: "Road Construction",   sub: "C23-101" },
+    { id: "designeng",  label: "Design & Engineering",sub: "Arch · Reed · Ivan" },
+    { id: "general",    label: "General / Other",     sub: "Project-wide" },
+  ];
+
+  const PhaseSelector = () => (
+    <div className={card}>
+      <p className={sectionTitle}>Link to Phase</p>
+      <div className="flex flex-wrap gap-2">
+        {PHASES.map(ph => (
+          <button key={ph.id} onClick={() => setLinkedPhase(ph.id)}
+            className="px-3 py-2 rounded-lg border text-left transition-colors"
+            style={{
+              background: linkedPhase === ph.id ? "#111827" : "#f9f9f7",
+              borderColor: linkedPhase === ph.id ? "#111827" : "#e6e6e3",
+              minWidth: 130,
+            }}>
+            <div className="text-xs font-semibold" style={{color: linkedPhase === ph.id ? "#fff" : "#374151"}}>{ph.label}</div>
+            <div className="text-xs mt-0.5" style={{color: "#9ca3af"}}>{ph.sub}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   // ── UPLOAD ──────────────────────────────────────────────────────────────
   if (stage === "upload") return (
     <div className="space-y-5 max-w-2xl">
@@ -436,6 +470,8 @@ export function SmartUploadView() {
         </div>
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
         {parseMsg && <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-700">⚠ {parseMsg}</div>}
+
+        <PhaseSelector />
 
         {/* Header */}
         <div className={card}>
@@ -591,8 +627,42 @@ export function SmartUploadView() {
         {/* Buttons */}
         <div className="flex gap-3">
           <button onClick={reset} className="px-5 py-3 text-sm font-semibold rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50">Cancel</button>
-          <button onClick={saveTaconic} disabled={saving||!inv.payId||!inv.invNum||!inv.approved} className="flex-1 py-3 text-sm font-bold rounded-xl text-white" style={{background:saving||!inv.payId||!inv.invNum||!inv.approved?"#e5e7eb":"#111827",color:saving||!inv.payId||!inv.invNum||!inv.approved?"#9ca3af":"#fff"}}>{saving?"Saving...":"Save Invoice + Line Items →"}</button>
+          <button onClick={() => setStage2("preview")} disabled={!inv.payId||!inv.invNum||!inv.approved} className="flex-1 py-3 text-sm font-bold rounded-xl text-white" style={{background:!inv.payId||!inv.invNum||!inv.approved?"#e5e7eb":"#111827",color:!inv.payId||!inv.invNum||!inv.approved?"#9ca3af":"#fff"}}>Review & Save →</button>
         </div>
+
+        {/* ── PREVIEW MODAL ── */}
+        {stage2 === "preview" && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-2xl w-full max-w-lg">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <p className="text-sm font-bold text-gray-900">Confirm Save</p>
+                <p className="text-xs text-gray-400 mt-0.5">Review before saving to the database</p>
+              </div>
+              <div className="p-6 space-y-3">
+                {[
+                  ["Phase", PHASES.find(p => p.id === linkedPhase)?.label || linkedPhase],
+                  ["Payment ID", inv.payId],
+                  ["Invoice #", inv.invNum],
+                  ["Period To", inv.periodTo],
+                  ["Approved Amount", inv.approved ? "$" + Number(inv.approved).toLocaleString() : "—"],
+                  ["Status", inv.status],
+                  ["Line Items", inv.lines.filter(l => l.code && l.bill).length + " items"],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between py-1.5 border-b border-gray-50">
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{k}</span>
+                    <span className="text-sm font-medium text-gray-800">{v}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="px-6 py-4 flex gap-3 border-t border-gray-100">
+                <button onClick={() => setStage2("form")} className="px-4 py-2.5 text-sm font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">← Edit</button>
+                <button onClick={() => { setStage2("form"); saveTaconic(); }} disabled={saving} className="flex-1 py-2.5 text-sm font-bold rounded-lg text-white transition-colors" style={{background: saving ? "#9ca3af" : "#111827"}}>
+                  {saving ? "Saving…" : "Confirm & Save →"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
 
@@ -670,6 +740,7 @@ export function SmartUploadView() {
           <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600">Change file</button>
         </div>
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">{error}</div>}
+        <PhaseSelector />
         <div className={card}>
           <p className={sectionTitle}>Change Order Details</p>
           <div className="grid grid-cols-2 gap-4">
