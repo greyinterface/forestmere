@@ -3113,13 +3113,11 @@ function TotalSpendView() {
         </div>
 
         {/* Grand total */}
-        <div className="px-5 py-3 bg-[#f5f1ea] flex items-center justify-between border-t-2 border-[#d4cfc8]">
-          <span className="text-sm font-bold text-gray-900 uppercase tracking-widest">Total — Inception to Date</span>
-          <div className="flex items-center gap-6">
-            <span className="text-sm text-gray-400 tabular-nums">100%</span>
-            <span className="text-sm font-bold text-white tabular-nums w-32 text-right">{$f(grandTotal)}</span>
-            <span className="w-4" />
-          </div>
+        <div className="px-5 py-3 bg-[#f0ece6] flex items-center border-t-2 border-[#d4cfc8]">
+          <span className="flex-1 text-sm font-bold text-gray-900 uppercase tracking-widest">Total — Inception to Date</span>
+          <span className="text-sm text-gray-500 tabular-nums w-16 text-right mr-4">100%</span>
+          <span className="text-sm font-bold text-gray-900 tabular-nums w-36 text-right">{$f(grandTotal)}</span>
+          <span className="w-4" />
         </div>
       </div>
 
