@@ -4416,7 +4416,7 @@ const NAV = [
   { id: "road",        label: "Road Construction",     icon: "◷" },
   { id: "phase11",     label: "Phase 1.1",             icon: "◉" },
   { id: "designeng",   label: "Design & Engineering",  icon: "⬡" },
-  { id: "uploads",     label: "Documents",             icon: "⊕" },
+  { id: "uploads",     label: "Document Upload",        icon: "⊕" },
 ];
 
 const PAGE_TITLES = {
@@ -4434,7 +4434,7 @@ const PAGE_TITLES = {
   designeng:   { title: "DESIGN & ENGINEERING",     sub: "ArchitectureFirm · Reed Hilderbrand · Ivan Zdrahal PE" },
   road:        { title: "ROAD CONSTRUCTION",            sub: "Taconic Builders · C23-101 · Jan 2024 – Jun 2024 · Complete" },
   demolition:  { title: "DEMOLITION",                   sub: "Taconic Builders / Mayville Enterprises · C25-102 · Jan 2025 – May 2025 · Complete" },
-  uploads:     { title: "DOCUMENTS",               sub: "Upload & parse invoices, COs, award letters" },
+  uploads:     { title: "DOCUMENT UPLOAD",          sub: "Upload & parse invoices, COs, award letters" },
 };
 
 function AppShell() {
