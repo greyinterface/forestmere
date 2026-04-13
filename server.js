@@ -1088,13 +1088,96 @@ app.post('/api/parse-document', upload.single('file'), async (req, res) => {
     const pdfParse = (await import('pdf-parse/lib/pdf-parse.js')).default;
 
     if (docType === 'taconic_invoice') {
-      // Parse only first 4 pages — Taconic packages attach many sub-invoices
-      // Pages 1-2: REQUEST FOR PAYMENT cover + billing summary
-      // Pages 3-4: This Period Transactions (line item detail)
-      // Pages 5+: timesheets, expense reports, sub-vendor invoices (IGNORE)
-      const pdfData4 = await pdfParse(req.file.buffer, { max: 4 });
-      const text = pdfData4.text;
+      // Parse first 6 pages — cover + RFP + billing breakdown + line items
+      const pdfData6 = await pdfParse(req.file.buffer, { max: 6 });
+      const text = pdfData6.text;
       if (!text || !text.trim()) throw new Error('Could not extract text from PDF');
+
+      // Use Claude AI to reliably parse the invoice — regex fails because
+      // pdf-parse extracts this multi-column table column-by-column, not row-by-row
+      try {
+        const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 1500,
+            messages: [{
+              role: 'user',
+              content: `Extract data from this Taconic Builders pay application PDF text. The PDF columns are extracted separately so numbers won't be on the same line as their labels — use context clues.
+
+Return ONLY valid JSON, no other text:
+{
+  "invNum": "invoice number (e.g. 2073)",
+  "invoiceDate": "invoice date (e.g. Apr 2, 2026)",
+  "periodTo": "period to date (e.g. Mar 31, 2026)",
+  "currentAmountDue": 58583.58,
+  "lineItemsBilled": [
+    { "code": "01-001", "name": "Project Staffing", "currentBill": 28960.00 },
+    { "code": "97-000", "name": "Fee", "currentBill": 7036.21 },
+    { "code": "98-000", "name": "Insurance", "currentBill": 1774.69 }
+  ]
+}
+
+Only include line items where currentBill > 0. Do NOT include 99-200 Deposit (negative adjustment).
+Fee codes 97-000 and 98-000 should be included if > 0.
+
+PDF TEXT:
+${text.slice(0, 8000)}`
+            }]
+          })
+        });
+
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          const rawText = aiData.content?.[0]?.text || '';
+          const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            // Restructure to match what SmartUpload expects
+            const lineItemsBilled = (parsed.lineItemsBilled || []).map(l => ({
+              code: l.code,
+              name: l.name,
+              bill: String(l.currentBill || 0),
+              _suggested: true,
+            }));
+            return res.json({
+              ok: true,
+              parsed: {
+                header: {
+                  invNum: parsed.invNum || '',
+                  invoiceDate: parsed.invoiceDate || '',
+                  periodTo: parsed.periodTo || '',
+                  currentAmountDue: parsed.currentAmountDue || 0,
+                },
+                lineItemsBilled: lineItemsBilled.map(l => ({
+                  ...l,
+                  currentBill: parseFloat(l.bill) || 0,
+                  previousBilled: 0,
+                  completedToDate: parseFloat(l.bill) || 0,
+                })),
+                fees: {
+                  gcFee: (parsed.lineItemsBilled || []).find(l => l.code === '97-000')?.currentBill || 0,
+                  insurance: (parsed.lineItemsBilled || []).find(l => l.code === '98-000')?.currentBill || 0,
+                  depositApplied: 0,
+                  retainageThisPeriod: 0,
+                  jobTotal: (parsed.lineItemsBilled || [])
+                    .filter(l => !['97-000','97-001','98-000','99-200'].includes(l.code))
+                    .reduce((s, l) => s + (l.currentBill || 0), 0),
+                },
+              },
+            });
+          }
+        }
+      } catch (aiErr) {
+        console.error('AI parse failed, falling back to regex:', aiErr.message);
+      }
+
+      // Fallback: regex-based parser
       return res.json({ ok: true, parsed: parseTaconicInvoice(text) });
     }
 
@@ -1126,9 +1209,9 @@ function parseTaconicInvoice(text) {
   const parseAmt = (s) => parseFloat((s||'').replace(/[$,\s]/g,'').replace(/[()]/g,'')) || 0;
 
   // ── Invoice number ──────────────────────────────────────────────────────────
-  // Try "Invoice: 1559" or "Invoice #: 1559" first, then fallback to bare number
+  // Matches: "Invoice: 2073", "Invoice No.: 2073", "Invoice #: 2073"
   let invNum = '';
-  const invLabelMatch = text.match(/Invoice[:\s#]+(\d{3,6})\b/i);
+  const invLabelMatch = text.match(/Invoice[\s:No.#]+(\d{3,6})\b/i);
   if (invLabelMatch) {
     invNum = invLabelMatch[1];
   } else {
@@ -1138,10 +1221,8 @@ function parseTaconicInvoice(text) {
   }
 
   // ── Invoice date ────────────────────────────────────────────────────────────
-  // Handles "Jun 19, 2025", "June 19, 2025", "06/19/2025", "6/19/2025"
-  const monthName = /(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+\d{4}/i;
-  const invoiceDateMatch = text.match(/Invoice\s*Date[:\s]+(.{5,20}?)(?:\n|Period)/i)
-    || text.match(/Invoice\s*Date[:\s]+(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  const invoiceDateMatch = text.match(/Invoice\s*Date[:\s]+([\d\/]+)/i)
+    || text.match(/Invoice\s*Date[:\s]+([A-Za-z]+\.?\s+\d{1,2},?\s+\d{4})/i);
   const invoiceDate = invoiceDateMatch ? invoiceDateMatch[1].trim() :
     (text.match(/^(\d{1,2}\/\d{1,2}\/\d{4})/m)||[])[1] || '';
 
